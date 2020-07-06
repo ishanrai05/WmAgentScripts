@@ -34,23 +34,34 @@ reqmgrCouchURL = "https://cmsweb.cern.ch/couchdb/reqmgr_workload_cache"
 DELTA_EVENTS = 1000
 DELTA_LUMIS = 200
 
-def modifySchema(cache, workflow, user, group, events, firstLumi, backfill=False, memory=None, timeperevent=None):
+
+def modifySchema(
+        cache,
+        workflow,
+        user,
+        group,
+        events,
+        firstLumi,
+        backfill=False,
+        memory=None,
+        timeperevent=None):
     """
     Adapts schema to right parameters.
     If the original workflow points to DBS2, DBS3 URL is fixed instead.
     if backfill is True, modifies RequestString, ProcessingString, AcquisitionEra
     and Campaign to say Backfill, and restarts requestDate.
     """
-    result = reqMgrClient.purgeClonedSchema( cache )
+    result = reqMgrClient.purgeClonedSchema(cache)
 
-    ## then further drop nested arguments
-    taskParamBlacklist = [ 'EventsPerJob' ] 
-    for i in range(1,100):
-        t='Task%s'%i
-        if not t in result: break
+    # then further drop nested arguments
+    taskParamBlacklist = ['EventsPerJob']
+    for i in range(1, 100):
+        t = 'Task%s' % i
+        if t not in result:
+            break
         for p in taskParamBlacklist:
             if p in result[t]:
-                result[t].pop( p )
+                result[t].pop(p)
     if memory:
         result['Memory'] = memory
     if timeperevent:
@@ -63,7 +74,7 @@ def modifySchema(cache, workflow, user, group, events, firstLumi, backfill=False
     if result.get('CouchURL'):
         result['ConfigCacheUrl'] = result.pop('CouchURL')
 
-    #if we are extending the workflow
+    # if we are extending the workflow
     if events:
         # extend workflow so it will safely start outside of the boundary
         RequestNumEvents = int(result['RequestNumEvents'])
@@ -94,7 +105,7 @@ def modifySchema(cache, workflow, user, group, events, firstLumi, backfill=False
         # Modify ProcessingString, AcquisitionEra, Campaign and Request string (if they don't
         # have the word 'backfill' in it
         result["ProcessingString"] = "BACKFILL"
-        if isinstance(result["AcquisitionEra"],dict):
+        if isinstance(result["AcquisitionEra"], dict):
             for eraName in result["AcquisitionEra"]:
                 if "backfill" not in result["AcquisitionEra"][eraName].lower():
                     result["AcquisitionEra"][eraName] = result["AcquisitionEra"][eraName] + "Backfill"
@@ -106,7 +117,8 @@ def modifySchema(cache, workflow, user, group, events, firstLumi, backfill=False
         if "backfill" not in result["RequestString"].lower():
             # Word backfill in the middle of the request strin
             parts = result["RequestString"].split('-')
-            result["RequestString"] = '-'.join(parts[:2] + ["Backfill"] + parts[2:])
+            result["RequestString"] = '-'.join(parts[:2] +
+                                               ["Backfill"] + parts[2:])
         if "PrepID" in result:
             # delete entry
             del result["PrepID"]
@@ -129,24 +141,43 @@ def modifySchema(cache, workflow, user, group, events, firstLumi, backfill=False
 
     return result
 
-def cloneWorkflow(workflow, user, group, verbose=True, backfill=False, testbed=False, memory=None, timeperevent=None, bwl=None):
+
+def cloneWorkflow(
+        workflow,
+        user,
+        group,
+        verbose=True,
+        backfill=False,
+        testbed=False,
+        memory=None,
+        timeperevent=None,
+        bwl=None):
     """
     clones a workflow
     """
     # Adapt schema and add original request to it
     cache = reqMgrClient.getWorkflowInfo(url, workflow)
 
-    schema = modifySchema(cache, workflow, user, group, None, None, backfill, memory, timeperevent)
+    schema = modifySchema(
+        cache,
+        workflow,
+        user,
+        group,
+        None,
+        None,
+        backfill,
+        memory,
+        timeperevent)
 
     if verbose:
         pprint(schema)
-    
+
     if bwl:
         if 'Task1' in schema:
             schema['Task1']['BlockWhitelist'] = bwl.split(',')
         else:
             schema['BlockWhitelist'] = bwl.split(',')
-    ## only once
+    # only once
     ####schema['CMSSWVersion'] = 'CMSSW_8_0_16'
 
     print 'Submitting workflow'
@@ -187,6 +218,7 @@ def cloneWorkflow(workflow, user, group, verbose=True, backfill=False, testbed=F
             print "Couldn't clone the workflow."
         return None
 
+
 def getMissingEvents(workflow):
     """
     Gets the missing events for the workflow
@@ -196,14 +228,21 @@ def getMissingEvents(workflow):
     outputEvents = reqMgrClient.getOutputEvents(url, workflow, dataset)
     return int(inputEvents) - int(outputEvents)
 
-def extendWorkflow(workflow, user, group, verbose=False, events=None, firstlumi=None):
+
+def extendWorkflow(
+        workflow,
+        user,
+        group,
+        verbose=False,
+        events=None,
+        firstlumi=None):
 
     if events is None:
         events = getMissingEvents(workflow)
     events = int(events)
 
     if firstlumi is None:
-        #get the last lumi of the dataset
+        # get the last lumi of the dataset
         dataset = reqMgrClient.outputdatasetsWorkflow(url, workflow).pop()
 
         lastLumi = dbs3Client.getMaxLumi(dataset)
@@ -213,20 +252,27 @@ def extendWorkflow(workflow, user, group, verbose=False, events=None, firstlumi=
     # Get info about the workflow to be cloned
     cache = reqMgrClient.getWorkflowInfo(url, workflow)
 
-    schema = modifySchema(cache, workflow, user, group, events, firstlumi, None)
+    schema = modifySchema(
+        cache,
+        workflow,
+        user,
+        group,
+        events,
+        firstlumi,
+        None)
     if verbose:
         pprint(schema)
     print 'Submitting workflow'
     # Submit cloned workflow to ReqMgr
-    response = reqMgrClient.submitWorkflow(url,schema)
+    response = reqMgrClient.submitWorkflow(url, schema)
     if verbose:
         print "RESPONSE", response
 
-    #find the workflow name in response
-    m = re.search("details\/(.*)\'",response)
+    # find the workflow name in response
+    m = re.search(r"details\/(.*)\'", response)
     if m:
         newWorkflow = m.group(1)
-        print 'Cloned workflow: '+newWorkflow
+        print 'Cloned workflow: ' + newWorkflow
         print 'Extended with', events, 'events'
         print response
 
@@ -245,7 +291,7 @@ url = 'cmsweb.cern.ch'
 url_tb = 'cmsweb-testbed.cern.ch'
 reqmgrCouchURL = "https://" + url + "/couchdb/reqmgr_workload_cache"
 
- 
+
 def main():
 
     # Create option parser
@@ -253,25 +299,65 @@ def main():
             "WORKFLOW_NAME: if the list file is provided this should be empty\n"
 
     parser = OptionParser(usage=usage)
-    parser.add_option("-a", "--action", dest="action", default='clone',
-                      help="There are two options clone (clone) or extend a worflow (extend) .")
+    parser.add_option(
+        "-a",
+        "--action",
+        dest="action",
+        default='clone',
+        help="There are two options clone (clone) or extend a worflow (extend) .")
     parser.add_option("-u", "--user", dest="user",
                       help="User we are going to use", default=None)
     parser.add_option("-g", "--group", dest="group", default='DATAOPS',
                       help="Group to send the workflows.")
-    parser.add_option("-b", "--backfill", action="store_true", dest="backfill", default=False,
-                      help="Creates a clone for backfill test purposes.")
-    parser.add_option("-v", "--verbose", action="store_true", dest="verbose", default=False,
-                      help="Prints all query information.")
-    parser.add_option('-f', '--file', help='Text file with a list of workflows', dest='file')
-    parser.add_option('--bwl', help='The block white list to be used', dest='bwl',default=None)
-    #Extend workflow options
-    parser.add_option('-e', '--events', help='# of events to add', dest='events')
-    parser.add_option('-l', '--firstlumi', help='# of the first lumi', dest='firstlumi')
-    parser.add_option("-m", "--memory", dest="memory", help="Set max memory for the event. At assignment, this will be used to calculate maxRSS = memory*1024")
-    parser.add_option("--TimePerEvent", help="Set the TimePerEvent on the clone")
-    parser.add_option("--testbed", action="store_true", dest="testbed", default=False,
-                      help="Clone to testbed reqmgr insted of production")
+    parser.add_option(
+        "-b",
+        "--backfill",
+        action="store_true",
+        dest="backfill",
+        default=False,
+        help="Creates a clone for backfill test purposes.")
+    parser.add_option(
+        "-v",
+        "--verbose",
+        action="store_true",
+        dest="verbose",
+        default=False,
+        help="Prints all query information.")
+    parser.add_option(
+        '-f',
+        '--file',
+        help='Text file with a list of workflows',
+        dest='file')
+    parser.add_option(
+        '--bwl',
+        help='The block white list to be used',
+        dest='bwl',
+        default=None)
+    # Extend workflow options
+    parser.add_option(
+        '-e',
+        '--events',
+        help='# of events to add',
+        dest='events')
+    parser.add_option(
+        '-l',
+        '--firstlumi',
+        help='# of the first lumi',
+        dest='firstlumi')
+    parser.add_option(
+        "-m",
+        "--memory",
+        dest="memory",
+        help="Set max memory for the event. At assignment, this will be used to calculate maxRSS = memory*1024")
+    parser.add_option(
+        "--TimePerEvent",
+        help="Set the TimePerEvent on the clone")
+    parser.add_option(
+        "--testbed",
+        action="store_true",
+        dest="testbed",
+        default=False,
+        help="Clone to testbed reqmgr insted of production")
     (options, args) = parser.parse_args()
 
     # Check the arguments, get info from them
@@ -301,10 +387,24 @@ def main():
             if options.TimePerEvent:
                 timeperevent = float(options.TimePerEvent)
             cloneWorkflow(
-                wf, user, options.group, options.verbose, options.backfill, options.testbed, memory,timeperevent,bwl=options.bwl)
+                wf,
+                user,
+                options.group,
+                options.verbose,
+                options.backfill,
+                options.testbed,
+                memory,
+                timeperevent,
+                bwl=options.bwl)
     elif options.action == 'extend':
         for wf in wfs:
-            extendWorkflow(wf, user, options.group, options.verbose, options.events, options.firstlumi)
+            extendWorkflow(
+                wf,
+                user,
+                options.group,
+                options.verbose,
+                options.events,
+                options.firstlumi)
 
     sys.exit(0)
 

@@ -7,6 +7,7 @@ import reqMgrClient
 import optparse
 url = 'cmsweb.cern.ch'
 
+
 def main():
     """
     Read the text file, for each workflow try:
@@ -27,12 +28,13 @@ def main():
     for workflow in workflows:
         print "Force-Completing workflow: " + workflow
         result = reqMgrClient.forceCompleteWorkflow(url, workflow)
-        if result == None or result == 'None':
+        if result is None or result == 'None':
             print "Error"
         else:
             print "force-complete"
 
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

@@ -11,7 +11,9 @@ def getCampaignConfig(docName, url=reqmgr_url):
     :param docName: string with the doc name (use "ALL_DOCS" to retrieve all docs)
     :return: a list of dictionaries
     """
-    headers = {"Content-type": "application/json", "Accept": "application/json"}
+    headers = {
+        "Content-type": "application/json",
+        "Accept": "application/json"}
     conn = make_x509_conn(url)
     url = '/reqmgr2/data/campaignconfig/%s' % docName
     conn.request("GET", url, headers=headers)
@@ -33,15 +35,18 @@ def createCampaignConfig(docContent, url=reqmgr_url):
     elif isinstance(docContent, list):
         docContent = docContent[0]
     outcome = True
-    headers = {"Content-type": "application/json", "Accept": "application/json"}
+    headers = {
+        "Content-type": "application/json",
+        "Accept": "application/json"}
     conn = make_x509_conn(url)
     url = '/reqmgr2/data/campaignconfig/%s' % docContent['CampaignName']
     json_args = json.dumps(docContent)
     conn.request("POST", url, json_args, headers=headers)
     resp = conn.getresponse()
     if resp.status >= 400:
-        print("FAILED to create campaign: %s. Response status: %s, response reason: %s"
-              % (docContent['CampaignName'], resp.status, resp.reason))
+        print(
+            "FAILED to create campaign: %s. Response status: %s, response reason: %s" %
+            (docContent['CampaignName'], resp.status, resp.reason))
         outcome = False
     conn.close()
     return outcome
@@ -55,15 +60,18 @@ def updateCampaignConfig(docContent, url=reqmgr_url):
     :return: a boolean whether it succeeded (True) or not (False)
     """
     outcome = True
-    headers = {"Content-type": "application/json", "Accept": "application/json"}
+    headers = {
+        "Content-type": "application/json",
+        "Accept": "application/json"}
     conn = make_x509_conn(url)
     url = '/reqmgr2/data/campaignconfig/%s' % docContent['CampaignName']
     json_args = json.dumps(docContent)
     conn.request("PUT", url, json_args, headers=headers)
     resp = conn.getresponse()
     if resp.status >= 400:
-        print("FAILED to update campaign: %s. Response status: %s, response reason: %s"
-              % (docContent['CampaignName'], resp.status, resp.reason))
+        print(
+            "FAILED to update campaign: %s. Response status: %s, response reason: %s" %
+            (docContent['CampaignName'], resp.status, resp.reason))
         outcome = False
     conn.close()
     return outcome
@@ -77,15 +85,18 @@ def deleteCampaignConfig(docName, url=reqmgr_url):
     :return: a boolean whether it succeeded (True) or not (False)
     """
     outcome = True
-    headers = {"Content-type": "application/json", "Accept": "application/json",
-               "Content-Length": 0}  # this is required for DELETE calls
+    headers = {
+        "Content-type": "application/json",
+        "Accept": "application/json",
+        "Content-Length": 0}  # this is required for DELETE calls
     conn = make_x509_conn(url)
     url = '/reqmgr2/data/campaignconfig/%s' % docName
     conn.request("DELETE", url, headers=headers)
     resp = conn.getresponse()
     if resp.status >= 400:
-        print("FAILED to delete campaign: %s. Response status: %s, response reason: %s"
-              % (docName, resp.status, resp.reason))
+        print(
+            "FAILED to delete campaign: %s. Response status: %s, response reason: %s" %
+            (docName, resp.status, resp.reason))
         outcome = False
     conn.close()
     return outcome
@@ -136,10 +147,13 @@ def parseMongoCampaigns(campaigns, verbose=False):
         for uniKey, wmKey in remap.items():
             conf[wmKey] = rec.get(uniKey, conf[wmKey])
 
-        conf['SiteWhiteList'] = _getSiteList("SiteWhitelist", conf['SiteWhiteList'], rec)
-        conf['SiteBlackList'] = _getSiteList("SiteBlacklist", conf['SiteBlackList'], rec)
+        conf['SiteWhiteList'] = _getSiteList(
+            "SiteWhitelist", conf['SiteWhiteList'], rec)
+        conf['SiteBlackList'] = _getSiteList(
+            "SiteBlacklist", conf['SiteBlackList'], rec)
         conf['SecondaryAAA'] = _getSecondaryAAA(conf['SecondaryAAA'], rec)
-        conf['SecondaryLocation'] = _getSecondaryLocation(conf['SecondaryLocation'], rec)
+        conf['SecondaryLocation'] = _getSecondaryLocation(
+            conf['SecondaryLocation'], rec)
         conf['Secondaries'] = _getSecondaries(conf['Secondaries'], rec)
         if verbose:
             print("Final WMCore Campaign configuration: %s" % conf)
@@ -170,12 +184,17 @@ def _getSiteList(keyName, initialValue, uniRecord):
     If it appears multiple times, we make an intersection of the values
     """
     if keyName in uniRecord.get("parameters", {}):
-        print("Found internal %s for campaign: %s" % (keyName, uniRecord['name']))
-        initialValue = _intersect(initialValue, uniRecord["parameters"][keyName])
+        print(
+            "Found internal %s for campaign: %s" %
+            (keyName, uniRecord['name']))
+        initialValue = _intersect(
+            initialValue, uniRecord["parameters"][keyName])
 
     for _, innerDict in uniRecord.get("secondaries", {}).items():
         if keyName in innerDict:
-            print("Found internal %s for campaign: %s" % (keyName, uniRecord['name']))
+            print(
+                "Found internal %s for campaign: %s" %
+                (keyName, uniRecord['name']))
             initialValue = _intersect(initialValue, innerDict[keyName])
     return initialValue
 
@@ -190,7 +209,9 @@ def _getSecondaryAAA(initialValue, uniRecord):
     """
     for _, innerDict in uniRecord.get("secondaries", {}).items():
         if "secondary_AAA" in innerDict:
-            print("Found internal secondary_AAA for campaign: %s" % uniRecord['name'])
+            print(
+                "Found internal secondary_AAA for campaign: %s" %
+                uniRecord['name'])
             initialValue = initialValue or innerDict["secondary_AAA"]
     return initialValue
 
@@ -206,8 +227,11 @@ def _getSecondaryLocation(initialValue, uniRecord):
     """
     for _, innerDict in uniRecord.get("secondaries", {}).items():
         if "SecondaryLocation" in innerDict:
-            print("Found internal SecondaryLocation for campaign: %s" % uniRecord['name'])
-            initialValue = _intersect(initialValue, innerDict["SecondaryLocation"])
+            print(
+                "Found internal SecondaryLocation for campaign: %s" %
+                uniRecord['name'])
+            initialValue = _intersect(
+                initialValue, innerDict["SecondaryLocation"])
     return initialValue
 
 

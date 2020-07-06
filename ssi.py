@@ -8,7 +8,7 @@ if 'purge' in sys.argv:
 else:
     try:
         component, start, stop = sys.argv[1:]
-    except:
+    except BaseException:
         stop = None
         component, start = sys.argv[1:]
     ssi.pushStartStopTime(component, start, stop)

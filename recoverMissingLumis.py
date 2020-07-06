@@ -119,8 +119,10 @@ def reduceGraph(graph, root, edges):
             for node in nodes:
                 newEdges[(root, node)] = {'task': edges[(root, child)]['task'],
                                           'outMod': []}
-                newEdges[(root, node)]['outMod'].extend(edges[(root, child)]['outMod'])
-                newEdges[(root, node)]['outMod'].extend(newEdges[(child, node)]['outMod'])
+                newEdges[(root, node)]['outMod'].extend(
+                    edges[(root, child)]['outMod'])
+                newEdges[(root, node)]['outMod'].extend(
+                    newEdges[(child, node)]['outMod'])
                 del newEdges[(child, node)]
             del newGraph[child]
         else:
@@ -158,7 +160,7 @@ def traverseWorkloadForDatasets(workload, initialTask=None,
                 continue
 
             if stepHelper.stepType() == "CMSSW" or \
-                            stepHelper.stepType() == "MulticoreCMSSW":
+                    stepHelper.stepType() == "MulticoreCMSSW":
                 for outputModuleName in stepHelper.listOutputModules():
                     outputModule = stepHelper.getOutputModule(outputModuleName)
                     transient = getattr(outputModule, "transient", False)
@@ -203,7 +205,7 @@ def getOutputModules(workload, initialTask=None):
             if not getattr(stepHelper.data.output, "keep", True):
                 continue
             if stepHelper.stepType() == "CMSSW" or \
-                            stepHelper.stepType() == "MulticoreCMSSW":
+                    stepHelper.stepType() == "MulticoreCMSSW":
                 for outputModuleName in stepHelper.listOutputModules():
                     if task.taskType() != "Merge":
                         outputModules.append(outputModuleName)
@@ -212,40 +214,42 @@ def getOutputModules(workload, initialTask=None):
         outputModules.extend(otherOutputModules)
     return outputModules
 
-def ThreadBuster( threads, n_threads, sleepy, verbose=False):
 
-    ntotal=len(threads)
-    print "Processing",ntotal,"threads with",n_threads,"max concurrent"
+def ThreadBuster(threads, n_threads, sleepy, verbose=False):
+
+    ntotal = len(threads)
+    print "Processing", ntotal, "threads with", n_threads, "max concurrent"
     start_now = time.mktime(time.gmtime())
     r_threads = []
-    bug_every=max(len(threads) / 10., 100.) ## 10 steps of eta verbosity
-    next_ping = int(len(threads)/bug_every)
+    bug_every = max(len(threads) / 10., 100.)  # 10 steps of eta verbosity
+    next_ping = int(len(threads) / bug_every)
     while threads:
         running = sum([t.is_alive() for t in r_threads])
         #if verbose: print running,"/",n_threads,"running threads"
-        if n_threads==None or running < n_threads:
-            startme = n_threads-running if n_threads else len(threads)
-            if verbose or int(len(threads)/bug_every)<next_ping:
-                next_ping =int(len(threads)/bug_every)
-                now= time.mktime(time.gmtime())
+        if n_threads is None or running < n_threads:
+            startme = n_threads - running if n_threads else len(threads)
+            if verbose or int(len(threads) / bug_every) < next_ping:
+                next_ping = int(len(threads) / bug_every)
+                now = time.mktime(time.gmtime())
                 spend = (now - start_now)
-                n_done = ntotal-len(threads)
-                print "Starting",startme,"new threads",len(threads),"remaining" 
+                n_done = ntotal - len(threads)
+                print "Starting", startme, "new threads", len(
+                    threads), "remaining"
                 if n_done:
                     eta = (spend / n_done) * len(threads)
-                    print "Will finish in ~%.2f [s]"%(eta)
-            if startme > n_threads/5.:
-                sleepy/=2.
+                    print "Will finish in ~%.2f [s]" % (eta)
+            if startme > n_threads / 5.:
+                sleepy /= 2.
             for it in range(startme):
                 if threads:
-                    r_threads.append( threads.pop(-1))
+                    r_threads.append(threads.pop(-1))
                     r_threads[-1].start()
         time.sleep(sleepy)
-    ##then wait for completion
+    # then wait for completion
     while sum([t.is_alive() for t in r_threads]):
         time.sleep(1)
-        
-    ## and swap list back
+
+    # and swap list back
     return r_threads
 
 
@@ -263,12 +267,11 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
     phedexReader = PhEDEx()
     CRICsite = CRIC()
 
-
     class BlockBuster(threading.Thread):
         def __init__(self, **args):
             threading.Thread.__init__(self)
-            for k,v in args.items():
-                setattr(self,k,v)
+            for k, v in args.items():
+                setattr(self, k, v)
             self.major_failure = False
 
         def run(self):
@@ -280,7 +283,6 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
             blockBlacklist = self.bbl
             blockWhitelist = self.bwl
 
-
             if blockBlacklist and blockName in blockBlacklist:
                 return
             if blockWhitelist and blockName not in blockWhitelist:
@@ -290,12 +292,13 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
             CRICsite = CRIC()
             dbsReader = DBSReader(endpoint=self.dbs)
             replicaInfo = phedexReader.getReplicaInfoForBlocks(block=blockName,
-                                                                    subscribed='y')
+                                                               subscribed='y')
             blockFiles = dbsReader.listFilesInBlock(blockName, lumis=True)
             if has_parent:
                 try:
-                    blockFileParents = dbsReader.listFilesInBlockWithParents(blockName)
-                except:
+                    blockFileParents = dbsReader.listFilesInBlockWithParents(
+                        blockName)
+                except BaseException:
                     print blockName, "does not appear to have a parent, even though it should. Very suspicious"
                     blockFileParents = dbsReader.listFilesInBlock(blockName)
             else:
@@ -310,16 +313,18 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
                     blockLocations.add(PNN)
                     #logging.debug("PhEDEx Node Name: %s\tPSNs: %s", PNN, PSNs)
 
-            # We cannot upload docs without location, so force it in case it's empty
+            # We cannot upload docs without location, so force it in case it's
+            # empty
             if not blockLocations:
                 if fakeLocation:
                     #logging.info("\t\t %s\tno location", blockName)
                     blockLocations.update([u'T1_US_FNAL_Disk', u'T2_CH_CERN'])
-                elif not has_parent:  ## this should be the source
-                    logging.info("Blockname: %s\tno location, ABORT", blockName)
+                elif not has_parent:  # this should be the source
+                    logging.info(
+                        "Blockname: %s\tno location, ABORT", blockName)
                     self.major_failure = True
-                    #sys.exit(1)
-                
+                    # sys.exit(1)
+
             #logging.info("Blockname: %s\tLocations: %s", blockName, blockLocations)
 
             # for each file on the block
@@ -340,7 +345,8 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
                     if lumiSection["RunNumber"] not in runInfo.keys():
                         runInfo[lumiSection["RunNumber"]] = []
 
-                    runInfo[lumiSection["RunNumber"]].append(lumiSection["LumiSectionNumber"])
+                    runInfo[lumiSection["RunNumber"]].append(
+                        lumiSection["LumiSectionNumber"])
                 if len(runInfo.keys()) > 0:
                     self.files[blockFile["LogicalFileName"]] = {"runs": runInfo,
                                                                 "events": blockFile["NumberOfEvents"],
@@ -348,7 +354,6 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
                                                                 "locations": list(blockLocations),
                                                                 "parents": parentLFNs}
             return
-            
 
     files = {}
     outputDatasetParts = datasetName.split("/")
@@ -356,30 +361,33 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
     try:
         # retrieve list of blocks from dataset
         blockNames = dbsReader.listFileBlocks(datasetName)
-    except:
-        raise RuntimeError("Dataset %s doesn't exist in given DBS instance" % datasetName)
+    except BaseException:
+        raise RuntimeError(
+            "Dataset %s doesn't exist in given DBS instance" %
+            datasetName)
 
     has_parent = False
     try:
         parents = dbsReader.listDatasetParents(datasetName)
-        if parents: has_parent = True
-    except:
+        if parents:
+            has_parent = True
+    except BaseException:
         print "Dataset with no parent"
         pass
 
-    bthreads=[]
+    bthreads = []
     # traverse each block
     for blockName in blockNames:
-        bthreads.append( BlockBuster( bn = blockName,
-                                      hp=has_parent, 
-                                      fl = fakeLocation,
-                                      bbl = blockBlacklist,
-                                      bwl = blockWhitelist,
-                                      l = logging,
-                                      dbs=dbsUrl))
+        bthreads.append(BlockBuster(bn=blockName,
+                                    hp=has_parent,
+                                    fl=fakeLocation,
+                                    bbl=blockBlacklist,
+                                    bwl=blockWhitelist,
+                                    l=logging,
+                                    dbs=dbsUrl))
 
-    print len(bthreads),"block query created"
-    bthreads = ThreadBuster( bthreads, 40, 2., verbose=False)
+    print len(bthreads), "block query created"
+    bthreads = ThreadBuster(bthreads, 40, 2., verbose=False)
 
     for t in bthreads:
         if t.major_failure:
@@ -407,12 +415,15 @@ def diffDatasets(inputDataset, outputDataset):
             if inputRun not in inputRunInfo:
                 inputRunInfo[inputRun] = set()
                 # if type is list or [list]
-            if type(inputDataset[inputLFN]["runs"][inputRun][0]) is list:
-                inputRunInfo[inputRun].update(inputDataset[inputLFN]["runs"][inputRun][0])
-            elif type(inputDataset[inputLFN]["runs"][inputRun]) is list:
-                inputRunInfo[inputRun].update(inputDataset[inputLFN]["runs"][inputRun])
+            if isinstance(inputDataset[inputLFN]["runs"][inputRun][0], list):
+                inputRunInfo[inputRun].update(
+                    inputDataset[inputLFN]["runs"][inputRun][0])
+            elif isinstance(inputDataset[inputLFN]["runs"][inputRun], list):
+                inputRunInfo[inputRun].update(
+                    inputDataset[inputLFN]["runs"][inputRun])
             else:
-                raise RuntimeError("Don't know what this is:" + str(inputDataset[inputLFN]["runs"][inputRun]))
+                raise RuntimeError("Don't know what this is:" +
+                                   str(inputDataset[inputLFN]["runs"][inputRun]))
 
     outputRunInfo = {}
     # make a set of input run-lumis.
@@ -421,12 +432,17 @@ def diffDatasets(inputDataset, outputDataset):
             if outputRun not in outputRunInfo:
                 outputRunInfo[outputRun] = set()
             # if type is list or [list]
-            if type(outputDataset[outputLFN]["runs"][outputRun][0]) is list:
-                outputRunInfo[outputRun].update(outputDataset[outputLFN]["runs"][outputRun][0])
-            elif type(outputDataset[outputLFN]["runs"][outputRun]) is list:
-                outputRunInfo[outputRun].update(outputDataset[outputLFN]["runs"][outputRun])
+            if isinstance(
+                    outputDataset[outputLFN]["runs"][outputRun][0],
+                    list):
+                outputRunInfo[outputRun].update(
+                    outputDataset[outputLFN]["runs"][outputRun][0])
+            elif isinstance(outputDataset[outputLFN]["runs"][outputRun], list):
+                outputRunInfo[outputRun].update(
+                    outputDataset[outputLFN]["runs"][outputRun])
             else:
-                raise RuntimeError("Don't know what this is:" + str(outputDataset[outputLFN]["runs"][outputRun]))
+                raise RuntimeError("Don't know what this is:" +
+                                   str(outputDataset[outputLFN]["runs"][outputRun]))
 
     diffRunInfo = {}
     # make set difference for each run
@@ -455,13 +471,18 @@ def buildDifferenceMap(workload, datasetInformation):
     logging.info("InputDataset : %s", inputDataset)
     logging.info("OutputDataset: %s", workload.listOutputDatasets())
     for dataset in workload.listOutputDatasets():
-        difference = diffDatasets(datasetInformation[inputDataset], datasetInformation[dataset])
+        difference = diffDatasets(
+            datasetInformation[inputDataset],
+            datasetInformation[dataset])
         if difference:
             differences[dataset] = difference
     return differences
 
 
-def getRequestInformationAndWorkload(requestName, reqmgrUrl, centralRequestDBURL):
+def getRequestInformationAndWorkload(
+        requestName,
+        reqmgrUrl,
+        centralRequestDBURL):
     """
     _getRequestInformationAndWorkload_
 
@@ -470,7 +491,9 @@ def getRequestInformationAndWorkload(requestName, reqmgrUrl, centralRequestDBURL
     """
     wfDBReader = RequestDBReader(centralRequestDBURL, couchapp="ReqMgr")
     result = wfDBReader.getRequestByNames(requestName, True)
-    workloadDB = Database(result[requestName]['CouchWorkloadDBName'], result[requestName]['CouchURL'])
+    workloadDB = Database(
+        result[requestName]['CouchWorkloadDBName'],
+        result[requestName]['CouchURL'])
     workloadPickle = workloadDB.getAttachment(requestName, 'spec')
     spec = pickle.loads(workloadPickle)
     workload = WMWorkloadHelper(spec)
@@ -506,14 +529,22 @@ def defineRequests(workload, requestInfo,
         datasetInformation = {}
         logging.info("Loading DBS information for the datasets...")
         now = time.mktime(time.gmtime())
-        datasetInformation[inputDataset] = getFiles(inputDataset, runBlacklist, runWhitelist,
-                                                    blockBlacklist, blockWhitelist, dbsUrl, fakeLocation=fakeLocation)
-        print time.mktime(time.gmtime())-now,"[s] for a call to getFiles",inputDataset
+        datasetInformation[inputDataset] = getFiles(
+            inputDataset,
+            runBlacklist,
+            runWhitelist,
+            blockBlacklist,
+            blockWhitelist,
+            dbsUrl,
+            fakeLocation=fakeLocation)
+        print time.mktime(time.gmtime()) - \
+            now, "[s] for a call to getFiles", inputDataset
         for dataset in workload.listOutputDatasets():
             now = time.mktime(time.gmtime())
-            datasetInformation[dataset] = getFiles(dataset, runBlacklist, runWhitelist, blockBlacklist, blockWhitelist,
-                                                   dbsUrl)
-            print time.mktime(time.gmtime())-now,"[s] for a call to getFiles",dataset
+            datasetInformation[dataset] = getFiles(
+                dataset, runBlacklist, runWhitelist, blockBlacklist, blockWhitelist, dbsUrl)
+            print time.mktime(time.gmtime()) - \
+                now, "[s] for a call to getFiles", dataset
         logging.info("Finished loading DBS information for the datasets...")
 
     # Now get the information about the datasets and tasks
@@ -550,7 +581,8 @@ def defineRequests(workload, requestInfo,
                             matchAvailable = True
                             break
             if matchAvailable:
-                outputModulesToRecover.extend(edges[(dataset, childDataset)]['outMod'])
+                outputModulesToRecover.extend(
+                    edges[(dataset, childDataset)]['outMod'])
                 datasetsToRecover.append(childDataset)
             for run in diffedLumis:
                 if run in childDiffLumis:
@@ -602,7 +634,8 @@ def defineRequests(workload, requestInfo,
             for parentDataset in nodes:
                 if dataset in nodes[parentDataset]:
                     taskToRecover = edges[(parentDataset, dataset)]['task']
-                    outputModulesToRecover = edges[(parentDataset, dataset)]['outMod']
+                    outputModulesToRecover = edges[(
+                        parentDataset, dataset)]['outMod']
                     break
         requestObject = {'task': taskToRecover,
                          'input': parentDataset,
@@ -611,9 +644,11 @@ def defineRequests(workload, requestInfo,
                          'outputs': datasetsToRecover}
         requests.append(requestObject)
 
-    logging.info("About to upload ACDC records to: %s/%s" % (acdcCouchUrl, acdcCouchDb))
-    ## this printout is making a lot of crap
-    ##pprint(requests)
+    logging.info(
+        "About to upload ACDC records to: %s/%s" %
+        (acdcCouchUrl, acdcCouchDb))
+    # this printout is making a lot of crap
+    # pprint(requests)
 
     # With the request objects we need to build ACDC records and
     # request JSONs
@@ -622,18 +657,18 @@ def defineRequests(workload, requestInfo,
         def __init__(self, **args):
             threading.Thread.__init__(self)
             import copy
-            for k,v in args.items():
-                #if not k in ['c']:
+            for k, v in args.items():
+                # if not k in ['c']:
                 #    setattr(self,k,copy.deepcopy(v))
-                #else:
+                # else:
                 #    setattr(self,k,v)
-                setattr(self,k,v)
+                setattr(self, k, v)
 
         def run(self):
 
             lfn = self.lfn
             if self.v:
-                print "Starting for",lfn
+                print "Starting for", lfn
             now = time.mktime(time.gmtime())
             fileInfo = self.fi
             requestObject = self.ro
@@ -674,57 +709,61 @@ def defineRequests(workload, requestInfo,
                             "parents": fileInfo["parents"],
                             "locations": fileInfo["locations"],
                             "runs": acdcRuns
-                           }
+                            }
                 #
                 fileset.makeFilelist({lfn: acdcFile})
             if self.v:
-                print time.mktime(time.gmtime()) - now,"[s] for makeFilelist",lfn
-                
+                print time.mktime(time.gmtime()) - \
+                    now, "[s] for makeFilelist", lfn
 
     for idx, requestObject in enumerate(requests):
         now = time.mktime(time.gmtime())
         collectionName = '%s_%s' % (workload.name(), str(uuid.uuid1()))
-        print time.mktime(time.gmtime()) - now,"[s]","starting",idx,"in collection name",collectionName
+        print time.mktime(
+            time.gmtime()) - now, "[s]", "starting", idx, "in collection name", collectionName
         filesetName = requestObject['task']
         collection = CouchCollection(**{"url": acdcCouchUrl,
                                         "database": acdcCouchDb,
                                         "name": collectionName})
-        print time.mktime(time.gmtime()) - now,"[s]","collection created"
+        print time.mktime(time.gmtime()) - now, "[s]", "collection created"
         files = 0
         lumis = 0
-        cthreads=[]
+        cthreads = []
         for lfn in datasetInformation[requestObject['input']]:
-            cthreads.append( CouchBuster( lfn = lfn,
-                                          fi = datasetInformation[requestObject['input']][lfn],
-                                          ro = requestObject,
-                                          ac = acdcCouchUrl,
-                                          acd = acdcCouchDb,
-                                          fsn = filesetName,
-                                          c = collection,
-                                          v = False
-                                          ))
-            
-        print len(cthreads),"CouchBuster created"            
-        cthreads = ThreadBuster( cthreads, 40, 2., verbose=False)
+            cthreads.append(CouchBuster(lfn=lfn,
+                                        fi=datasetInformation[requestObject['input']][lfn],
+                                        ro=requestObject,
+                                        ac=acdcCouchUrl,
+                                        acd=acdcCouchDb,
+                                        fsn=filesetName,
+                                        c=collection,
+                                        v=False
+                                        ))
+
+        print len(cthreads), "CouchBuster created"
+        cthreads = ThreadBuster(cthreads, 40, 2., verbose=False)
 
         for t in cthreads:
             files += t.files
             lumis += t.lumis
-        
 
-        print time.mktime(time.gmtime()) - now,"[s]","ending loop"
+        print time.mktime(time.gmtime()) - now, "[s]", "ending loop"
         # Put the creation parameters
         creationDict = jsonBlob["createRequest"]
         creationDict["OriginalRequestName"] = str(workload.name())
         creationDict["InitialTaskPath"] = requestObject['task']
         creationDict["CollectionName"] = collectionName
-        creationDict["IgnoredOutputModules"] = list(set(outputModules) - set(requestObject['outMod']))
+        creationDict["IgnoredOutputModules"] = list(
+            set(outputModules) - set(requestObject['outMod']))
         creationDict["ACDCServer"] = acdcCouchUrl
         creationDict["ACDCDatabase"] = acdcCouchDb
         #creationDict["RequestString"] = "r-%d-%s" % (idx, workload.name())[:50]
-        creationDict["RequestString"] = "r-%d-%s" % (idx, requestInfo['RequestString'])
+        creationDict["RequestString"] = "r-%d-%s" % (
+            idx, requestInfo['RequestString'])
         creationDict["Requestor"] = requestor
-        creationDict["RequestPriority"] = min(500000, requestInfo.get('RequestPriority',60000)*2 )
+        creationDict["RequestPriority"] = min(
+            500000, requestInfo.get(
+                'RequestPriority', 60000) * 2)
         creationDict["Group"] = group
         creationDict["TimePerEvent"] = requestInfo['TimePerEvent']
         creationDict["Memory"] = requestInfo['Memory']
@@ -761,15 +800,19 @@ def defineRequests(workload, requestInfo,
             tokens = processingVersion.split('-')
             assignDict["ProcessingVersion"] = int(tokens[-1][1:])
             assignDict["ProcessingString"] = ('-').join(tokens[:-1])
-        print time.mktime(time.gmtime()) - now,"[s]","data prepared"
+        print time.mktime(time.gmtime()) - now, "[s]", "data prepared"
         fileHandle = open('%s.json' % creationDict["RequestString"], 'w')
         json.dump(jsonBlob, fileHandle)
         fileHandle.close()
-        print time.mktime(time.gmtime()) - now,"[s]","json made"
-        logging.info("Created JSON %s for recovery of %s" % ('%s.json' % creationDict["RequestString"],
-                                                             requestObject['outputs']))
+        print time.mktime(time.gmtime()) - now, "[s]", "json made"
+        logging.info(
+            "Created JSON %s for recovery of %s" %
+            ('%s.json' %
+             creationDict["RequestString"],
+             requestObject['outputs']))
         logging.info("This will recover %d lumis in %d files" % (lumis, files))
-    print time.mktime(time.gmtime()) - main_now,"[s]","to complete"
+    print time.mktime(time.gmtime()) - main_now, "[s]", "to complete"
+
 
 def main():
     """
@@ -784,29 +827,45 @@ def main():
                            help="Requestor for the Resubmission requests")
     myOptParser.add_option("-g", "--group", dest="group",
                            help="Group for the Resubmission requests")
-    myOptParser.add_option("-d", "--dbsUrl", dest="dbsUrl",
-                           default="https://cmsweb.cern.ch/dbs/prod/global/DBSReader",
-                           help="URL for the DBS instance to get the dataset info (both DBS2 and DBS3 work)")
-    myOptParser.add_option("-a", "--acdcUrl", dest="acdcUrl",
-                           default="https://cmsweb.cern.ch/couchdb",
-                           help="URL for the ACDC database where the records can be uploaded")
+    myOptParser.add_option(
+        "-d",
+        "--dbsUrl",
+        dest="dbsUrl",
+        default="https://cmsweb.cern.ch/dbs/prod/global/DBSReader",
+        help="URL for the DBS instance to get the dataset info (both DBS2 and DBS3 work)")
+    myOptParser.add_option(
+        "-a",
+        "--acdcUrl",
+        dest="acdcUrl",
+        default="https://cmsweb.cern.ch/couchdb",
+        help="URL for the ACDC database where the records can be uploaded")
     myOptParser.add_option("-s", "--acdcServer", dest="acdcServer",
                            default="acdcserver",
                            help="Database name for the ACDC records")
     myOptParser.add_option("-u", "--reqMgrUrl", dest="reqMgrUrl",
                            default="https://cmsweb.cern.ch/reqmgr2/data",
                            help="URL to the request manager API")
-    myOptParser.add_option("-c", "--centralRequestDBURL", dest="centralRequestDBURL",
-                           default="https://cmsweb.cern.ch/couchdb/reqmgr_workload_cache",
-                           help="URL to the centralRequestDBURL")
-    myOptParser.add_option("-j", "--json", dest="jsonFile",
-                           help="For testing only: JSON file with the dataset information already loaded")
+    myOptParser.add_option(
+        "-c",
+        "--centralRequestDBURL",
+        dest="centralRequestDBURL",
+        default="https://cmsweb.cern.ch/couchdb/reqmgr_workload_cache",
+        help="URL to the centralRequestDBURL")
+    myOptParser.add_option(
+        "-j",
+        "--json",
+        dest="jsonFile",
+        help="For testing only: JSON file with the dataset information already loaded")
     myOptParser.add_option("-v", "--verbose", dest="verbose",
                            default=False, action="store_true",
                            help="Increase the level of verbosity for debug")
-    myOptParser.add_option("-f", "--fake", dest="fake",
-                           default=False, action="store_true",
-                           help="In case there is no block location, forces it to CERN and FNAL")
+    myOptParser.add_option(
+        "-f",
+        "--fake",
+        dest="fake",
+        default=False,
+        action="store_true",
+        help="In case there is no block location, forces it to CERN and FNAL")
     val, _ = myOptParser.parse_args()
 
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
@@ -818,7 +877,8 @@ def main():
     # First load the request
     if val.requestName is None:
         raise RuntimeError("Request name must be specified.")
-    workload, requestInfo = getRequestInformationAndWorkload(val.requestName, val.reqMgrUrl, val.centralRequestDBURL)
+    workload, requestInfo = getRequestInformationAndWorkload(
+        val.requestName, val.reqMgrUrl, val.centralRequestDBURL)
     # If testing, then load the pre-fetched dataset info
     datasetInformation = None
     if val.jsonFile is not None:
@@ -828,8 +888,16 @@ def main():
     if val.requestor is None or val.group is None:
         raise RuntimeError("Requestor and group must be specified.")
     # Define the requests
-    defineRequests(workload, requestInfo, val.acdcUrl, val.acdcServer, val.requestor,
-                   val.group, val.dbsUrl, val.fake, datasetInformation)
+    defineRequests(
+        workload,
+        requestInfo,
+        val.acdcUrl,
+        val.acdcServer,
+        val.requestor,
+        val.group,
+        val.dbsUrl,
+        val.fake,
+        datasetInformation)
 
 
 if __name__ == "__main__":

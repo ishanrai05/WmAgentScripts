@@ -7,7 +7,7 @@
     - a table of pending jobs: type of job-task vs. site
     - jobs that have run for more than 24 hours
     - jobs that have restarted more than 3 times
-    
+
 """
 import sys
 import optparse
@@ -83,7 +83,8 @@ def printDict(jobDict, description):
     """
     sortedKeys = sorted(jobDict)
     print '-' * 100
-    print '| %-20s | %-10s | %-10s | %-10s | %-10s | %-10s | %-10s |' % (description, 'Processing', 'Production', 'Merge', 'Cleanup', 'LogCollect', 'Total')
+    print '| %-20s | %-10s | %-10s | %-10s | %-10s | %-10s | %-10s |' % (
+        description, 'Processing', 'Production', 'Merge', 'Cleanup', 'LogCollect', 'Total')
     print '-' * 100
     total_processing = 0
     total_production = 0
@@ -103,7 +104,8 @@ def printDict(jobDict, description):
         total += siteDict['Merge']
         total += siteDict['Cleanup']
         total += siteDict['LogCollect']
-        total_site = siteDict['Processing'] + siteDict['Production'] + siteDict['Merge'] + siteDict['Cleanup']+siteDict['LogCollect']
+        total_site = siteDict['Processing'] + siteDict['Production'] + \
+            siteDict['Merge'] + siteDict['Cleanup'] + siteDict['LogCollect']
         print '| %-20s | %10d | %10d | %10d | %10d | %10d | %10d |' % (site,
                                                                        siteDict['Processing'],
                                                                        siteDict['Production'],
@@ -112,7 +114,8 @@ def printDict(jobDict, description):
                                                                        siteDict['LogCollect'],
                                                                        total_site)
     print '-' * 100
-    print '| %-20s | %10d | %10d | %10d | %10d | %10d | %10d |' % ('Total', total_processing, total_production, total_merge, total_cleanup, total_logcollect, total)
+    print '| %-20s | %10d | %10d | %10d | %10d | %10d | %10d |' % (
+        'Total', total_processing, total_production, total_merge, total_cleanup, total_logcollect, total)
     print '-' * 100
 
 
@@ -195,7 +198,7 @@ def get_overview(overview_running,
             jobType = 'Processing'
         else:
             jobType = 'Processing'
-        
+
         if 'MaxWallTimeMins' in job:
             maxWallTimeMins = job['MaxWallTimeMins']
         else:
@@ -214,10 +217,11 @@ def get_overview(overview_running,
         # if Pending
         elif status == 1:
             increaseCounterInDict(overview_pending, site, jobType)
-            #check maxWallTime greater than 24 hours
-            if (maxWallTimeMins and maxWallTimeMins > 46*60) or not maxWallTimeMins:
+            # check maxWallTime greater than 24 hours
+            if (maxWallTimeMins and maxWallTimeMins >
+                    46 * 60) or not maxWallTimeMins:
                 fillIDWFinDict(jobs_maxwall, site, workflow, jobId)
-                
+
         # if not running or pending, and reason is DEFINED
         elif removereason == "DEFINED":
             increaseCounterInDict(overview_removereason, site, jobType)
@@ -295,11 +299,17 @@ def print_results(overview_running,
             for wf, jobs in jobs_numjobstart[site].items():
                 print wf, ':', ' '.join(jobs)
             print ""
-    
+
 
 def main():
     parser = optparse.OptionParser()
-    parser.add_option('-g', '--global', action='store_true',  dest='printall', default=False, help='Print overview from all production schedds')
+    parser.add_option(
+        '-g',
+        '--global',
+        action='store_true',
+        dest='printall',
+        default=False,
+        help='Print overview from all production schedds')
     (options, args) = parser.parse_args()
 
     # Data dictionaries
@@ -317,14 +327,16 @@ def main():
     if(options.printall):
         # global pool collector
         coll = htcondor.Collector(global_pool)
-        schedd_ads = coll.query(htcondor.AdTypes.Schedd, 'CMSGWMS_Type=?="prodschedd"', ['Name', 'MyAddress', 'ScheddIpAddr'])
-  
+        schedd_ads = coll.query(
+            htcondor.AdTypes.Schedd, 'CMSGWMS_Type=?="prodschedd"', [
+                'Name', 'MyAddress', 'ScheddIpAddr'])
+
         # all schedds
         for ad in schedd_ads:
             if ad["Name"] not in schedds:
                 continue
-            print "getting jobs from %s"%ad["Name"]
-            #fill the overview
+            print "getting jobs from %s" % ad["Name"]
+            # fill the overview
             get_overview(overview_running,
                          overview_pending,
                          overview_other,
@@ -360,6 +372,7 @@ def main():
                   jobs_maxwall,
                   jobs_numjobstart,
                   jobs_removereason)
+
 
 if __name__ == '__main__':
     main()

@@ -35,6 +35,7 @@ modification = """
                 WHERE lfn = :lfn
                """
 
+
 def main():
     """
     _main_
@@ -59,7 +60,7 @@ def main():
     # Check with block-level calls
     foundFiles = set()
     for block in sortedBlocks:
-        result = myPhEDEx._getResult('data', args = {'block' : block}, verb = 'GET')
+        result = myPhEDEx._getResult('data', args={'block': block}, verb='GET')
         for dbs in result['phedex']['dbs']:
             for dataset in dbs['dataset']:
                 blockChunk = dataset['block']
@@ -70,19 +71,21 @@ def main():
     if not foundFiles:
         print "I didn't find an abnormal file, feel free to panic!. Please contact a developer."
         return 0
-    print "Found %d files that are already registered in PhEDEx but the buffer doesn't know" % len(foundFiles)
+    print "Found %d files that are already registered in PhEDEx but the buffer doesn't know" % len(
+        foundFiles)
     print "Fixing them now..."
     # Fix it!
     binds = []
     for lfn in foundFiles:
-        binds.append({'lfn' :lfn})
+        binds.append({'lfn': lfn})
     formatter.dbi.processData(modification, binds,
-                                        conn = None,
-                                        transaction = False,
-                                        returnCursor = False)
+                              conn=None,
+                              transaction=False,
+                              returnCursor=False)
     print "Fixed them! :)"
     print "You can restart the PhEDExInjector now, have a nice day!"
     return 0
+
 
 if __name__ == '__main__':
     sys.exit(main())

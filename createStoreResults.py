@@ -43,7 +43,8 @@ DEFAULT_DICT = {
     "ProcessingString": "UPDATEME",
     "RequestString": "UPDATEME",
     "ScramArch": "UPDATEME",
-    "SiteWhitelist": "UPDATEME",  # Will be picked by Unified and posted again at assignment
+    # Will be picked by Unified and posted again at assignment
+    "SiteWhitelist": "UPDATEME",
     "AcquisitionEra": "StoreResults",
     "Campaign": "StoreResults",
     "DbsUrl": "https://cmsweb.cern.ch/dbs/prod/phys03/DBSReader",
@@ -91,10 +92,17 @@ def migrateDataset(dset, dbsInst):
 def buildRequest(userDict):
     """
     Expects the following user data:
-      CMSSWVersion, ScramArch, DbsUrl, InputDataset, SiteWhitelist and PhysicsGroup 
+      CMSSWVersion, ScramArch, DbsUrl, InputDataset, SiteWhitelist and PhysicsGroup
     """
-    if Counter(userDict.keys()) != Counter(["CMSSWVersion", "ScramArch", "DbsUrl",
-                                            "InputDataset", "SiteWhitelist", "PhysicsGroup"]):
+    if Counter(
+        userDict.keys()) != Counter(
+        [
+            "CMSSWVersion",
+            "ScramArch",
+            "DbsUrl",
+            "InputDataset",
+            "SiteWhitelist",
+            "PhysicsGroup"]):
         print("ERROR: user input data is incomplete: %s" % userDict)
         return None
 
@@ -107,7 +115,8 @@ def buildRequest(userDict):
     newSchema["PrepID"] = "StoreResults-%s" % time.strftime("%d%m%y-%H%M%S")
     # Truncate the ProcessingString, otherwise it can be larger than allowed
     _, primDset, procDset, _ = newSchema['InputDataset'].split("/")
-    newSchema["ProcessingString"] = procDset.split("-")[1:-1][0][:80]  # first 80 chars
+    newSchema["ProcessingString"] = procDset.split(
+        "-")[1:-1][0][:80]  # first 80 chars
     # Use PrimaryDataset and ProcessedDataset in the RequestString
     newSchema["RequestString"] = primDset[:50] + "-" + procDset[:50]
     return newSchema
@@ -117,12 +126,16 @@ def submitWorkflow(schema):
     headers = {"Content-type": "application/json",
                "Accept": "application/json"}
     encodedParams = json.dumps(schema)
-    conn = httplib.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
+    conn = httplib.HTTPSConnection(url,
+                                   cert_file=os.getenv('X509_USER_PROXY'),
+                                   key_file=os.getenv('X509_USER_PROXY'))
     conn.request("POST", "/reqmgr2/data/request", encodedParams, headers)
     resp = conn.getresponse()
     data = resp.read()
     if resp.status != 200:
-        print("Response status: %s\tResponse reason: %s" % (resp.status, resp.reason))
+        print(
+            "Response status: %s\tResponse reason: %s" %
+            (resp.status, resp.reason))
         print("Error message: %s" % resp.msg.getheader('X-Error-Detail'))
         return None
     data = json.loads(data)
@@ -140,12 +153,21 @@ def approveRequest(workflow):
     headers = {"Content-type": "application/json",
                "Accept": "application/json"}
 
-    conn = httplib.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
-    conn.request("PUT", "/reqmgr2/data/request/%s" % workflow, encodedParams, headers)
+    conn = httplib.HTTPSConnection(url,
+                                   cert_file=os.getenv('X509_USER_PROXY'),
+                                   key_file=os.getenv('X509_USER_PROXY'))
+    conn.request(
+        "PUT",
+        "/reqmgr2/data/request/%s" %
+        workflow,
+        encodedParams,
+        headers)
     resp = conn.getresponse()
     data = resp.read()
     if resp.status != 200:
-        print("Response status: %s\tResponse reason: %s" % (resp.status, resp.reason))
+        print(
+            "Response status: %s\tResponse reason: %s" %
+            (resp.status, resp.reason))
         if hasattr(resp.msg, "x-error-detail"):
             print("Error message: %s" % resp.msg["x-error-detail"])
             sys.exit(2)

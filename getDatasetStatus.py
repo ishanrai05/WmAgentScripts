@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
- Gets dataset status (access type) PRODUCTION, VALID, INVALID, DEPRECATED or 
+ Gets dataset status (access type) PRODUCTION, VALID, INVALID, DEPRECATED or
  DELETED
-""" 
+"""
 import sys
 import optparse
 import dbs3Client as dbs3
@@ -23,6 +23,7 @@ def main():
     for dataset in datasets:
         status = dbs3.getDatasetStatus(dataset)
         print dataset, status
+
 
 if __name__ == "__main__":
     main()

@@ -7,9 +7,13 @@ from WMCore.Database.CMSCouch import CouchDBRequests
 
 requestName = sys.argv[1]
 
-requestor = CouchDBRequests(url = "https://cmsweb.cern.ch")
-wlpkl = requestor.makeRequest(uri = "/couchdb/reqmgr_workload_cache/%s/spec" % requestName, decode = False)
-wldoc = requestor.makeRequest(uri = "/couchdb/reqmgr_workload_cache/%s" % requestName)
+requestor = CouchDBRequests(url="https://cmsweb.cern.ch")
+wlpkl = requestor.makeRequest(
+    uri="/couchdb/reqmgr_workload_cache/%s/spec" %
+    requestName, decode=False)
+wldoc = requestor.makeRequest(
+    uri="/couchdb/reqmgr_workload_cache/%s" %
+    requestName)
 
 wl = pickle.loads(wlpkl)
 
@@ -24,4 +28,6 @@ for taskName in wl.tasks.tasklist:
 wl.tasks.tasklist.remove(taskName)
 newwlpkl = pickle.dumps(wl)
 
-requestor.makeRequest(uri = "/couchdb/reqmgr_workload_cache/%s/spec?rev=%s" % (requestName, wldoc["_rev"]), type="PUT", data = newwlpkl, encode = False)
+requestor.makeRequest(
+    uri="/couchdb/reqmgr_workload_cache/%s/spec?rev=%s" %
+    (requestName, wldoc["_rev"]), type="PUT", data=newwlpkl, encode=False)

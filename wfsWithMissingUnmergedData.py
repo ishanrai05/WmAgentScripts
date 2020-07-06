@@ -64,14 +64,20 @@ def findWF(data, lfn, out):
         if info["OutputModulesLFNBases"]:
             if lfn in info.get("OutputModulesLFNBases", []):
                 print(info["RequestName"], info["RequestStatus"])
-                out.write("%s %s  %s\n" % (info["RequestName"], info["RequestStatus"], lfn))
+                out.write(
+                    "%s %s  %s\n" %
+                    (info["RequestName"], info["RequestStatus"], lfn))
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Map unmerged files to workflows and their statuses")
+    parser = argparse.ArgumentParser(
+        description="Map unmerged files to workflows and their statuses")
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-u', '--unmerged', help='A single unmerged file name')
-    group.add_argument('-i', '--inputFile', help='Plain text file containing unmerged file names (one per line)')
+    group.add_argument(
+        '-i',
+        '--inputFile',
+        help='Plain text file containing unmerged file names (one per line)')
     args = parser.parse_args()
 
     if args.unmerged:
@@ -79,7 +85,8 @@ def main():
     elif args.inputFile:
         listOfFiles = getFiles(args.inputFile)
     else:
-        parser.error("You must provide either an unmerged or an input file name.")
+        parser.error(
+            "You must provide either an unmerged or an input file name.")
         sys.exit(1)
 
     if not os.getenv('X509_USER_PROXY'):
@@ -87,7 +94,9 @@ def main():
         sys.exit(2)
 
     wmstatsData = getData()
-    print("Found a total of %i active workflows in the system" % len(wmstatsData))
+    print(
+        "Found a total of %i active workflows in the system" %
+        len(wmstatsData))
 
     print("List of missing files contain %i files" % len(listOfFiles))
     uniqueLFNs = getUniqueLFNBases(listOfFiles)

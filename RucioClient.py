@@ -11,10 +11,12 @@ Environment:
 
 from rucio.client import Client
 
+
 class RucioClient(Client):
     """
     A wrapper class for the Rucio client.
     """
+
     def __init__(self, **kwargs):
         """
         Default configuration provided directly into the constructor to avoid
@@ -63,7 +65,8 @@ class RucioClient(Client):
         Returns a set of block names in a dataset registerd in Rucio
         """
         try:
-            blockNames = [block['name'] for block in self.list_content(self.scope, dataset)]
+            blockNames = [block['name']
+                          for block in self.list_content(self.scope, dataset)]
         except Exception as e:
             print(str(e))
             return []
@@ -86,7 +89,8 @@ class RucioClient(Client):
         """
         Returns the number of files per block in a dataset registered in Rucio
         """
-        # we need blocks to be a list of tuples so we can create a set out of this
+        # we need blocks to be a list of tuples so we can create a set out of
+        # this
         try:
             blocks = []
             for block in self.getBlockNamesDataset(dataset):
@@ -95,4 +99,3 @@ class RucioClient(Client):
             print(str(e))
             return []
         return blocks
-

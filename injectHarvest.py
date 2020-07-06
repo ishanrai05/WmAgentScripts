@@ -50,14 +50,18 @@ def main():
         workflow = submitWorkflow(newDict)
         approveRequest(workflow)
     else:
-        print("%s either has harvesting disabled or it has no DQM or DQMIO samples in the output" % sys.argv[1])
+        print(
+            "%s either has harvesting disabled or it has no DQM or DQMIO samples in the output" %
+            sys.argv[1])
     sys.exit(0)
 
 
 def retrieveWorkload(workflowName):
     headers = {"Content-type": "application/json",
                "Accept": "application/json"}
-    conn = httplib.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
+    conn = httplib.HTTPSConnection(url,
+                                   cert_file=os.getenv('X509_USER_PROXY'),
+                                   key_file=os.getenv('X509_USER_PROXY'))
     urn = "/reqmgr2/data/request/%s" % workflowName
     conn.request("GET", urn, headers=headers)
     r2 = conn.getresponse()
@@ -70,7 +74,8 @@ def buildRequest(req_cache):
     if not req_cache.get('EnableHarvesting'):
         return newSchema
 
-    dset = [d for d in req_cache['OutputDatasets'] if d.endswith(tuple(['/DQM', '/DQMIO']))]
+    dset = [d for d in req_cache['OutputDatasets']
+            if d.endswith(tuple(['/DQM', '/DQMIO']))]
     if dset:
         inputDataset = dset.pop()
     else:
@@ -86,7 +91,8 @@ def buildRequest(req_cache):
             newSchema[k] = inputDataset
         else:
             if isinstance(req_cache[k], dict):
-                # then simply pick the first value, makes no difference in the end
+                # then simply pick the first value, makes no difference in the
+                # end
                 newSchema[k] = req_cache[k].values()[0]
             else:
                 newSchema[k] = req_cache[k]
@@ -98,13 +104,17 @@ def submitWorkflow(schema):
     headers = {"Content-type": "application/json",
                "Accept": "application/json"}
     encodedParams = json.dumps(schema)
-    conn = httplib.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
+    conn = httplib.HTTPSConnection(url,
+                                   cert_file=os.getenv('X509_USER_PROXY'),
+                                   key_file=os.getenv('X509_USER_PROXY'))
     # print("Submitting new workflow...")
     conn.request("POST", "/reqmgr2/data/request", encodedParams, headers)
     resp = conn.getresponse()
     data = resp.read()
     if resp.status != 200:
-        print("Response status: %s\tResponse reason: %s" % (resp.status, resp.reason))
+        print(
+            "Response status: %s\tResponse reason: %s" %
+            (resp.status, resp.reason))
         print("Error message: %s" % resp.msg.getheader('X-Error-Detail'))
         sys.exit(1)
     data = json.loads(data)
@@ -119,12 +129,21 @@ def approveRequest(workflow):
     headers = {"Content-type": "application/json",
                "Accept": "application/json"}
 
-    conn = httplib.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
-    conn.request("PUT", "/reqmgr2/data/request/%s" % workflow, encodedParams, headers)
+    conn = httplib.HTTPSConnection(url,
+                                   cert_file=os.getenv('X509_USER_PROXY'),
+                                   key_file=os.getenv('X509_USER_PROXY'))
+    conn.request(
+        "PUT",
+        "/reqmgr2/data/request/%s" %
+        workflow,
+        encodedParams,
+        headers)
     resp = conn.getresponse()
     data = resp.read()
     if resp.status != 200:
-        print("Response status: %s\tResponse reason: %s" % (resp.status, resp.reason))
+        print(
+            "Response status: %s\tResponse reason: %s" %
+            (resp.status, resp.reason))
         if hasattr(resp.msg, "x-error-detail"):
             print("Error message: %s" % resp.msg["x-error-detail"])
             sys.exit(2)

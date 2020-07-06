@@ -2,7 +2,7 @@
 from assignSession import *
 import sys
 import reqMgrClient
-from utils import workflowInfo, getWorkflowById, forceComplete, getDatasetEventsAndLumis, componentInfo, monitor_dir, reqmgr_url, unifiedConfiguration, monitor_pub_dir, moduleLock , eosFile, eosRead, wtcInfo
+from utils import workflowInfo, getWorkflowById, forceComplete, getDatasetEventsAndLumis, componentInfo, monitor_dir, reqmgr_url, unifiedConfiguration, monitor_pub_dir, moduleLock, eosFile, eosRead, wtcInfo
 from utils import campaignInfo, siteInfo, sendLog, sendEmail
 from collections import defaultdict
 import json
@@ -12,14 +12,16 @@ from showError import parse_one
 from JIRAClient import JIRAClient
 import random
 
+
 def completor(url, specific):
     mlock = moduleLock(silent=True)
-    if mlock(): return 
-
+    if mlock():
+        return
 
     use_mcm = True
-    up = componentInfo(soft=['mcm','wtc','jira'])
-    if not up.check(): return
+    up = componentInfo(soft=['mcm', 'wtc', 'jira'])
+    if not up.check():
+        return
     use_mcm = up.status['mcm']
     if use_mcm:
         mcm = McMClient(dev=False)
@@ -29,41 +31,46 @@ def completor(url, specific):
     CI = campaignInfo()
     SI = siteInfo()
     UC = unifiedConfiguration()
-    JC = JIRAClient() if up.status.get('jira',False) else None
+    JC = JIRAClient() if up.status.get('jira', False) else None
 
     wfs = []
-    wfs.extend( session.query(Workflow).filter(Workflow.status == 'away').all() )
-    wfs.extend( session.query(Workflow).filter(Workflow.status.startswith('assistance')).all() )
+    wfs.extend(session.query(Workflow).filter(Workflow.status == 'away').all())
+    wfs.extend(session.query(Workflow).filter(
+        Workflow.status.startswith('assistance')).all())
 
-    ## just take it in random order so that not always the same is seen
-    random.shuffle( wfs )
+    # just take it in random order so that not always the same is seen
+    random.shuffle(wfs)
 
-    max_per_round = UC.get('max_per_round').get('completor',None)
-    if max_per_round and not specific: wfs = wfs[:max_per_round]
-        
+    max_per_round = UC.get('max_per_round').get('completor', None)
+    if max_per_round and not specific:
+        wfs = wfs[:max_per_round]
 
     all_stuck = set()
-    ## take into account what stagor was saying
+    # take into account what stagor was saying
     for itry in range(5):
         try:
-            all_stuck.update( json.loads( eosRead('%s/stuck_transfers.json'%monitor_pub_dir)))
+            all_stuck.update(
+                json.loads(
+                    eosRead(
+                        '%s/stuck_transfers.json' %
+                        monitor_pub_dir)))
             break
-        except:
+        except BaseException:
             time.sleep(2)
-        
+
     for itry in range(5):
-         try:
-             ## take into account the block that needed to be repositioned recently
-             all_stuck.update( [b.split('#')[0] for b in json.loads( eosRead('%s/missing_blocks.json'%monitor_dir)) ] )
-             break
-         except:
-             time.sleep(2)
-
-
+        try:
+            # take into account the block that needed to be repositioned
+            # recently
+            all_stuck.update([b.split('#')[0] for b in json.loads(
+                eosRead('%s/missing_blocks.json' % monitor_dir))])
+            break
+        except BaseException:
+            time.sleep(2)
 
     good_fractions = {}
     overdoing_fractions = {}
-    truncate_fractions = {} 
+    truncate_fractions = {}
     timeout = {}
     campaign_injection_delay = {}
     for c in CI.campaigns:
@@ -82,18 +89,18 @@ def completor(url, specific):
 
     WI = wtcInfo()
     overrides = WI.getForce()
-    if use_mcm:    
-        ## add all workflow that mcm wants to get force completed
+    if use_mcm:
+        # add all workflow that mcm wants to get force completed
         mcm_force = mcm.get('/restapi/requests/forcecomplete')
-        ## assuming this will be a list of actual prepids
+        # assuming this will be a list of actual prepids
         overrides['mcm'] = mcm_force
 
     print "can force complete on"
-    print json.dumps( good_fractions ,indent=2)
+    print json.dumps(good_fractions, indent=2)
     print "can truncate complete on"
-    print json.dumps( truncate_fractions ,indent=2)
+    print json.dumps(truncate_fractions, indent=2)
     print "can overide on"
-    print json.dumps( overrides, indent=2)
+    print json.dumps(overrides, indent=2)
     max_force = UC.get("max_force_complete")
     max_priority = UC.get("max_tail_priority")
     injection_delay_threshold = UC.get("injection_delay_threshold")
@@ -104,253 +111,348 @@ def completor(url, specific):
     set_force_complete = set()
 
     # priority and time above which to fire a JIRA
-    jira_priority_and_delays = { 110000 : 21,
-                                 90000 : 28,
-                            #     80000 : 60,
-                            #0 : 90
-                             }
+    jira_priority_and_delays = {110000: 21,
+                                90000: 28,
+                                #     80000 : 60,
+                                # 0 : 90
+                                }
 
     for wfo in wfs:
-        if specific and not specific in wfo.name: continue
+        if specific and specific not in wfo.name:
+            continue
 
-        print "looking at",wfo.name
+        print "looking at", wfo.name
 
-        ## get all of the same
+        # get all of the same
         wfi = workflowInfo(url, wfo.name)
         pids = wfi.getPrepIDs()
-        skip=False
+        skip = False
         campaigns = wfi.getCampaigns()
 
         #if not any([c in good_fractions.keys() for c in campaigns]): skip=True
         #if not any([c in truncate_fractions.keys() for c in campaigns]): skip=True
 
-        for user,spec in overrides.items():
-            if not spec: continue
+        for user, spec in overrides.items():
+            if not spec:
+                continue
             spec = filter(None, spec)
-            if not wfi.request['RequestStatus'] in ['force-complete', 'completed']:
-                if any(s in wfo.name for s in spec) or (wfo.name in spec) or any(pid in spec for pid in pids) or any(s in pids for s in spec):
+            if not wfi.request['RequestStatus'] in [
+                    'force-complete', 'completed']:
+                if any(
+                        s in wfo.name for s in spec) or (
+                        wfo.name in spec) or any(
+                        pid in spec for pid in pids) or any(
+                        s in pids for s in spec):
 
                     wfi = workflowInfo(url, wfo.name)
-                    forceComplete(url , wfi )
-                    skip=True
-                    wfi.notifyRequestor("The workflow %s was force completed by request of %s"%(wfo.name,user), do_batch=False)
-                    wfi.sendLog('completor','%s is asking for %s to be force complete'%(user,wfo.name))
+                    forceComplete(url, wfi)
+                    skip = True
+                    wfi.notifyRequestor(
+                        "The workflow %s was force completed by request of %s" %
+                        (wfo.name, user), do_batch=False)
+                    wfi.sendLog(
+                        'completor', '%s is asking for %s to be force complete' %
+                        (user, wfo.name))
                     break
-    
-        if wfo.status.startswith('assistance'): skip = True
 
-        if skip: 
+        if wfo.status.startswith('assistance'):
+            skip = True
+
+        if skip:
             continue
 
         priority = wfi.request['RequestPriority']
 
-        if not 'Campaign' in wfi.request: continue
+        if 'Campaign' not in wfi.request:
+            continue
 
-        if not wfi.request['RequestStatus'] in ['acquired','running-open','running-closed']: continue
+        if not wfi.request['RequestStatus'] in [
+                'acquired', 'running-open', 'running-closed']:
+            continue
 
-
-
-        ## until we can map the output to task ...
-        output_per_task = wfi.getOutputPerTask() ## can use that one, and follow mapping
+        # until we can map the output to task ...
+        # can use that one, and follow mapping
+        output_per_task = wfi.getOutputPerTask()
         good_fraction_per_out = {}
         good_fraction_nodelay_per_out = {}
         truncate_fraction_per_out = {}
         #allowed_delay_per_out = {}
-        for task,outs in output_per_task.items():
-            task_campaign = wfi.getCampaignPerTask( task )
+        for task, outs in output_per_task.items():
+            task_campaign = wfi.getCampaignPerTask(task)
             for out in outs:
-                good_fraction_per_out[out] = good_fractions.get(task_campaign,1000.)
-                good_fraction_nodelay_per_out[out] = overdoing_fractions.get(task_campaign,default_fraction_overdoing)
-                truncate_fraction_per_out[out] = truncate_fractions.get(task_campaign,1000.)
+                good_fraction_per_out[out] = good_fractions.get(
+                    task_campaign, 1000.)
+                good_fraction_nodelay_per_out[out] = overdoing_fractions.get(
+                    task_campaign, default_fraction_overdoing)
+                truncate_fraction_per_out[out] = truncate_fractions.get(
+                    task_campaign, 1000.)
                 #allowed_delay_per_out[out] = timeout.get(task_campaign, 14)
 
         #print "force at", json.dumps( good_fraction_per_out, indent=2)
         #print "truncate at",json.dumps( truncate_fraction_per_out, indent=2)
 
-        now = time.mktime(time.gmtime()) / (60*60*24.)
+        now = time.mktime(time.gmtime()) / (60 * 60 * 24.)
 
-        priority_log = filter(lambda change: change['Priority'] == priority,wfi.request.get('PriorityTransition',[]))
+        priority_log = filter(
+            lambda change: change['Priority'] == priority,
+            wfi.request.get(
+                'PriorityTransition',
+                []))
         if not priority_log:
             print "\tHas no priority log"
             priority_delay = 0
         else:
-            then = max([change['UpdateTime'] for change in priority_log]) / (60.*60.*24.)
-            priority_delay = now - then ## in days
-            print "priority was set to",priority,priority_delay,"[days] ago"
+            then = max([change['UpdateTime']
+                        for change in priority_log]) / (60. * 60. * 24.)
+            priority_delay = now - then  # in days
+            print "priority was set to", priority, priority_delay, "[days] ago"
 
-        running_log = filter(lambda change : change["Status"] in ["running-open","running-closed"],wfi.request['RequestTransition'])
+        running_log = filter(
+            lambda change: change["Status"] in [
+                "running-open",
+                "running-closed"],
+            wfi.request['RequestTransition'])
         if not running_log:
             print "\tHas no running log"
             delay = 0
         else:
-            then = max([change['UpdateTime'] for change in running_log]) / (60.*60.*24.)
-            delay = now - then ## in days
+            then = max([change['UpdateTime']
+                        for change in running_log]) / (60. * 60. * 24.)
+            delay = now - then  # in days
 
-        #further check on delays
+        # further check on delays
         cpuh = wfi.getComputingTime(unit='d')
-        wfi.sendLog('completor',"Requires %.1f [CPUd], running since %.1f [day], last priority change to %d done %.1f [day] ago"%( cpuh, delay, priority, priority_delay))
-        if priority_delay!=0 and priority_delay < delay:
-            ## regardless when it started running, set the delay to when priority was changed last
+        wfi.sendLog(
+            'completor',
+            "Requires %.1f [CPUd], running since %.1f [day], last priority change to %d done %.1f [day] ago" %
+            (cpuh,
+             delay,
+             priority,
+             priority_delay))
+        if priority_delay != 0 and priority_delay < delay:
+            # regardless when it started running, set the delay to when
+            # priority was changed last
             delay = priority_delay
 
-        ## this is supposed to be the very initial request date, inherited from clones
+        # this is supposed to be the very initial request date, inherited from
+        # clones
         injection_delay = None
         original = wfi
         if 'OriginalRequestName' in original.request:
-            ## go up the clone chain
-            original = workflowInfo(url, original.request['OriginalRequestName'])
-        injected_log = filter(lambda change : change["Status"] in ["assignment-approved"],original.request['RequestTransition'])
+            # go up the clone chain
+            original = workflowInfo(
+                url, original.request['OriginalRequestName'])
+        injected_log = filter(
+            lambda change: change["Status"] in ["assignment-approved"],
+            original.request['RequestTransition'])
         if injected_log:
-            injected_on = injected_log[-1]['UpdateTime'] / (60.*60.*24.)
+            injected_on = injected_log[-1]['UpdateTime'] / (60. * 60. * 24.)
             injection_delay = now - injected_on
-        
 
         delay_for_priority_increase = injection_delay
         #delay_for_priority_increase = delay
 
-        (w,d) = divmod(delay, 7 )
-        print "\t"*int(w)+"Running since",delay,"[days] priority=",priority
-        
+        (w, d) = divmod(delay, 7)
+        print "\t" * int(w) + \
+            "Running since", delay, "[days] priority=", priority
+
         pop_a_jira = False
-        ping_on_jira = 7 *(24*60*60) # 7 days
-        for jp,jd in jira_priority_and_delays.items():
-            if priority >= jp and delay >= jd: pop_a_jira = True
+        ping_on_jira = 7 * (24 * 60 * 60)  # 7 days
+        for jp, jd in jira_priority_and_delays.items():
+            if priority >= jp and delay >= jd:
+                pop_a_jira = True
 
         if pop_a_jira and JC:
-            j,reopened,just_created = JC.create_or_last( prepid = wfi.request['PrepID'],
-                                                    priority = wfi.request['RequestPriority'],
-                                                    label = 'Late',
-                                                    reopen = True)
-            last_time = JC.last_time( j )
+            j, reopened, just_created = JC.create_or_last(prepid=wfi.request['PrepID'],
+                                                          priority=wfi.request['RequestPriority'],
+                                                          label='Late',
+                                                          reopen=True)
+            last_time = JC.last_time(j)
             since_last_ping = time.mktime(time.gmtime()) - last_time
             if since_last_ping > ping_on_jira or just_created:
-                j_comment = "Running since %.1f [days] at priority %d"%( delay, priority)
+                j_comment = "Running since %.1f [days] at priority %d" % (
+                    delay, priority)
                 JC.comment(j.key, j_comment)
-            
 
-        if delay_for_priority_increase!=None and delay_for_priority_increase > injection_delay_threshold and priority >= injection_delay_priority:
-            quantized = 5000 ## quantize priority
-            tail_cutting_priority = wfi.request['InitialPriority']+ int((delay_priority_increase * (delay_for_priority_increase - injection_delay_threshold) / 7) / quantized) * quantized
-            tail_cutting_priority += 101 ## to signal it is from this mechanism
-            tail_cutting_priority = min(400000, tail_cutting_priority) ## never go above 400k priority
-            tail_cutting_priority = max(tail_cutting_priority, priority) ## never go below the current value
-            
+        if delay_for_priority_increase is not None and delay_for_priority_increase > injection_delay_threshold and priority >= injection_delay_priority:
+            quantized = 5000  # quantize priority
+            tail_cutting_priority = wfi.request['InitialPriority'] + int((delay_priority_increase * (
+                delay_for_priority_increase - injection_delay_threshold) / 7) / quantized) * quantized
+            tail_cutting_priority += 101  # to signal it is from this mechanism
+            tail_cutting_priority = min(
+                400000, tail_cutting_priority)  # never go above 400k priority
+            tail_cutting_priority = max(
+                tail_cutting_priority,
+                priority)  # never go below the current value
+
             if priority < tail_cutting_priority:
                 if max_priority:
-                    sendLog('completor',"%s Injected since %s [days] priority=%s, increasing to %s"%(wfo.name,delay_for_priority_increase,priority, tail_cutting_priority), level='critical')
-                    wfi.sendLog('completor','bumping priority to %d for being injected since %s'%( tail_cutting_priority, delay_for_priority_increase))
+                    sendLog(
+                        'completor',
+                        "%s Injected since %s [days] priority=%s, increasing to %s" %
+                        (wfo.name,
+                         delay_for_priority_increase,
+                         priority,
+                         tail_cutting_priority),
+                        level='critical')
+                    wfi.sendLog(
+                        'completor', 'bumping priority to %d for being injected since %s' %
+                        (tail_cutting_priority, delay_for_priority_increase))
 
-                    reqMgrClient.changePriorityWorkflow(url, wfo.name, tail_cutting_priority)
-                    max_priority-=1
+                    reqMgrClient.changePriorityWorkflow(
+                        url, wfo.name, tail_cutting_priority)
+                    max_priority -= 1
                 else:
-                    sendLog('completor',"%s Injected since %s [days] priority=%s, would like to increase to %s"%(wfo.name,delay_for_priority_increase,priority, tail_cutting_priority), level='critical')
-                    wfi.sendLog('completor','would like to bump priority to %d for being injected since %s'%( tail_cutting_priority, delay_for_priority_increase))
+                    sendLog(
+                        'completor',
+                        "%s Injected since %s [days] priority=%s, would like to increase to %s" %
+                        (wfo.name,
+                         delay_for_priority_increase,
+                         priority,
+                         tail_cutting_priority),
+                        level='critical')
+                    wfi.sendLog(
+                        'completor', 'would like to bump priority to %d for being injected since %s' %
+                        (tail_cutting_priority, delay_for_priority_increase))
 
                     print "Could be changing the priority to higher value, but too many already were done"
 
-        _,prim,_,_ = wfi.getIO()
+        _, prim, _, _ = wfi.getIO()
         is_stuck = all_stuck & prim
-        if is_stuck: wfi.sendLog('completor','%s is stuck'%','.join(is_stuck))
+        if is_stuck:
+            wfi.sendLog('completor', '%s is stuck' % ','.join(is_stuck))
 
         monitor_delay = 7
-        allowed_delay = max([timeout.get(c,14) for c in campaigns])
-            
+        allowed_delay = max([timeout.get(c, 14) for c in campaigns])
+
         monitor_delay = min(monitor_delay, allowed_delay)
 
-        ### just skip if too early, just for the sake of not computing the completion fraction just now.
+        # just skip if too early, just for the sake of not computing the completion fraction just now.
         # maybe this is fast enough that we can do it for all
-        if delay <= monitor_delay: 
+        if delay <= monitor_delay:
             print "not enough time has passed yet"
             continue
 
-        long_lasting[wfo.name] = { "delay" : delay,
-                                   "injection_delay" : injection_delay }
+        long_lasting[wfo.name] = {"delay": delay,
+                                  "injection_delay": injection_delay}
 
         percent_completions = wfi.getCompletionFraction(caller='completor')
-        
+
         if not percent_completions:
-            sendLog('completor','%s has no output at all'% wfo.name, level='critical')
+            sendLog(
+                'completor',
+                '%s has no output at all' %
+                wfo.name,
+                level='critical')
             continue
 
-        is_over_allowed_delay = (all([percent_completions[out] >= good_fraction_per_out.get(out,1000.) for out in percent_completions]) and delay >= allowed_delay)
-        is_over_truncation_delay = (is_stuck and (all([percent_completions[out] >= truncate_fraction_per_out.get(out,1000.) for out in percent_completions])) and delay >= allowed_delay)
-        is_over_completion = (all([percent_completions[out] >= good_fraction_nodelay_per_out.get(out,1000.) for out in percent_completions]))
+        is_over_allowed_delay = (all([percent_completions[out] >= good_fraction_per_out.get(
+            out, 1000.) for out in percent_completions]) and delay >= allowed_delay)
+        is_over_truncation_delay = (is_stuck and (all([percent_completions[out] >= truncate_fraction_per_out.get(
+            out, 1000.) for out in percent_completions])) and delay >= allowed_delay)
+        is_over_completion = (all([percent_completions[out] >= good_fraction_nodelay_per_out.get(
+            out, 1000.) for out in percent_completions]))
 
         if is_over_completion:
-            wfi.sendLog('completor', "all is over completed %s\n %s"%( json.dumps( good_fraction_nodelay_per_out, indent=2 ),
-                                                                       json.dumps( percent_completions, indent=2 )
-                                                                       ))
+            wfi.sendLog(
+                'completor', "all is over completed %s\n %s" %
+                (json.dumps(
+                    good_fraction_nodelay_per_out, indent=2), json.dumps(
+                    percent_completions, indent=2)))
         elif is_over_allowed_delay:
-            wfi.sendLog('completor', "all is above %s \n%s"%( json.dumps(good_fraction_per_out, indent=2 ), 
-                                                              json.dumps( percent_completions, indent=2 )
-                                                              ))
+            wfi.sendLog(
+                'completor', "all is above %s \n%s" %
+                (json.dumps(
+                    good_fraction_per_out, indent=2), json.dumps(
+                    percent_completions, indent=2)))
         elif is_over_truncation_delay:
-            wfi.sendLog('completor', "all is above %s truncation level, and the input is stuck\n%s"%( json.dumps(truncate_fraction_per_out, indent=2 ),
-                                                                                                      json.dumps( percent_completions, indent=2 ) ) )
+            wfi.sendLog(
+                'completor', "all is above %s truncation level, and the input is stuck\n%s" %
+                (json.dumps(
+                    truncate_fraction_per_out, indent=2), json.dumps(
+                    percent_completions, indent=2)))
 
         else:
             long_lasting[wfo.name].update({
-                    'completion': sum(percent_completions.values()) / len(percent_completions),
-                    'completions' : percent_completions
-                    })
-            
-            ## do something about the agents this workflow is in
+                'completion': sum(percent_completions.values()) / len(percent_completions),
+                'completions': percent_completions
+            })
+
+            # do something about the agents this workflow is in
             long_lasting[wfo.name]['agents'] = wfi.getAgents()
-            wfi.sendLog('completor', "%s not over bound \ncomplete at %s \n truncate at %s \nRunning %s"%(json.dumps( percent_completions, indent=2), 
-                                                                                                 json.dumps(good_fraction_per_out, indent=2),
-                                                                                                 json.dumps( truncate_fraction_per_out, indent=2),
-                                                                                                 json.dumps( long_lasting[wfo.name]['agents'], indent=2) ))
+            wfi.sendLog(
+                'completor', "%s not over bound \ncomplete at %s \n truncate at %s \nRunning %s" %
+                (json.dumps(
+                    percent_completions, indent=2), json.dumps(
+                    good_fraction_per_out, indent=2), json.dumps(
+                    truncate_fraction_per_out, indent=2), json.dumps(
+                    long_lasting[
+                        wfo.name]['agents'], indent=2)))
             continue
 
-        #for output in  percent_completions:
+        # for output in  percent_completions:
         #    completions[output]['injected'] = then
-            
 
         ran_at = wfi.request['SiteWhitelist']
-                        
-        wfi.sendLog('completor',"Required %s, time spend %s"%( cpuh, delay))
-                    
-        ##### WILL FORCE COMPLETE BELOW
+
+        wfi.sendLog('completor', "Required %s, time spend %s" % (cpuh, delay))
+
+        # WILL FORCE COMPLETE BELOW
         # only really force complete after n days
 
-        ## find ACDCs that might be running
-        if max_force>0:
-            print "going for force-complete of",wfo.name
+        # find ACDCs that might be running
+        if max_force > 0:
+            print "going for force-complete of", wfo.name
             if not safe_mode:
-                forceComplete(url, wfi )
-                set_force_complete.add( wfo.name )
-                wfi.sendLog('completor','going for force completing')
-                wfi.notifyRequestor("The workflow %s was force completed for running too long"% wfo.name)
-                max_force -=1
+                forceComplete(url, wfi)
+                set_force_complete.add(wfo.name)
+                wfi.sendLog('completor', 'going for force completing')
+                wfi.notifyRequestor(
+                    "The workflow %s was force completed for running too long" %
+                    wfo.name)
+                max_force -= 1
             else:
-                sendEmail('completor', 'The workflow %s is ready for force complete, but completor is in safe mode'%wfo.name)
+                sendEmail(
+                    'completor',
+                    'The workflow %s is ready for force complete, but completor is in safe mode' %
+                    wfo.name)
         else:
-            wfi.sendLog('completor',"too many completion this round, cannot force complete")
+            wfi.sendLog(
+                'completor',
+                "too many completion this round, cannot force complete")
 
     if set_force_complete:
-        sendLog('completor','The followings were set force-complete \n%s'%('\n'.join(set_force_complete)))
-    
+        sendLog(
+            'completor',
+            'The followings were set force-complete \n%s' %
+            ('\n'.join(set_force_complete)))
+
     #open('%s/completions.json'%monitor_dir,'w').write( json.dumps( completions , indent=2))
-    text="These have been running for long"
-    
+    text = "These have been running for long"
+
     #open('%s/longlasting.json'%monitor_dir,'w').write( json.dumps( long_lasting, indent=2 ))
-    eosFile('%s/longlasting.json'%monitor_dir,'w').write( json.dumps( long_lasting, indent=2 )).close()
+    eosFile(
+        '%s/longlasting.json' %
+        monitor_dir,
+        'w').write(
+        json.dumps(
+            long_lasting,
+            indent=2)).close()
 
-    for wf,info in sorted(long_lasting.items(), key=lambda tp:tp[1]['delay'], reverse=True):
+    for wf, info in sorted(
+            long_lasting.items(), key=lambda tp: tp[1]['delay'], reverse=True):
         delay = info['delay']
-        text += "\n %s : %s days"% (wf, delay)
+        text += "\n %s : %s days" % (wf, delay)
         if 'completion' in info:
-            text += " %d%%"%( info['completion']*100 )
-
+            text += " %d%%" % (info['completion'] * 100)
 
     print text
 
 
 if __name__ == "__main__":
     url = reqmgr_url
-    spec=None
-    if len(sys.argv)>1:
-        spec=sys.argv[1]
-        
-    completor(url, spec)
+    spec = None
+    if len(sys.argv) > 1:
+        spec = sys.argv[1]
 
+    completor(url, spec)

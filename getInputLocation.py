@@ -63,6 +63,7 @@ def printDsLocation(ds, clean=False, anyb=False):
     size = dbsClient.getDatasetSize(ds)
     print formatSize(size)
 
+
 def getInputDataset(workflow):
     if 'InputDataset' in workflow.info:
         return workflow.info['InputDataset']
@@ -72,15 +73,24 @@ def getInputDataset(workflow):
             return task1['InputDataset']
     return None
 
+
 def main():
     usage = 'python %prog [OPTIONS] [WORKFLOW]'
     parser = optparse.OptionParser(usage=usage)
     parser.add_option(
         '-f', '--file', help='Text file with several workflows', dest='file')
     parser.add_option(
-        '-a', '--any', help='Any block replica', dest='anyb', action='store_true')
+        '-a',
+        '--any',
+        help='Any block replica',
+        dest='anyb',
+        action='store_true')
     parser.add_option(
-        '-d', '--dataset', help='A single dataset', dest='dataset', action='store_true')
+        '-d',
+        '--dataset',
+        help='A single dataset',
+        dest='dataset',
+        action='store_true')
     parser.add_option('-p', '--pileup', action="store_true",
                       help='Look also for pileup location', dest='pileup')
     parser.add_option('-c', '--clean', help='Print ready to use site list',
@@ -102,18 +112,19 @@ def main():
         else:
             print x
             workflow = reqMgrClient.Workflow(x)
-             
+
             ds = getInputDataset(workflow)
             if not ds:
                 print x, "Has no input dataset"
                 continue
-            
+
             printDsLocation(ds, options.clean, options.anyb)
             # pile ups
             if options.dataset and 'MCPileup' in workflow.info:
                 pu = workflow.info['MCPileup']
                 print "Pile up:"
                 printDsLocation(pu, options.clean, options.anyb)
+
 
 if __name__ == '__main__':
     main()

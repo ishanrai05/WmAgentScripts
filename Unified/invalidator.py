@@ -7,91 +7,120 @@ from utils import componentInfo, setDatasetStatus, sendLog
 from collections import defaultdict
 import time
 
+
 def invalidator(url, invalid_status='INVALID'):
     use_mcm = True
-    up = componentInfo(soft=['wtc','jira'])
-    if not up.check(): return
+    up = componentInfo(soft=['wtc', 'jira'])
+    if not up.check():
+        return
     mcm = McMClient(dev=False)
 
-    invalids = mcm.getA('invalidations',query='status=announced')
-    if not invalids: return
+    invalids = mcm.getA('invalidations', query='status=announced')
+    if not invalids:
+        return
 
-    print len(invalids),"Object to be invalidated"
+    print len(invalids), "Object to be invalidated"
     text_to_batch = defaultdict(str)
     text_to_request = defaultdict(str)
     for invalid in invalids:
-        acknowledge= False
+        acknowledge = False
         pid = invalid['prepid']
         batch_lookup = invalid['prepid']
         text = ""
         if invalid['type'] == 'request':
             wfn = invalid['object']
-            print "need to invalidate the workflow",wfn
+            print "need to invalidate the workflow", wfn
             wfo = session.query(Workflow).filter(Workflow.name == wfn).first()
             if wfo:
-                ## set forget of that thing (although checkor will recover from it)
-                print "setting the status of",wfo.status,"to forget"
+                # set forget of that thing (although checkor will recover from
+                # it)
+                print "setting the status of", wfo.status, "to forget"
                 wfo.status = 'forget'
                 session.commit()
             else:
-                ## do not go on like this, do not acknoledge it
-                print wfn,"is set to be rejected, but we do not know about it yet"
-                #continue
+                # do not go on like this, do not acknoledge it
+                print wfn, "is set to be rejected, but we do not know about it yet"
+                # continue
             wfi = workflowInfo(url, wfn)
             success = "not rejected"
-            ## to do, we should find a way to reject the workflow and any related acdc
-            successes = invalidate(url, wfi, only_resub=True, with_output=False)
-            wfi.sendLog('invalidator',"rejection is performed from McM invalidations request")
-            acknowledge= all(successes)
+            # to do, we should find a way to reject the workflow and any
+            # related acdc
+            successes = invalidate(
+                url, wfi, only_resub=True, with_output=False)
+            wfi.sendLog(
+                'invalidator',
+                "rejection is performed from McM invalidations request")
+            acknowledge = all(successes)
 
-            text = "The workflow %s (%s) was rejected due to invalidation in McM" % ( wfn, pid )
-            batch_lookup = wfn ##so that the batch id is taken as the one containing the workflow name
+            text = "The workflow %s (%s) was rejected due to invalidation in McM" % (
+                wfn, pid)
+            batch_lookup = wfn  # so that the batch id is taken as the one containing the workflow name
         elif invalid['type'] == 'dataset':
             dataset = invalid['object']
 
-            if '?' in dataset: continue
-            if 'None' in dataset: continue
-            if 'None-' in dataset: continue
-            if 'FAKE-' in dataset: continue
+            if '?' in dataset:
+                continue
+            if 'None' in dataset:
+                continue
+            if 'None-' in dataset:
+                continue
+            if 'FAKE-' in dataset:
+                continue
 
-            print "setting",dataset,"to",invalid_status
-            success = setDatasetStatus(dataset , invalid_status )
+            print "setting", dataset, "to", invalid_status
+            success = setDatasetStatus(dataset, invalid_status)
             if success:
-                acknowledge= True
-                text = "The dataset %s (%s) was set INVALID due to invalidation in McM" % ( dataset, pid )
+                acknowledge = True
+                text = "The dataset %s (%s) was set INVALID due to invalidation in McM" % (
+                    dataset, pid)
             else:
-                msg = "Could not invalidate {}. Please consider contacting data management team for manual intervention.".format(dataset)
+                msg = "Could not invalidate {}. Please consider contacting data management team for manual intervention.".format(
+                    dataset)
                 print(msg)
                 sendLog('invalidator', msg, level='critical')
         else:
-            print "\t\t",invalid['type']," type not recognized"
+            print "\t\t", invalid['type'], " type not recognized"
 
         if acknowledge:
-            ## acknoldge invalidation in mcm, provided we can have the api
+            # acknoldge invalidation in mcm, provided we can have the api
             print "acknowledgment to mcm"
-            ackno_url = '/restapi/invalidations/acknowledge/%s'%( invalid['_id'] )
-            print "at",ackno_url
+            ackno_url = '/restapi/invalidations/acknowledge/%s' % (
+                invalid['_id'])
+            print "at", ackno_url
             mcm.get(ackno_url)
             # prepare the text for batches
             batches = []
-            batches.extend(mcm.getA('batches',query='contains=%s'%batch_lookup))
-            batches = filter(lambda b : b['status'] in ['announced','done','reset'], batches)
+            batches.extend(
+                mcm.getA(
+                    'batches',
+                    query='contains=%s' %
+                    batch_lookup))
+            batches = filter(
+                lambda b: b['status'] in [
+                    'announced',
+                    'done',
+                    'reset'],
+                batches)
             if len(batches):
                 bid = batches[-1]['prepid']
-                print "batch nofication to",bid
-                text_to_batch[bid] += text+"\n\n"
+                print "batch nofication to", bid
+                text_to_batch[bid] += text + "\n\n"
             # prepare the text for requests
-            text_to_request[pid] += text+"\n\n"
+            text_to_request[pid] += text + "\n\n"
 
-    for bid,text in text_to_batch.items():    
-        if not text: continue
+    for bid, text in text_to_batch.items():
+        if not text:
+            continue
         text += '\n This is an automated message'
-        mcm.put('/restapi/batches/notify',{ "notes" : text, "prepid" : bid})
+        mcm.put('/restapi/batches/notify', {"notes": text, "prepid": bid})
         pass
-    for pid,text in text_to_request.items():
-        if not text: continue
+    for pid, text in text_to_request.items():
+        if not text:
+            continue
         text += '\n This is an automated message'
-        mcm.put('/restapi/requests/notify',{ "message" : text, "prepids" : [pid]})
+        mcm.put('/restapi/requests/notify',
+                {"message": text, "prepids": [pid]})
+
 
 if __name__ == "__main__":
     url = 'cmsweb.cern.ch'

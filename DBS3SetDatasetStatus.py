@@ -18,42 +18,89 @@ from dbs.apis.dbsClient import DbsApi
 
 DEFAULT_PROD_DBS3 = 'https://cmsweb.cern.ch/dbs/prod/global/DBSWriter'
 
+
 def get_command_line_options():
-    parser = OptionParser(usage='%prog --dataset=</specify/dataset/path> --status=<newStatus> --url=<DBS_Instance_URL> + optional options')
-    parser.add_option("-u", "--url", dest="url", help="DBS Instance url", metavar="DBS_Instance_URL", default=DEFAULT_PROD_DBS3)
-    parser.add_option("-r", "--recursive", dest="recursive", help="Invalidate all children datasets,too?", metavar="True/False")
-    parser.add_option("-d", "--dataset", dest="dataset", help="Dataset to change status", metavar="/specify/dataset/path")
-    parser.add_option("-s", "--status", dest="new_status", help="New status of the dataset", metavar="newStatus")
-    parser.add_option("-v", "--verbose", dest="verbose", action="store_true", help="Increase verbosity")
-    parser.add_option("-p", "--proxy", dest="proxy", help="Use Socks5 proxy to connect to server", metavar="socks5://127.0.0.1:1234")
+    parser = OptionParser(
+        usage='%prog --dataset=</specify/dataset/path> --status=<newStatus> --url=<DBS_Instance_URL> + optional options')
+    parser.add_option(
+        "-u",
+        "--url",
+        dest="url",
+        help="DBS Instance url",
+        metavar="DBS_Instance_URL",
+        default=DEFAULT_PROD_DBS3)
+    parser.add_option(
+        "-r",
+        "--recursive",
+        dest="recursive",
+        help="Invalidate all children datasets,too?",
+        metavar="True/False")
+    parser.add_option(
+        "-d",
+        "--dataset",
+        dest="dataset",
+        help="Dataset to change status",
+        metavar="/specify/dataset/path")
+    parser.add_option(
+        "-s",
+        "--status",
+        dest="new_status",
+        help="New status of the dataset",
+        metavar="newStatus")
+    parser.add_option(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        action="store_true",
+        help="Increase verbosity")
+    parser.add_option(
+        "-p",
+        "--proxy",
+        dest="proxy",
+        help="Use Socks5 proxy to connect to server",
+        metavar="socks5://127.0.0.1:1234")
     (options, args) = parser.parse_args()
 
-    if not (options.url and options.dataset and options.new_status and options.recursive):
+    if not (
+            options.url and options.dataset and options.new_status and options.recursive):
         parser.print_help()
-        parser.error('Mandatory options are --dataset, --status, --url and --recursive')
+        parser.error(
+            'Mandatory options are --dataset, --status, --url and --recursive')
 
     return options, args
 
+
 def list_dataset_children(dataset):
     for child_dataset in api.listDatasetChildren(dataset=dataset):
-        logging.debug('Found children dataset %s' % (child_dataset['child_dataset']))
-        for grand_child in list_dataset_children(dataset=child_dataset['child_dataset']):
+        logging.debug(
+            'Found children dataset %s' %
+            (child_dataset['child_dataset']))
+        for grand_child in list_dataset_children(
+                dataset=child_dataset['child_dataset']):
             yield grand_child
         yield child_dataset['child_dataset']
 
+
 def update_dataset_type(dataset, new_status):
-    logging.debug('Update dataset type for dataset %s to %s' % (dataset, new_status))
+    logging.debug(
+        'Update dataset type for dataset %s to %s' %
+        (dataset, new_status))
     api.updateDatasetType(dataset=dataset, dataset_access_type=new_status)
+
 
 def update_file_status(dataset, new_status):
     files = api.listFiles(dataset=dataset)
 
-    file_status = (1,0)[options.new_status in ['DELETED', 'DEPRECATED', 'INVALID']]
+    file_status = (1, 0)[options.new_status in [
+        'DELETED', 'DEPRECATED', 'INVALID']]
 
     for this_file in files:
-        logging.debug('Update file status for file %s to status %s' % (this_file['logical_file_name'], file_status))
+        logging.debug(
+            'Update file status for file %s to status %s' %
+            (this_file['logical_file_name'], file_status))
         api.updateFileStatus(logical_file_name=this_file['logical_file_name'],
                              is_file_valid=file_status)
+
 
 if __name__ == "__main__":
     options, args = get_command_line_options()
@@ -65,14 +112,22 @@ if __name__ == "__main__":
 
     new_status = options.new_status.upper()
 
-    ###update file status
+    # update file status
     update_file_status(dataset=options.dataset, new_status=new_status)
 
-    ###update status of the dataset
+    # update status of the dataset
     update_dataset_type(dataset=options.dataset, new_status=new_status)
 
-    if options.recursive in ['True','true', '1', 'y', 'yes', 'yeah', 'yup', 'certainly']:
-        ###update status of children datasets as well
+    if options.recursive in [
+        'True',
+        'true',
+        '1',
+        'y',
+        'yes',
+        'yeah',
+        'yup',
+            'certainly']:
+        # update status of children datasets as well
         for child_dataset in list_dataset_children(options.dataset):
             update_file_status(dataset=child_dataset, new_status=new_status)
             update_dataset_type(dataset=child_dataset, new_status=new_status)

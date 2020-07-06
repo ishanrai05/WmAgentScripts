@@ -9,11 +9,17 @@ from optparse import OptionParser
     input vs. output numbers of events.
     Should be used instead of dbsTest.py
     TODO MC??
-   
+
 """
 
 
-def percentageCompletion(url, workflow, verbose=False, checkLumis=False, checkFilter=False, skipInvalid=False):
+def percentageCompletion(
+        url,
+        workflow,
+        verbose=False,
+        checkLumis=False,
+        checkFilter=False,
+        skipInvalid=False):
     """
     Calculates Percentage of completion for a given workflow
     taking a particular output dataset
@@ -25,7 +31,7 @@ def percentageCompletion(url, workflow, verbose=False, checkLumis=False, checkFi
             inputEvents = workflow.getInputLumis()
         else:
             inputEvents = workflow.getInputEvents()
-    except:
+    except BaseException:
         # no input dataset
         inputEvents = 0
 
@@ -51,14 +57,21 @@ def percentageCompletion(url, workflow, verbose=False, checkLumis=False, checkFi
         # print results
         if verbose:
             print dataset
-            print "Input %s: %d" % ("lumis" if checkLumis else "events", int(inputEvents))
-            print ("Output %s: %d (%s%%)" % ("lumis" if checkLumis else "events", int(outputEvents), perc) +
-                   ('(filter=%s)' % filterEff if checkFilter and not checkLumis else ''))
+            print "Input %s: %d" % (
+                "lumis" if checkLumis else "events", int(inputEvents))
+            print ("Output %s: %d (%s%%)" %
+                   ("lumis" if checkLumis else "events", int(outputEvents), perc) +
+                   ('(filter=%s)' %
+                    filterEff if checkFilter and not checkLumis else ''))
         else:
             print dataset, "%s%%" % perc
 
 
-def percentageCompletion2StepMC(url, workflow, verbose=False, checkLumis=False):
+def percentageCompletion2StepMC(
+        url,
+        workflow,
+        verbose=False,
+        checkLumis=False):
     """
     Calculates percentage completion for a MonteCarlo
     with GEN and GEN-SIM output
@@ -70,7 +83,7 @@ def percentageCompletion2StepMC(url, workflow, verbose=False, checkLumis=False):
             inputEvents = workflow.getInputLumis()
         else:
             inputEvents = workflow.getInputEvents()
-    except:
+    except BaseException:
         # no input dataset
         inputEvents = 0
 
@@ -98,18 +111,27 @@ def percentageCompletion2StepMC(url, workflow, verbose=False, checkLumis=False):
                 100.0 * outputEvents[1] / float(inputEvents) / filterEff]
     # print results
     if verbose:
-        print "Input %s: %d" % ("lumis" if checkLumis else "events", int(inputEvents))
+        print "Input %s: %d" % (
+            "lumis" if checkLumis else "events", int(inputEvents))
         print workflow.outputDatasets[0]
-        print "Output %s: %d (%s%%)" % ("lumis" if checkLumis else "events", int(outputEvents[0]), perc[0])
+        print "Output %s: %d (%s%%)" % (
+            "lumis" if checkLumis else "events", int(outputEvents[0]), perc[0])
         print workflow.outputDatasets[1]
-        print ("Output %s: %d (%s%%)" % ("lumis" if checkLumis else "events", int(outputEvents[1]), perc[1]) +
-               ('(filter=%s)' % filterEff if not checkLumis else ''))
+        print ("Output %s: %d (%s%%)" %
+               ("lumis" if checkLumis else "events", int(outputEvents[1]), perc[1]) +
+               ('(filter=%s)' %
+                filterEff if not checkLumis else ''))
     else:
         print workflow.outputDatasets[0], "%s%%" % perc[0]
         print workflow.outputDatasets[1], "%s%%" % perc[1]
 
 
-def percentageCompletionTaskChain(url, workflow, verbose=False, checkLumis=False, skipInvalid=False):
+def percentageCompletionTaskChain(
+        url,
+        workflow,
+        verbose=False,
+        checkLumis=False,
+        skipInvalid=False):
     """
     Calculates a Percentage completion for a taskchain.
     Taking step/filter efficiency into account.
@@ -142,16 +164,19 @@ def percentageCompletionTaskChain(url, workflow, verbose=False, checkLumis=False
             percentage = 100.0 * outputEvents / \
                 float(inputEvents) if inputEvents > 0 else 0.0
             if verbose:
-                print "Output %s:" % ("lumis" if checkLumis else "events"), int(outputEvents), "(%.2f%%)" % percentage
+                print "Output %s:" % ("lumis" if checkLumis else "events"), int(
+                    outputEvents), "(%.2f%%)" % percentage
         # Other datasets, or lumis, we ignore filter efficiency
         else:
             percentage = 100.0 * outputEvents / \
                 float(inputEvents) if inputEvents > 0 else 0.0
             if verbose:
-                print "Output %s:" % ("lumis" if checkLumis else "events"), int(outputEvents), "(%.2f%%)" % percentage
+                print "Output %s:" % ("lumis" if checkLumis else "events"), int(
+                    outputEvents), "(%.2f%%)" % percentage
         if not verbose:
             print dataset, "%s%%" % percentage
         i += 1
+
 
 url = 'cmsweb.cern.ch'
 
@@ -159,12 +184,27 @@ url = 'cmsweb.cern.ch'
 def main():
     usage = "usage: %prog [options] workflow"
     parser = OptionParser(usage=usage)
-    parser.add_option("-v", "--verbose", action="store_true", dest="verbose", default=False,
-                      help="Show detailed info")
-    parser.add_option("-l", "--lumis", action="store_true", dest="checkLumis", default=False,
-                      help="Show lumis instead of events")
-    parser.add_option("-k", "--skip", action="store_true", dest="skipInvalid", default=False,
-                      help="Skip invalid files in the output dataset (may be slower)")
+    parser.add_option(
+        "-v",
+        "--verbose",
+        action="store_true",
+        dest="verbose",
+        default=False,
+        help="Show detailed info")
+    parser.add_option(
+        "-l",
+        "--lumis",
+        action="store_true",
+        dest="checkLumis",
+        default=False,
+        help="Show lumis instead of events")
+    parser.add_option(
+        "-k",
+        "--skip",
+        action="store_true",
+        dest="skipInvalid",
+        default=False,
+        help="Skip invalid files in the output dataset (may be slower)")
     parser.add_option("-f", "--file", dest="fileName", default=None,
                       help="Input file")
     (options, args) = parser.parse_args()
@@ -183,18 +223,30 @@ def main():
         # by type
         if workflow.type != 'TaskChain':
             # two step monte carlos (GEN and GEN-SIM)
-            if workflow.type == 'MonteCarlo' and len(workflow.outputDatasets) == 2:
+            if workflow.type == 'MonteCarlo' and len(
+                    workflow.outputDatasets) == 2:
                 percentageCompletion2StepMC(
                     url, workflow, options.verbose, options.checkLumis)
             elif workflow.type == 'MonteCarloFromGEN':
-                percentageCompletion(url, workflow, options.verbose,
-                                     options.checkLumis, checkFilter=True, skipInvalid=options.skipInvalid)
+                percentageCompletion(
+                    url,
+                    workflow,
+                    options.verbose,
+                    options.checkLumis,
+                    checkFilter=True,
+                    skipInvalid=options.skipInvalid)
             else:
-                percentageCompletion(url, workflow, options.verbose,
-                                     options.checkLumis, checkFilter=True, skipInvalid=options.skipInvalid)
+                percentageCompletion(
+                    url,
+                    workflow,
+                    options.verbose,
+                    options.checkLumis,
+                    checkFilter=True,
+                    skipInvalid=options.skipInvalid)
         else:
             percentageCompletionTaskChain(
                 url, workflow, options.verbose, options.checkLumis)
+
 
 if __name__ == "__main__":
     main()

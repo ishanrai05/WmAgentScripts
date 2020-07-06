@@ -10,18 +10,25 @@ Admin_Mode = False
 
 Base = declarative_base()
 
+
 def prefix():
     return '' if Admin_Mode else 'cms_unified_admin.'
+
+
 def table_args():
-    return {} if Admin_Mode else { "schema" : "cms_unified_admin" }
+    return {} if Admin_Mode else {"schema": "cms_unified_admin"}
+
 
 class Workflow(Base):
     __tablename__ = 'WORKFLOW'
     __table_args__ = table_args()
     id = Column(Integer, Sequence('WORKFLOW_ID_SEQ'), primary_key=True)
     name = Column(String(400))
-    status = Column(String(100),default='considered') ## internal status
-    wm_status = Column(String(100),default='assignment-approved') ## status in req manager : we might not be carrying much actually since we are between ass-approved and assigned, although announced is coming afterwards
+    status = Column(String(100), default='considered')  # internal status
+    # status in req manager : we might not be carrying much actually since we
+    # are between ass-approved and assigned, although announced is coming
+    # afterwards
+    wm_status = Column(String(100), default='assignment-approved')
 
 
 class Output(Base):
@@ -33,12 +40,13 @@ class Output(Base):
     expectedlumis = Column(Integer)
     nevents = Column(Integer)
     nblocks = Column(Integer)
-    dsb_status = Column(String(30)) ## in DBS ?
+    dsb_status = Column(String(30))  # in DBS ?
     status = Column(String(30))
-    ## workflow it belongs to
-    workfow_id = Column(Integer,ForeignKey(prefix()+'WORKFLOW.id'))
+    # workflow it belongs to
+    workfow_id = Column(Integer, ForeignKey(prefix() + 'WORKFLOW.id'))
     workflow = relationship(Workflow)
     date = Column(Integer)
+
 
 class Transfer(Base):
     __tablename__ = 'TRANSFER'
@@ -46,16 +54,18 @@ class Transfer(Base):
     id = Column(Integer, Sequence('TRANSFER_ID_SEQ'), primary_key=True)
     phedexid = Column(Integer)
     workflows_id = Column(PickleType)
-    #status = Column(String(30))  ## to be added ?
+    # status = Column(String(30))  ## to be added ?
+
 
 class TransferImp(Base):
     __tablename__ = 'TRANSFERIMP'
     __table_args__ = table_args()
     id = Column(Integer, Sequence('TRANSFERIMP_ID_SEQ'), primary_key=True)
     phedexid = Column(Integer)
-    workflow_id = Column(Integer,ForeignKey(prefix()+'WORKFLOW.id'))
+    workflow_id = Column(Integer, ForeignKey(prefix() + 'WORKFLOW.id'))
     workflow = relationship(Workflow)
     active = Column(Boolean, default=True)
+
 
 class Lock(Base):
     __tablename__ = 'lock'
@@ -68,6 +78,7 @@ class Lock(Base):
     time = Column(Integer)
     reason = Column(String(400))
 
+
 class LogRecord(Base):
     __tablename__ = 'logrecord'
     __table_args__ = table_args()
@@ -79,12 +90,13 @@ class LogRecord(Base):
     year = Column(Integer)
     month = Column(Integer)
 
+
 if Admin_Mode:
     print "Using the admin account"
-    secret = open('Unified/secret_cmsr_admin.txt','r').read().strip()
+    secret = open('Unified/secret_cmsr_admin.txt', 'r').read().strip()
 else:
     print "Using the rw account"
-    secret = open('Unified/secret_cmsr_rw.txt','r').read().strip()    
+    secret = open('Unified/secret_cmsr_rw.txt', 'r').read().strip()
 
 engine = create_engine(secret)
 Base.metadata.create_all(engine)

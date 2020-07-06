@@ -9,7 +9,7 @@ except ImportError:
     sys.exit(1)
 
 
-global_pool = 'vocms099.cern.ch' #"vocms97.cern.ch"
+global_pool = 'vocms099.cern.ch'  # "vocms97.cern.ch"
 
 # production schedd's
 schedds = ["vocms0304.cern.ch",
@@ -24,6 +24,7 @@ schedds = ["vocms0304.cern.ch",
            "cmsgwms-submit2.fnal.gov",
            ]
 
+
 def main():
     overview_running = {}
     overview_pending = {}
@@ -35,39 +36,41 @@ def main():
     jobs_maxwall = {}
     jobs_numjobstart = {}
     jobs_removereason = {}
-    
+
     # global pool collector
     coll = htcondor.Collector(global_pool)
-    schedd_ads = coll.query(htcondor.AdTypes.Schedd, 'CMSGWMS_Type=?="prodschedd"', ['Name', 'MyAddress', 'ScheddIpAddr'])
-    
-    # all schedds 
+    schedd_ads = coll.query(
+        htcondor.AdTypes.Schedd, 'CMSGWMS_Type=?="prodschedd"', [
+            'Name', 'MyAddress', 'ScheddIpAddr'])
+
+    # all schedds
     for ad in schedd_ads:
         if ad["Name"] not in schedds:
             continue
-        print "getting jobs from %s"%ad["Name"]
-        #fill the overview
+        print "getting jobs from %s" % ad["Name"]
+        # fill the overview
         get_overview(overview_running,
-                        overview_pending,
-                        overview_other,
-                        overview_running48,
-                        overview_numjobstart,
-                        overview_removereason,
-                        jobs_48,
-                        jobs_maxwall,
-                        jobs_numjobstart,
-                        jobs_removereason,
-                        ad)
-        
+                     overview_pending,
+                     overview_other,
+                     overview_running48,
+                     overview_numjobstart,
+                     overview_removereason,
+                     jobs_48,
+                     jobs_maxwall,
+                     jobs_numjobstart,
+                     jobs_removereason,
+                     ad)
+
     print_results(overview_running,
-                    overview_pending,
-                    overview_running48,
-                    overview_numjobstart,
-                    overview_removereason,
-                    jobs_48,
-                    jobs_maxwall,
-                    jobs_numjobstart,
-                    jobs_removereason)
+                  overview_pending,
+                  overview_running48,
+                  overview_numjobstart,
+                  overview_removereason,
+                  jobs_48,
+                  jobs_maxwall,
+                  jobs_numjobstart,
+                  jobs_removereason)
+
 
 if __name__ == "__main__":
     main()
-    

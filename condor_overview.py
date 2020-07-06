@@ -7,7 +7,7 @@
     - a table of pending jobs: type of job-task vs. site
     - jobs that have run for more than 24 hours
     - jobs that have restarted more than 3 times
-    
+
 """
 import sys
 from random import choice
@@ -97,8 +97,8 @@ def printDict(jobDict, description):
         total += siteDict['LogCollect']
         total += siteDict['Harvesting']
         total += siteDict['Skim']
-        total_site = siteDict['Processing'] + siteDict['Production'] + siteDict['Merge'] + siteDict['Cleanup'] + \
-                     siteDict['LogCollect'] + siteDict['Harvesting'] + siteDict['Skim']
+        total_site = siteDict['Processing'] + siteDict['Production'] + siteDict['Merge'] + \
+            siteDict['Cleanup'] + siteDict['LogCollect'] + siteDict['Harvesting'] + siteDict['Skim']
         print '| %-20s | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d |' % (site,
                                                                                      siteDict['Processing'],
                                                                                      siteDict['Production'],

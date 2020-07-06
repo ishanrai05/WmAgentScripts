@@ -1,11 +1,11 @@
 from assignSession import *
 import time
-from utils import getWorkLoad, checkTransferStatus, workflowInfo, getWorkflowById, makeDeleteRequest, getWorkflowByOutput, getDatasetPresence, updateSubscription, getWorkflowByInput, getDatasetBlocksFraction, siteInfo, getDatasetDestinations, check_ggus, getDatasetEventsPerLumi, getWorkflowByMCPileup, getDatasetStatus, getDatasetBlocks, checkTransferLag, listCustodial, listRequests, getSubscriptions, makeReplicaRequest,getDatasetEventsAndLumis, getLFNbase, getDatasetFiles, getDatasetBlockSize, getWorkflowById
+from utils import getWorkLoad, checkTransferStatus, workflowInfo, getWorkflowById, makeDeleteRequest, getWorkflowByOutput, getDatasetPresence, updateSubscription, getWorkflowByInput, getDatasetBlocksFraction, siteInfo, getDatasetDestinations, check_ggus, getDatasetEventsPerLumi, getWorkflowByMCPileup, getDatasetStatus, getDatasetBlocks, checkTransferLag, listCustodial, listRequests, getSubscriptions, makeReplicaRequest, getDatasetEventsAndLumis, getLFNbase, getDatasetFiles, getDatasetBlockSize, getWorkflowById
 from reqMgrClient import retrieveSchema
 import pprint
 import sys
 import json
-import itertools 
+import itertools
 import copy
 from collections import defaultdict
 from utils import lockInfo, closeoutInfo
@@ -20,13 +20,13 @@ import os
 
 from utils import siteInfo
 from htmlor import htmlor
-from utils import dataCache , DbsApi
+from utils import dataCache, DbsApi
 from utils import findLostBlocks, findCustodialLocation, findCustodialCompletion, checkDownTime, getWorkflowByMCPileup, getDatasetSize, getDatasetBlockAndSite
 from utils import GET, getWorkflows, getDatasetBlockFraction, findLostBlocksFiles, getDatasetFileFraction, DSS
 from utils import closeoutInfo, findLateFiles, listRequests, getDatasetLumis, sendLog, searchLog, campaignInfo, try_sendLog, getDatasetFiles
 import itertools
-import httplib 
-from utils import setDatasetStatus, getDatasetEventsPerLumi, monitor_dir, getUnsubscribedBlocks, base_dir, distributeToSites,getDatasetChops, getDatasetFileLocations, getAllAgents, getDatasetFileLocations
+import httplib
+from utils import setDatasetStatus, getDatasetEventsPerLumi, monitor_dir, getUnsubscribedBlocks, base_dir, distributeToSites, getDatasetChops, getDatasetFileLocations, getAllAgents, getDatasetFileLocations
 url = 'cmsweb.cern.ch'
 
 dbs = DbsApi('https://cmsweb.cern.ch/dbs/prod/global/DBSReader')
@@ -35,14 +35,19 @@ dbs = DbsApi('https://cmsweb.cern.ch/dbs/prod/global/DBSReader')
 #print len(session.query(Output).all())
 #print len(session.query(Transfer).all())
 
-## find out from the completed ACDC whether there is something more to do with it
-completed = getWorkflows(url, 'completed', user='vlimant', rtype='Resubmission')
+# find out from the completed ACDC whether there is something more to do
+# with it
+completed = getWorkflows(
+    url,
+    'completed',
+    user='vlimant',
+    rtype='Resubmission')
 for wf in completed:
-    #if 'recovery' in wf and '2016' in wf:
-    #if all(key in wf for key in ['recovery','2016']):
-    if all(key in wf for key in ['18Apr2017','recovery']):
-        print wf,"is completed"
-        makeall = os.popen('./makeACDC.py --all -w %s'% wf).read()
+    # if 'recovery' in wf and '2016' in wf:
+    # if all(key in wf for key in ['recovery','2016']):
+    if all(key in wf for key in ['18Apr2017', 'recovery']):
+        print wf, "is completed"
+        makeall = os.popen('./makeACDC.py --all -w %s' % wf).read()
         if True or 'Tasks: []' in makeall:
             print "and happily finsihed with no ACDC, close the JIRA"
             reqMgrClient.closeOutWorkflow(url, wf)
@@ -51,126 +56,170 @@ for wf in completed:
         else:
             print "There are some ACDC to be assigned"
             print makeall
-    
 
-affected_blocks =set()
+
+affected_blocks = set()
 needed_blocks = set()
 needed_dataset = set()
 original_wf = set()
 
 affected_dataset = set()
 affected_files = defaultdict(set)
-#for fn in open('/afs/cern.ch/user/v/vlimant/public/ops/new2016.txt').read().split('\n'):
-for fn in open('/afs/cern.ch/user/v/vlimant/public/ops/vandy_2017.txt').read().split('\n'):
+# for fn in
+# open('/afs/cern.ch/user/v/vlimant/public/ops/new2016.txt').read().split('\n'):
+for fn in open(
+        '/afs/cern.ch/user/v/vlimant/public/ops/vandy_2017.txt').read().split('\n'):
     if not fn:
         continue
-    block = dbs.listBlocks( logical_file_name = fn)
+    block = dbs.listBlocks(logical_file_name=fn)
     for bi in block:
         bn = bi['block_name']
-        affected_blocks.add( bn )
-        affected_dataset.add( bn.split('#')[0] )
-        affected_files[ bn.split('#')[0]].add( fn )
-        ## find it's parent
-        block_parents = dbs.listBlockParents( block_name = bn )
-        for p_block  in block_parents:
-            needed_blocks.add( p_block['parent_block_name'] )
+        affected_blocks.add(bn)
+        affected_dataset.add(bn.split('#')[0])
+        affected_files[bn.split('#')[0]].add(fn)
+        # find it's parent
+        block_parents = dbs.listBlockParents(block_name=bn)
+        for p_block in block_parents:
+            needed_blocks.add(p_block['parent_block_name'])
         ds = bn.split('#')[0]
-        wfs = getWorkflowByOutput( url, ds ,details=True)
-        t_wfs = filter(lambda wf : not any(key in wf['RequestName'] for key in ['recovery','ACDC','RC','Recovery']), wfs)
-        original_wf.update( map(lambda o:"%s %s"%(o['RequestName'],o['PrepID']), t_wfs) )
-        needed_dataset.update( [wf['InputDataset'] for wf in wfs if 'InputDataset' in wf] )
+        wfs = getWorkflowByOutput(url, ds, details=True)
+        t_wfs = filter(
+            lambda wf: not any(
+                key in wf['RequestName'] for key in [
+                    'recovery',
+                    'ACDC',
+                    'RC',
+                    'Recovery']),
+            wfs)
+        original_wf.update(map(lambda o: "%s %s" %
+                               (o['RequestName'], o['PrepID']), t_wfs))
+        needed_dataset.update([wf['InputDataset']
+                               for wf in wfs if 'InputDataset' in wf])
 
 print "Affected datasets"
-print '\n'.join( sorted(affected_dataset ))
+print '\n'.join(sorted(affected_dataset))
 
 print "Affected blocks"
-print '\n'.join( sorted(affected_blocks ))
+print '\n'.join(sorted(affected_blocks))
 
 print "Needed blocks of RAW data"
-print '\n'.join( sorted(needed_blocks ))
+print '\n'.join(sorted(needed_blocks))
 
 print "Needed RAW datasets"
-print '\n'.join( sorted(needed_dataset ))
+print '\n'.join(sorted(needed_dataset))
 
 print "Locations"
 for dataset in needed_dataset:
-    blocks = [b for b in needed_blocks if b.split('#')[0]==dataset]
-    there = [ site for site,(t,f) in getDatasetPresence(url, dataset, only_blocks=blocks).items() if t]
+    blocks = [b for b in needed_blocks if b.split('#')[0] == dataset]
+    there = [site for site, (t, f) in getDatasetPresence(
+        url, dataset, only_blocks=blocks).items() if t]
     if not there:
         for b in blocks:
-            there = [ site for site,(t,f) in getDatasetPresence(url, dataset, only_blocks=[b]).items() if t]
-            print b,there
+            there = [
+                site for site,
+                (t,
+                 f) in getDatasetPresence(
+                    url,
+                    dataset,
+                    only_blocks=[b]).items() if t]
+            print b, there
     else:
-        print dataset,len(blocks),"blocks are at",there
+        print dataset, len(blocks), "blocks are at", there
 
 print "workflows to recover from"
-print '\n'.join( sorted(original_wf))
+print '\n'.join(sorted(original_wf))
 
 
 #affected_dataset = ['/JetHT/Run2016B-23Sep2016-v1/AOD']
-#sevendaysago = 1479993065 #time.mktime(time.gmtime()) - (7*24*60*60)
-sevendaysago = time.mktime(time.gmtime()) - (7*24*60*60)
-sevendays = time.mktime(time.gmtime()) + (7*24*60*60)
+# sevendaysago = 1479993065 #time.mktime(time.gmtime()) - (7*24*60*60)
+sevendaysago = time.mktime(time.gmtime()) - (7 * 24 * 60 * 60)
+sevendays = time.mktime(time.gmtime()) + (7 * 24 * 60 * 60)
 recovered_files = defaultdict(set)
 for dataset in sorted(affected_dataset):
-    print "new files for",dataset
-    for new_block in dbs.listBlocks( dataset=dataset, min_cdate = int(sevendaysago), max_cdate = int(sevendays)):
-        print "in block",new_block['block_name']
-        for ifile in dbs.listFiles(block_name = new_block['block_name'],detail=True):
+    print "new files for", dataset
+    for new_block in dbs.listBlocks(
+            dataset=dataset,
+            min_cdate=int(sevendaysago),
+            max_cdate=int(sevendays)):
+        print "in block", new_block['block_name']
+        for ifile in dbs.listFiles(
+                block_name=new_block['block_name'],
+                detail=True):
             iname = ifile['logical_file_name']
             filedate = ifile['last_modification_date']
-            print "\n",iname
-            recovered_files[dataset].add( iname )
+            print "\n", iname
+            recovered_files[dataset].add(iname)
 
 
-twiki_table="| *Affected Dataset* | *Corrupted Files* | *Recover Files (no 1-2-1 correspondence)* |\n"
+twiki_table = "| *Affected Dataset* | *Corrupted Files* | *Recover Files (no 1-2-1 correspondence)* |\n"
 full_picture = []
-## make a nice summary page
+# make a nice summary page
 for dataset in sorted(affected_dataset):
-    twiki_table+='| %s |'%(dataset)
-    twiki_table+='%s |'%( '<br>'.join( affected_files[dataset] ))
-    twiki_table+='%s |\n'%( '<br>'.join( recovered_files[dataset] ))
-    full_picture.append( { 'dataset' : dataset,
-                           'affected' : sorted(affected_files[dataset]),
-                           'recovered' : sorted(recovered_files[dataset])
-                           }
-                         )
+    twiki_table += '| %s |' % (dataset)
+    twiki_table += '%s |' % ('<br>'.join(affected_files[dataset]))
+    twiki_table += '%s |\n' % ('<br>'.join(recovered_files[dataset]))
+    full_picture.append({'dataset': dataset,
+                         'affected': sorted(affected_files[dataset]),
+                         'recovered': sorted(recovered_files[dataset])
+                         }
+                        )
 
 
-open('%s/corrupted_twiki.txt'%monitor_dir,'w').write( twiki_table )
-open('%s/corrupted.json'%monitor_dir,'w').write( json.dumps ( full_picture, indent=2) )
+open('%s/corrupted_twiki.txt' % monitor_dir, 'w').write(twiki_table)
+open(
+    '%s/corrupted.json' %
+    monitor_dir,
+    'w').write(
+        json.dumps(
+            full_picture,
+            indent=2))
 
-##create all json for making requests
+# create all json for making requests
 #for wf in original_w: os.system('./recoverMissingLumis.py -q vlimant -g DATAOPS -r  %s'% wf)
 
 gfaf
 
 
-b,f = findLostBlocksFiles(url, '/QCD_Pt_600to800_TuneCUETP8M1_13TeV_pythia8/RunIISummer15GS-MCRUN2_71_V1_ext1-v2/GEN-SIM')
+b, f = findLostBlocksFiles(
+    url, '/QCD_Pt_600to800_TuneCUETP8M1_13TeV_pythia8/RunIISummer15GS-MCRUN2_71_V1_ext1-v2/GEN-SIM')
 
 print b
 print f
 
 fdagfds
 
-blob = json.loads(open('/afs/cern.ch/user/c/cmst2/www/unified/dataset_priorities.json').read())
-presences = defaultdict( dict )
+blob = json.loads(
+    open('/afs/cern.ch/user/c/cmst2/www/unified/dataset_priorities.json').read())
+presences = defaultdict(dict)
 for prio in blob:
     for dataset in blob[prio]:
-        presences[dataset] = getDatasetPresence( url, dataset ,vetoes=['Export','Buffer'])
+        presences[dataset] = getDatasetPresence(
+            url, dataset, vetoes=['Export', 'Buffer'])
 
 #print json.dumps( presences, indent=2)
-open('/afs/cern.ch/user/c/cmst2/www/unified/dataset_presence.json','w').write( json.dumps( presences, indent=2) )
+open(
+    '/afs/cern.ch/user/c/cmst2/www/unified/dataset_presence.json',
+    'w').write(
+        json.dumps(
+            presences,
+            indent=2))
 fdafgsd
 
-blob = json.loads(open('/afs/cern.ch/user/c/cmst2/www/unified/dataset_requirements.json').read())
+blob = json.loads(
+    open('/afs/cern.ch/user/c/cmst2/www/unified/dataset_requirements.json').read())
 
 by_priority = defaultdict(list)
 for wf in blob:
     wfi = workflowInfo(url, wf)
-    by_priority[wfi.request['RequestPriority']] = list(set(by_priority[wfi.request['RequestPriority']]+  blob[wf] ))
+    by_priority[wfi.request['RequestPriority']] = list(
+        set(by_priority[wfi.request['RequestPriority']] + blob[wf]))
 
-open('/afs/cern.ch/user/c/cmst2/www/unified/dataset_priorities.json','w').write( json.dumps( by_priority, indent=2) )
+open(
+    '/afs/cern.ch/user/c/cmst2/www/unified/dataset_priorities.json',
+    'w').write(
+        json.dumps(
+            by_priority,
+            indent=2))
 
 fafds
 
@@ -187,7 +236,7 @@ conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), 
 atjinr = filter(lambda i : i.startswith('/'), map(lambda l : l.split()[0], filter(None, open('transfers.txt').read().split('\n'))))
 dontsuspend = filter(None, open('important.txt').read().split('\n'))
 
-random.shuffle( atjinr ) 
+random.shuffle( atjinr )
 
 for dataset in atjinr:
     for transferid in blob[dataset]:
@@ -200,11 +249,11 @@ for dataset in atjinr:
         for ds in result['dataset']:
             dsn = ds['name']
 
-            if not dsn in atjinr: 
+            if not dsn in atjinr:
                 print dsn,"not resident on JINR tape"
                 continue
 
-            if dsn in dontsuspend: 
+            if dsn in dontsuspend:
                 print dsn,"is IMPORTANT"
                 continue
 
@@ -239,49 +288,64 @@ fadfa
 """
 
 
-wfs = getWorkflows(url, status='assignment-approved', priority=90000, details=True)
+wfs = getWorkflows(
+    url,
+    status='assignment-approved',
+    priority=90000,
+    details=True)
 all_in = set()
-for wfr in wfs :
+for wfr in wfs:
     wf = wfr['RequestName']
-    if not 'DR80Premix' in wf: continue
-    wfi = workflowInfo(url, wf, request = wfr)
+    if 'DR80Premix' not in wf:
+        continue
+    wfi = workflowInfo(url, wf, request=wfr)
     if wfi.request['RequestPriority'] >= 90000:
         if 'InputDataset' in wfi.request:
-            all_in.add( wfi.request['InputDataset'])
+            all_in.add(wfi.request['InputDataset'])
 
-print '\n'.join( all_in )
+print '\n'.join(all_in)
 
 fdasfs
-    
+
 #wfs = getWorkflows(url, status='closed-out')
 wfs = []
-wfs.extend( getWorkflows(url, status='acquired') )
-wfs.extend( getWorkflows(url, status = 'running-closed'))
-wfs.extend( getWorkflows(url, status = 'running-open'))
-for wf in wfs :
-    if not 'DR80Premix' in wf: continue
+wfs.extend(getWorkflows(url, status='acquired'))
+wfs.extend(getWorkflows(url, status='running-closed'))
+wfs.extend(getWorkflows(url, status='running-open'))
+for wf in wfs:
+    if 'DR80Premix' not in wf:
+        continue
 
     wfi = workflowInfo(url, wf)
-    spec= wfi.get_spec()
+    spec = wfi.get_spec()
     ncore = spec.tasks.StepOneProc.steps.cmsRun1.tree.children.cmsRun2.application.multicore.numberOfCores
     #crap = (ncore == 1)
-    assigned_log = filter(lambda change : change["Status"] in ["assigned","acquired"],wfi.request['RequestTransition'])
-    crap = (ncore==1) or (ncore==4 and assigned_log and assigned_log[0]['UpdateTime'] < 1479481842)
+    assigned_log = filter(
+        lambda change: change["Status"] in [
+            "assigned",
+            "acquired"],
+        wfi.request['RequestTransition'])
+    crap = (
+        ncore == 1) or (
+        ncore == 4 and assigned_log and assigned_log[0]['UpdateTime'] < 1479481842)
     prio = wfi.request['RequestPriority']
 
     asked = wfi.request['RequestNumEvents'] if 'RequestNumEvents' in wfi.request else None
     if crap:
-        outs = filter(lambda ds: ds.endswith('/AODSIM'), wfi.request['OutputDatasets'])
+        outs = filter(
+            lambda ds: ds.endswith('/AODSIM'),
+            wfi.request['OutputDatasets'])
         out = outs[0] if outs else None
         if out:
-            ne,nl = getDatasetEventsAndLumis( out )
-            
-            completed = ne/float(asked) if asked else None
-            if (completed!=None and completed < 0.1) or (ne < 10000):
-                print out,ne,wf
+            ne, nl = getDatasetEventsAndLumis(out)
+
+            completed = ne / float(asked) if asked else None
+            if (completed is not None and completed < 0.1) or (ne < 10000):
+                print out, ne, wf
             else:
-                completed_s = "%.2f%%"%(100*completed) if completed!=None else "no fraction"
-                print "\twould be loosing",ne,completed_s,wf,prio
+                completed_s = "%.2f%%" % (
+                    100 * completed) if completed is not None else "no fraction"
+                print "\twould be loosing", ne, completed_s, wf, prio
 faf
 
 #wfi = workflowInfo(url,'pdmvserv_task_EXO-RunIIFall15DR76-04677__v1_T_161019_035339_1562', spec=False)
@@ -289,7 +353,7 @@ faf
 
 #print reqMgrClient.changePriorityWorkflow(url, sys.argv[1], int(sys.argv[2]))
 
-#gfsdgf
+# gfsdgf
 
 """
 agents = getAllAgents( url )
@@ -309,9 +373,10 @@ print len(b)
 print b
 gfdsgf
 """
-dataset='/JetHT/Run2016B-23Sep2016-v2/DQMIO'
+dataset = '/JetHT/Run2016B-23Sep2016-v2/DQMIO'
 
-in_dbs,in_phedex,missing_phedex,missing_dbs  = getDatasetFiles( url, dataset, without_invalid=False)
+in_dbs, in_phedex, missing_phedex, missing_dbs = getDatasetFiles(
+    url, dataset, without_invalid=False)
 #print len(in_dbs)
 #print len(in_phedex)
 print missing_phedex
@@ -346,7 +411,7 @@ r_done = []
 known_and_OK = []
 for wfn in sorted(wfs):
     if not '23Sep2016' in wfn: continue
-    if wfn in known_and_OK: 
+    if wfn in known_and_OK:
         print wfn,"nothing to be done"
         continue
     if wfn in r_done:
@@ -394,49 +459,50 @@ fdsgf
 """
 
 #wfi = workflowInfo(url, 'cerminar_Run2016E-v2-Tau-23Sep2016_8020_160926_171733_2493')
-wfi = workflowInfo(url, sys.argv[1] )
+wfi = workflowInfo(url, sys.argv[1])
 
 doc = wfi.getRecoveryDoc()
 all_files = set()
 for d in doc:
     #print d['files']
-    all_files.update( d['files'].keys())
+    all_files.update(d['files'].keys())
 
-print len(all_files),"file in recovery"
+print len(all_files), "file in recovery"
 dbsapi = DbsApi(url='https://cmsweb.cern.ch/dbs/prod/global/DBSReader')
 all_blocks = set()
 files_no_block = set()
 for f in all_files:
     #print f
-    r = dbsapi.listFileArray( logical_file_name = f, detail=True)
+    r = dbsapi.listFileArray(logical_file_name=f, detail=True)
     if not r:
-        files_no_block.add( f) 
+        files_no_block.add(f)
     else:
-        all_blocks.update( [df['block_name'] for df in r ])
-    
+        all_blocks.update([df['block_name'] for df in r])
+
 print '\n'.join(all_blocks)
 fdasfd
 
 
-##aggregate for everything running
+# aggregate for everything running
 
-total_by_task = defaultdict(lambda : defaultdict(int))
-code_by_task = defaultdict(lambda : defaultdict(int))
+total_by_task = defaultdict(lambda: defaultdict(int))
+code_by_task = defaultdict(lambda: defaultdict(int))
 
 
-for wfo in session.query(Workflow).filter(Workflow.status=='away').all()[:10]:
+for wfo in session.query(Workflow).filter(
+        Workflow.status == 'away').all()[:10]:
     wfi = workflowInfo(url, wfo.name)
-    cache=100000 ## whatever there is
-    err= wfi.getWMErrors(cache=cache)
+    cache = 100000  # whatever there is
+    err = wfi.getWMErrors(cache=cache)
     stat = wfi.getWMStats(cache=cache)
-    #dashb = wfi.getFullPicture(since=30,cache=cache)   
-    
+    #dashb = wfi.getFullPicture(since=30,cache=cache)
+
     for agent in stat['AgentJobInfo']:
         for task in stat['AgentJobInfo'][agent]['tasks']:
             pass
 
 #wfn = 'cerminar_Run2016B-v1-JetHT-23Sep2016_8020_160923_164022_7919'
-#wfi = workflowInfo(url, wfn)       
+#wfi = workflowInfo(url, wfn)
 
 #stats = wfi.getWMStats(cache=500)
 
@@ -470,10 +536,10 @@ for wf in wfs:
     wfi = workflowInfo(url, wfn, request=wf)
     if not 'HIG-RunIISummer15wmLHEGS' in wfn :continue
     if wfi.request['Memory'] > 2000: continue
-    
+
     errors = wfi.getWMErrors(cache=10000)
     stats = wfi.getWMStats(cache=10000)
-    
+
     f_errorcode=50660
     for task in errors:
         what = 'jobfailed'
@@ -492,7 +558,7 @@ for wf in wfs:
 
 """
 wfn = 'pdmvserv_TOP-RunIISummer15wmLHEGS-00040_00159_v0__160919_161901_6135'
-wfi = workflowInfo(url, wfn) 
+wfi = workflowInfo(url, wfn)
 
 now = time.mktime(time.gmtime())
 
@@ -533,7 +599,7 @@ for task in errors:
 #open('sum.json','w').write(json.dumps( wfi.getSummary(), indent=2))
 #open('error.json','w').write(json.dumps( wfi.getWMErrors(), indent=2))
 
-#vdfv
+# vdfv
 
 """
 wfn = 'pdmvserv_TOP-RunIISummer15wmLHEGS-00044_00159_v0__160919_161910_4551'
@@ -548,7 +614,7 @@ all_codes = set()
 for site,r in dash.items():
     #info = dash[site]
     #r = dict([(d['name'],d) for d in info])
-    #dash[site] = r 
+    #dash[site] = r
     all_codes.update( r.keys() )
 
 
@@ -574,7 +640,7 @@ def show(i):
 
 for site,info in dash.items():
     ht.write('<tr><td>%s</td>\n'%site)
-    for code in all_codes: 
+    for code in all_codes:
         c =''
         dec=''
         if code in info: c = show(info[code])
@@ -608,7 +674,7 @@ for wfn in ['vlimant_BPH-RunIISummer15GS-Backfill-00030_00212_v0__160906_122234_
     new_sites = sorted(list((set(wfi.request['SiteWhitelist']) - set(banned)) & set(si.sites_ready)))
     for task in wfi.getWorkTasks():
         if task.taskType in 'Production':
-            
+
             bit={wfn : { task.pathName : {"ReplaceSiteWhitelist" : new_sites
                                           }}}
             print json.dumps( bit, indent=2)
@@ -628,7 +694,7 @@ open('/afs/cern.ch/user/c/cmst2/www/unified/equalizor.json','w').write( json.dum
 """
 #wfi = workflowInfo(url, 'fabozzi_HIRun2015-HIFlowCorr-25Aug2016_758p5_160826_162420_2962')
 #wfi = workflowInfo(url, 'fabozzi_HIRun2015-HIMinimumBias2-25Aug2016_758p5_160826_162405_3905')
-wfi = workflowInfo(url, 'vlimant_BPH-RunIISummer15GS-Backfill-00030_00212_v0__160907_112626_808') 
+wfi = workflowInfo(url, 'vlimant_BPH-RunIISummer15GS-Backfill-00030_00212_v0__160907_112626_808')
 wqe = wfi.getWorkQueueElements()
 still_to_go=set()
 done=set()
@@ -668,7 +734,7 @@ for wf in wfs:
 
 #print a
 
-#print _,_,ph,db = getDatasetFiles(url, ''
+# print _,_,ph,db = getDatasetFiles(url, ''
 #wfi = workflowInfo(url, 'pdmvserv_HIG-RunIISummer15wmLHEGS-00482_00150_v0__160823_201915_1419')
 
 #print wfi.getWMStats()
@@ -678,7 +744,7 @@ for wf in wfs:
 
 
 #print '\n'.join(getWorkflowByOutput(url, '/DoubleEG/Run2015B-LogError-08Jun2016-v1/RAW-RECO'))
-#print 
+# print
 #print '\n'.join(getWorkflowByOutput(url, '/DoubleEG/Run2015D-LogError-08Jun2016-v1/RAW-RECO'))
 
 
@@ -749,7 +815,7 @@ print sorted( us )
 
 presence = getDatasetPresence(url, lib)
 there = [SI.SE_to_CE(s) for s in presence.keys() if presence[s][0]]
-print there 
+print there
 
 print sorted( us )
 
@@ -761,7 +827,7 @@ print us, sum([SI.disk[SI.CE_to_SE(s)] for s in us])
 spreading = distributeToSites(chops, europ,  n_copies = 1, weights=SI.disk, sizes=sizes)
 for dest,blocks in spreading.items():
     print len(blocks),"for",dest
-    
+
 
 spreading = distributeToSites(chops, us,  n_copies = 1, weights=SI.disk, sizes=sizes)
 for dest,blocks in spreading.items():
@@ -777,7 +843,7 @@ for dest,blocks in spreading.items():
 
 """
 wfs = []
-wfs.extend( getWorkflows(url, 'acquired', details=True) ) 
+wfs.extend( getWorkflows(url, 'acquired', details=True) )
 wfs.extend( getWorkflows(url, 'running-open', details=True) )
 wfs.extend( getWorkflows(url, 'running-closed', details=True) )
 
@@ -801,7 +867,7 @@ for wf in wfs:
             if not  wfi.request['RequestName'] in bip:
                 print wfi.request['RequestName'], wfi.request['RequestPriority']
                 bip.add(  wfi.request['RequestName'] )
-            
+
 print json.dumps( rel ,indent=2)
 
 
@@ -867,8 +933,8 @@ if True:
             table+="<tr><td>%s</td><td>%d</td><td><ul>%s</ul></td></tr>\n"%( item[0], item[1]['size'], "<li>".join([""]+item[1]['reasons']))
         table+="</table></html>"
         open('%s/remaining_%s.html'%(monitor_dir,site),'w').write( table )
-        
-""" 
+
+"""
 
 #l= getWorkflowByMCPileup(url,'/MinBias_TuneCUETP8M1_13TeV-pythia8/RunIISummer15GS-FTFP_BERT_MCRUN2_71_V1-v1/GEN-SIM',details=True)
 #print [(i['RequestName'],i['RequestStatus']) for i in l]
@@ -893,7 +959,7 @@ if True:
 site = sys.argv[1]#'T1_ES_PIC_Disk'
 r=json.loads(open('%s/remaining_%s.json'%(monitor_dir,site)).read())
 ld=r.items()
-ld.sort( key = lambda i:i[1]['size'], reverse=True)    
+ld.sort( key = lambda i:i[1]['size'], reverse=True)
 table = "<html>Updated %s GMT, <a href=remaining_%s.json>json data</a><br><table border=1></thead><tr><th>Dataset</th><th>Size [GB]</th><th>Label</th></tr></thead>\n"%(time.asctime(time.gmtime()),site)
 for item in ld:
     table+="<tr><td>%s</td><td>%d</td><td><ul>%s</ul></td></tr>\n"%( item[0], item[1]['size'], "<li>".join([""]+item[1]['reasons']))
@@ -909,10 +975,13 @@ fdsg
 #print missing_phedex
 
 #usors = getWorkflowByMCPileup(url, '/Neutrino_E-10_gun/RunIISpring15PrePremix-AVE_50_BX_25ns_76X_mcRun2_asymptotic_v12-v3/GEN-SIM-DIGI-RAW', details=True)
-usors = getWorkflowByMCPileup(url, '/MinBias_TuneCUETP8M1_13TeV-pythia8/RunIIWinter15GS-MCRUN2_71_V1-v1/GEN-SIM', details=True)
+usors = getWorkflowByMCPileup(
+    url,
+    '/MinBias_TuneCUETP8M1_13TeV-pythia8/RunIIWinter15GS-MCRUN2_71_V1-v1/GEN-SIM',
+    details=True)
 
 for usor in usors:
-    print usor['RequestDate'],usor['RequestName'],usor['RequestStatus']
+    print usor['RequestDate'], usor['RequestName'], usor['RequestStatus']
 
 #print json.dumps( getDatasetPresence(url,'/VBF_HToZZTo4L_M150_13TeV_powheg2_JHUgenV6_pythia8/RunIISpring16DR80-PUSpring16RAWAODSIM_80X_mcRun2_asymptotic_2016_v3-v1/RAWAODSIM'), indent=2)
 
@@ -922,62 +991,70 @@ for usor in usors:
 
 #wfs = session.query(Workflow).all()
 #print len(wfs)
-#session.delete(wfo)
-#session.commit()
+# session.delete(wfo)
+# session.commit()
 
 
 #print getDatasetEventsPerLumi('/AlCaLumiPixels1/Run2016B-v2/RAW')
 
-#fsgf
+# fsgf
 
 #wfi = workflowInfo(url, 'pdmvserv_HIN-pPb816Spring16GS-00001_00001_v0__160622_161215_3869')
 #print wfi.go()
 
 #wfs = getWorkflows(url, 'assignment-approved', details=True, user='pdmvserv')
-#for wf in wfs:
+# for wf in wfs:
 #    if 'TOP-RunIISpring16MiniAODv2-00039' in wf['RequestName']:
 #        print wf['RequestName']
 
 sys.exit(10)
 
-for pid in filter(None,open('antanas.txt').read().split('\n')):
+for pid in filter(None, open('antanas.txt').read().split('\n')):
     wfs = getWorkflowById(url, pid, details=True)
     print len(wfs)
-    expected_outputs= None
+    expected_outputs = None
     main_wf = None
     for wf in wfs:
-        if not wf['RequestStatus'] in ['announced','normal-archived']: continue
-        if wf['RequestType'] == "Resubmission" : continue
-        expected_outputs = set( wf['OutputDatasets'])
+        if not wf['RequestStatus'] in ['announced', 'normal-archived']:
+            continue
+        if wf['RequestType'] == "Resubmission":
+            continue
+        expected_outputs = set(wf['OutputDatasets'])
         main_wf = wf
-    if not  main_wf: 
-        print "left",pid
+    if not main_wf:
+        print "left", pid
         continue
-    found_bad=False
+    found_bad = False
     #print expected_outputs
     print main_wf['RequestName']
     wfs = getWorkflowById(url, main_wf['PrepID'], details=True)
     for wf in wfs:
         #print wf['RequestName']
-        if not wf['RequestStatus'] in ['announced','normal-archived']: continue
-        if wf['RequestType'] != "Resubmission" : continue
-        outs= set(wf['OutputDatasets'])
+        if not wf['RequestStatus'] in ['announced', 'normal-archived']:
+            continue
+        if wf['RequestType'] != "Resubmission":
+            continue
+        outs = set(wf['OutputDatasets'])
         #print outs
-        if not outs.issubset( expected_outputs ):
-            print "BAD",wf['RequestName']
-            print ','.join(outs-expected_outputs)
-            found_bad=wf
-            print "invalidating",found_bad['RequestName'],found_bad['RequestStatus']
-            s= raw_input("invalidating "+found_bad['RequestName']+" "+found_bad['RequestStatus'])
-            if s=='y':
-                reqMgrClient.invalidateWorkflow(url, found_bad['RequestName'], found_bad['RequestStatus'])
-
+        if not outs.issubset(expected_outputs):
+            print "BAD", wf['RequestName']
+            print ','.join(outs - expected_outputs)
+            found_bad = wf
+            print "invalidating", found_bad['RequestName'], found_bad['RequestStatus']
+            s = raw_input(
+                "invalidating " +
+                found_bad['RequestName'] +
+                " " +
+                found_bad['RequestStatus'])
+            if s == 'y':
+                reqMgrClient.invalidateWorkflow(
+                    url, found_bad['RequestName'], found_bad['RequestStatus'])
 
 
 #dbsapi = DbsApi(url='https://cmsweb.cern.ch/dbs/prod/global/DBSReader')
 
-#l=dbsapi.listFiles(dataset='/RSGravTohhTohVVhbbToVVfullLep_narrow_M-1000_13TeV-madgraph/RunIISpring16MiniAODv2-PUSpring16RAWAODSIM_80X_mcRun2_asymptotic_2016_miniAODv2_v0-v1/MINIAODSIM')
-#lfn='/'.join(l[0]['logical_file_name'].split('/')[:3])
+# l=dbsapi.listFiles(dataset='/RSGravTohhTohVVhbbToVVfullLep_narrow_M-1000_13TeV-madgraph/RunIISpring16MiniAODv2-PUSpring16RAWAODSIM_80X_mcRun2_asymptotic_2016_miniAODv2_v0-v1/MINIAODSIM')
+# lfn='/'.join(l[0]['logical_file_name'].split('/')[:3])
 #print lfn
 #print "valid", dbs3Client.getFileCountDataset( '/RSGravTohhTohVVhbbToVVfullLep_narrow_M-1000_13TeV-madgraph/RunIISpring16MiniAODv2-PUSpring16RAWAODSIM_80X_mcRun2_asymptotic_2016_miniAODv2_v0-v1/MINIAODSIM')
 #print "invalid", dbs3Client.getFileCountDataset( '/RSGravTohhTohVVhbbToVVfullLep_narrow_M-1000_13TeV-madgraph/RunIISpring16MiniAODv2-PUSpring16RAWAODSIM_80X_mcRun2_asymptotic_2016_miniAODv2_v0-v1/MINIAODSIM', onlyInvalid=True)
@@ -985,73 +1062,76 @@ for pid in filter(None,open('antanas.txt').read().split('\n')):
 
 #wfs= session.query(Workflow).filter(Workflow.status=='trouble').all()
 #l = json.loads(open('/afs/cern.ch/user/v/vlimant/public/ops/onhold.json').read())
-#for w in l:
+# for w in l:
 #    wfo = session.query(Workflow).filter(Workflow.name == w).first()
 #    if wfo:
 #        wfo.status ='forget'
-#session.commit()
+# session.commit()
 
 #wfi = workflowInfo(url, 'fabozzi_Run2015A-DoubleEG-boff-09Jun2016_765p1_160609_001324_7641')
 #print wfi.go()
 
 sys.exit(2)
 wfs = []
-rtype=None
-#wfs.extend( getWorkflows(url, 'running-closed', user=None, rtype=rtype ,details=True)) 
-#wfs.extend( getWorkflows(url, 'running-open', user=None, rtype=rtype ,details=True)) 
-#wfs.extend( getWorkflows(url, 'completed', user=None, rtype=rtype ,details=True)) 
-#wfs.extend( getWorkflows(url, 'closed-out', user=None, rtype=rtype ,details=True)) 
-#wfs.extend( getWorkflows(url, 'announced', user=None, rtype=rtype ,details=True)) 
+rtype = None
+#wfs.extend( getWorkflows(url, 'running-closed', user=None, rtype=rtype ,details=True))
+#wfs.extend( getWorkflows(url, 'running-open', user=None, rtype=rtype ,details=True))
+#wfs.extend( getWorkflows(url, 'completed', user=None, rtype=rtype ,details=True))
+#wfs.extend( getWorkflows(url, 'closed-out', user=None, rtype=rtype ,details=True))
+#wfs.extend( getWorkflows(url, 'announced', user=None, rtype=rtype ,details=True))
 
 
 wfs = json.loads(open('wfs.json').read())
-#wfs.extend( getWorkflows(url, 'normal-archived', user=None, rtype=rtype ,details=True)) 
+#wfs.extend( getWorkflows(url, 'normal-archived', user=None, rtype=rtype ,details=True))
 for wf in wfs:
-    if not any([wf['RequestName'].startswith(n) for n in ['prozober','jen']]):        continue
-    if not 'MergedLFNBase' in wf:
-        print '\t missing',wf['RequestName'],wf['RequestStatus']
+    if not any([wf['RequestName'].startswith(n) for n in ['prozober', 'jen']]):
+        continue
+    if 'MergedLFNBase' not in wf:
+        print '\t missing', wf['RequestName'], wf['RequestStatus']
         continue
 
     if 'back' in wf['MergedLFNBase']:
-        print wf['RequestName'],wf['RequestStatus'],wf['RequestType']
+        print wf['RequestName'], wf['RequestStatus'], wf['RequestType']
         if 'InitialTaskPath' in wf:
             print wf['InitialTaskPath'].split('/')[-1]
- 
 
     if 'InitialTaskPath' in wf:
-        if 'task_' in wf['RequestName']: 
+        if 'task_' in wf['RequestName']:
             continue
         w = wf['InitialTaskPath'].split('/')[-1]
         if 'back' in wf['MergedLFNBase']:
-            print "BAD ",w, wf['RequestName'],wf['RequestStatus']
+            print "BAD ", w, wf['RequestName'], wf['RequestStatus']
             if 'merge' in w.lower():
                 print "\t merge"
             else:
                 print "\t\t not merge"
         else:
-            print "GOOD",w, wf['RequestName'],wf['MergedLFNBase']
+            print "GOOD", w, wf['RequestName'], wf['MergedLFNBase']
 
 #open('wfs.json','w').write( json.dumps( wfs ))
 
-#setDatasetStatus('/QCD_HT200to300_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/RunIISpring16DR80-PUSpring16_80X_mcRun2_asymptotic_2016_v3-v1/AODSIM','VALID')
-#setDatasetStatus('/QCD_HT200to300_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/RunIISpring16MiniAODv1-PUSpring16_80X_mcRun2_asymptotic_2016_v3-v1/MINIAODSIM','VALID')
+# setDatasetStatus('/QCD_HT200to300_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/RunIISpring16DR80-PUSpring16_80X_mcRun2_asymptotic_2016_v3-v1/AODSIM','VALID')
+# setDatasetStatus('/QCD_HT200to300_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/RunIISpring16MiniAODv1-PUSpring16_80X_mcRun2_asymptotic_2016_v3-v1/MINIAODSIM','VALID')
 #wfi = workflowInfo(url, 'pdmvserv_task_SMP-RunIISpring16DR80-00003__v1_T_160407_160601_5633')
 #print wfi.getRequestNumEvents()
 
 #si = siteInfo()
-#si.pick_dSE
-#for wfo in session.query(Workflow).filter(Workflow.status == 'away').all():
+# si.pick_dSE
+# for wfo in session.query(Workflow).filter(Workflow.status == 'away').all():
 #    wfi = workflowInfo(url, wfo.name)
 #    if wfi.request['RequestStatus'] == 'assignment-approved':
 #        print wfo.name
 #        wfo.status = 'considered'
 
-#session.commit()
+# session.commit()
 sys.exit(2)
-#conn  =  httplib.HTTPConnection('localhost', port='5984')#, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
-r1 = conn.request("GET",'/workqueue/_design/WorkQueue/_rewrite/elementsInfo?request=pdmvserv_task_B2G-RunIISpring16DR80-00527__v1_T_160501_103420_9369')
-r2=conn.getresponse()
-t=r2.read()
+# conn  =  httplib.HTTPConnection('localhost', port='5984')#, cert_file =
+# os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+r1 = conn.request(
+    "GET",
+    '/workqueue/_design/WorkQueue/_rewrite/elementsInfo?request=pdmvserv_task_B2G-RunIISpring16DR80-00527__v1_T_160501_103420_9369')
+r2 = conn.getresponse()
+t = r2.read()
 print t
 result = json.loads(r2.read())
 
@@ -1060,7 +1140,7 @@ print result
 #CI = campaignInfo()
 #wfi = workflowInfo(url, 'pdmvserv_SUS-RunIISpring16wmLHEFSPremix-00001_00003_v1_WFTest_160422_151822_8644')
 #print wfi.getCampaigns()
-#for campaign in wfi.getCampaigns():
+# for campaign in wfi.getCampaigns():
 #    if not CI.go( campaign ):
 #        print "boh",campaign
 #print json.dumps( wfi.getWMStats()["AgentJobInfo"] , indent=2 )
@@ -1074,25 +1154,25 @@ print result
 
 #print getDatasetPresence(url, '/TT_Mtt-700to1000_TuneCUETP8M1_13TeV-powheg-pythia8/RunIISummer15GS-MCRUN2_71_V1-v1/GEN-SIM')
 #print getDatasetBlocksFraction(url, '/TT_Mtt-700to1000_TuneCUETP8M1_13TeV-powheg-pythia8/RunIISummer15GS-MCRUN2_71_V1-v1/GEN-SIM')
-#gfag
-#gfsdg
+# gfag
+# gfsdg
 #print getWorkflows(url, 'assignment-approved', user='pdmvserv')
 
-#fral
+# fral
 
 
-#    for s in 
+#    for s in
 
-#bs=set()
-#for wfo  in session.query(Workflow).filter(Workflow.status == 'close-unlock').all():
+# bs=set()
+# for wfo  in session.query(Workflow).filter(Workflow.status == 'close-unlock').all():
 #    print wfo.name
 
-#for wfo  in session.query(Workflow).filter(Workflow.status.endswith('unlock')).all():
+# for wfo  in session.query(Workflow).filter(Workflow.status.endswith('unlock')).all():
 #    bs.add( wfo.status.split('-')[0])
-    #wfo.status = 'staging'
+#wfo.status = 'staging'
 #print bs
 
-#session.commit()
+# session.commit()
 
 
 #cache = getWorkflows(url,'assignment-approved', details=True)
@@ -1109,21 +1189,21 @@ print result
 #print wfi.getMulticore()
 
 #nl = newLockInfo()
-#nl.lock('/Neutrino_E-10_gun/RunIISpring15PrePremix-AVE_25_BX_25ns_76X_mcRun2_asymptotic_v12-v3/GEN-SIM-DIGI-RAW')
-#nl.lock('/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8/RunIISummer15GS-MCRUN2_71_V1_ext1-v2/GEN-SIM')
-#nl.release('/DM_PseudoscalarWH_Mphi-1000_Mchi-100_gSM-1p0_gDM-1p0_13TeV-JHUGen/RunIISpring15MiniAODv2-Asympt25ns_74X_mcRun2_asymptotic_v2-v1/MINIAODSIM')
-#nl.release('/MinBias_TuneZ2star_8TeV-pythia6/Summer12-START50_V13-v3/GEN-SIM')
+# nl.lock('/Neutrino_E-10_gun/RunIISpring15PrePremix-AVE_25_BX_25ns_76X_mcRun2_asymptotic_v12-v3/GEN-SIM-DIGI-RAW')
+# nl.lock('/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8/RunIISummer15GS-MCRUN2_71_V1_ext1-v2/GEN-SIM')
+# nl.release('/DM_PseudoscalarWH_Mphi-1000_Mchi-100_gSM-1p0_gDM-1p0_13TeV-JHUGen/RunIISpring15MiniAODv2-Asympt25ns_74X_mcRun2_asymptotic_v2-v1/MINIAODSIM')
+# nl.release('/MinBias_TuneZ2star_8TeV-pythia6/Summer12-START50_V13-v3/GEN-SIM')
 
 #wfi = workflowInfo(url, 'pdmvserv_EXO-RunIIFall15MiniAODv1-01496_00074_v1__160321_162248_1133')
 #res = reqMgrClient.closeOutWorkflowCascade(url, wfi.request['RequestName'])
 #print res
 
-#for wf in filter(None,open('del.txt').read().split('\n')):
+# for wf in filter(None,open('del.txt').read().split('\n')):
 #    wfo = session.query(Workflow).filter(Workflow.name == wf).first()
 #    if wfo:
 #        print wfo.name
 #        session.delete( wfo )
-#session.commit()
+# session.commit()
 
 #workflows = getWorkflows(url, status="assignment-approved", user="pdmvserv")
 #workflows = getWorkflows(url, status="assignment-approved", user='fabozzi', rtype="ReReco")
@@ -1137,27 +1217,28 @@ sys.exit(3)
 #wf = sys.argv[1]
 #reqMgrClient.closeOutWorkflow(url, wf)
 #reqMgrClient.announceWorkflow(url, wf)
-#sys.exit(0)
+# sys.exit(0)
 
-#sendLog('bli','bla-bfab-gfad')
-#fhlsd
+# sendLog('bli','bla-bfab-gfad')
+# fhlsd
 #pending = listCustodial(url, site='T1_US_FNAL_MSS')
 #print pending
 
-#grsg
+# grsg
 #checks = checkTransferStatus(url, 570031, nocollapse=True)
 #print checks
 
 
-o = searchLog( sys.argv[1] )
+o = searchLog(sys.argv[1])
 for i in o:
-    print "-"*10,i['_source']['subject'],"-"*2,i['_source']['date'],"-"*10
+    print "-" * 10, i['_source']['subject'], "-" * \
+        2, i['_source']['date'], "-" * 10
     print i['_source']['text']
 
 sys.exit(1)
 
 
-#for wfo in session.query(Workflow).filter(Workflow.status == 'considered-tried').all():
+# for wfo in session.query(Workflow).filter(Workflow.status == 'considered-tried').all():
 #    print wfo.name
 
 """
@@ -1175,9 +1256,9 @@ for phedexid in filter(None,open('setback_phedexid_to_positive.txt').read().spli
             print "absent"
 """
 
-""" 
+"""
 were_old_staging = filter(None,open('were_staging.txt').read().split('\n'))
-were_new_staging = filter(None,open('were_OVERset_staging.txt').read().split('\n'))    
+were_new_staging = filter(None,open('were_OVERset_staging.txt').read().split('\n'))
 latching = filter(None,open('latching.txt').read().split('\n'))
 latching_and_transfer = filter(None,open('latching_and_transfer.txt').read().split('\n'))
 were_injected_1 = filter(None,open('were_injected_1.txt').read().split('\n'))
@@ -1210,130 +1291,147 @@ for wfo in session.query(Workflow).filter(Workflow.status == 'considered-tried')
 
 SI = siteInfo()
 
-transfers = [#598501,
-             598508, 
-             #598509, 
-             #598510, 
-             #598513,
-             #598517
-             ]
+transfers = [  # 598501,
+    598508,
+    # 598509,
+    # 598510,
+    # 598513,
+    # 598517
+]
 mild = [
-    #598511,
+    # 598511,
     598516
-    ]
+]
 
-## use the cache
+# use the cache
 fresh = True
 recent = False
 
 items = []
-for transfer in sorted(transfers+mild):
+for transfer in sorted(transfers + mild):
     print transfer
-    cfile = '%s.sub.json'%(transfer)
-    if os.path.isfile( cfile) and not fresh:
-        result = json.loads( open(cfile).read())
+    cfile = '%s.sub.json' % (transfer)
+    if os.path.isfile(cfile) and not fresh:
+        result = json.loads(open(cfile).read())
     else:
-        conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
-        r1 = conn.request("GET",'/phedex/datasvc/json/prod/subscriptions?request=%s&collapse=n&create_since=0'% transfer)
-        r2=conn.getresponse()
+        conn = httplib.HTTPSConnection(url,
+                                       cert_file=os.getenv('X509_USER_PROXY'),
+                                       key_file=os.getenv('X509_USER_PROXY'))
+        r1 = conn.request(
+            "GET",
+            '/phedex/datasvc/json/prod/subscriptions?request=%s&collapse=n&create_since=0' %
+            transfer)
+        r2 = conn.getresponse()
         result = json.loads(r2.read())
-        open(cfile,'w').write( json.dumps( result , indent=2))
+        open(cfile, 'w').write(json.dumps(result, indent=2))
 
     for dataset in result['phedex']['dataset']:
-        by_dataset=False
+        by_dataset = False
         size = dataset['bytes']
-        for sub in dataset.get('subscription',[]):
+        for sub in dataset.get('subscription', []):
             #print sub
             if sub['level'] == 'DATASET':
                 to = sub['node']
-                items.append( {'node' : sub['node'],
-                               'dataset' : dataset['name'],
-                               'suspended' : sub['suspended'],
-                               'percent' : sub['percent_bytes'],
-                               'size' : sub['node_bytes'] / 1024.**4,
-                               'bytes' : size / 1024.**4
-                               })
-                by_dataset=True
-        for block in dataset.get('block',[]):
+                items.append({'node': sub['node'],
+                              'dataset': dataset['name'],
+                              'suspended': sub['suspended'],
+                              'percent': sub['percent_bytes'],
+                              'size': sub['node_bytes'] / 1024.**4,
+                              'bytes': size / 1024.**4
+                              })
+                by_dataset = True
+        for block in dataset.get('block', []):
             size = block['bytes']
             for sub in block['subscription']:
                 if sub['level'] == 'BLOCK' or not by_dataset:
                     to = sub['node']
-                    items.append( {'node' : sub['node'],
-                                   'block' : block['name'],
-                                   'dataset' : dataset['name'],
-                                   'suspended' : sub['suspended'],
-                                   'percent' : sub['percent_bytes'],
-                                   'size' : sub['node_bytes'] / 1024.**4,
-                                   'bytes' : size / 1024.**4
-                                   })
+                    items.append({'node': sub['node'],
+                                  'block': block['name'],
+                                  'dataset': dataset['name'],
+                                  'suspended': sub['suspended'],
+                                  'percent': sub['percent_bytes'],
+                                  'size': sub['node_bytes'] / 1024.**4,
+                                  'bytes': size / 1024.**4
+                                  })
 
     #print json.dumps(items, indent=2)
 
 
 wf_by_using = {}
 priority_by_using = json.loads(open('priority_by_using.json').read())
-if fresh: priority_by_using = {}
+if fresh:
+    priority_by_using = {}
 dont_touch = set(json.loads(open('dont_touch.json').read()))
-if fresh:  dont_touch =set()
-size_per_item_per_site = defaultdict( lambda : defaultdict (int))
-bytes_per_item_per_site = defaultdict( lambda : defaultdict (int))
+if fresh:
+    dont_touch = set()
+size_per_item_per_site = defaultdict(lambda: defaultdict(int))
+bytes_per_item_per_site = defaultdict(lambda: defaultdict(int))
 
 for item in items:
     dataset = item['dataset']
     bytes_per_item_per_site[item['node']][dataset] += item['bytes']
     size_per_item_per_site[item['node']][dataset] += item['size']
 
-    if not dataset in wf_by_using and (fresh):
-        print "who is using",dataset
+    if dataset not in wf_by_using and (fresh):
+        print "who is using", dataset
         wfs = getWorkflowByInput(url, dataset, details=True)
-        wfs = [ wf for wf in wfs if wf['RequestStatus'] == 'assignment-approved']
+        wfs = [wf for wf in wfs if wf['RequestStatus'] == 'assignment-approved']
         wf_by_using[dataset] = [wf['RequestName'] for wf in wfs]
         if wfs:
-            priority_by_using[dataset] = max([wf['RequestPriority'] for wf in wfs])
+            priority_by_using[dataset] = max(
+                [wf['RequestPriority'] for wf in wfs])
         else:
-            dont_touch.add( dataset )
+            dont_touch.add(dataset)
 
-open('priority_by_using.json','w').write( json.dumps( priority_by_using, indent=2 ))
-open('dont_touch.json','w').write( json.dumps( list( dont_touch ), indent=2))
+open(
+    'priority_by_using.json',
+    'w').write(
+        json.dumps(
+            priority_by_using,
+            indent=2))
+open('dont_touch.json', 'w').write(json.dumps(list(dont_touch), indent=2))
 
 no_go = defaultdict(set)
 for site in bytes_per_item_per_site:
     #print site
     available = SI.disk[site]
-    available *= 0.9 ## 80% of available
+    available *= 0.9  # 80% of available
     priority_ordered = priority_by_using.items()
 
-    def prio_and_size( i, j):
-        if i[1]==j[1]:
-            return cmp( bytes_per_item_per_site[site].get(j[0],0.), bytes_per_item_per_site[site].get(i[0],0.))
+    def prio_and_size(i, j):
+        if i[1] == j[1]:
+            return cmp(
+                bytes_per_item_per_site[site].get(
+                    j[0], 0.), bytes_per_item_per_site[site].get(
+                    i[0], 0.))
         else:
-            return cmp( i[1], j[1] )
-    priority_ordered.sort( cmp = prio_and_size , reverse=True)
+            return cmp(i[1], j[1])
+    priority_ordered.sort(cmp=prio_and_size, reverse=True)
     last_prio = None
-    for dataset,prio in priority_ordered:
+    for dataset, prio in priority_ordered:
         if dataset in dont_touch:
-            print "not relevant is",dataset
-            no_go[site].add( dataset )
+            print "not relevant is", dataset
+            no_go[site].add(dataset)
         #print dataset,prio
         if dataset in bytes_per_item_per_site[site]:
-            if available-bytes_per_item_per_site[site][dataset]>0:
-                if last_prio==None or prio>=last_prio:
-                    print "remaining",available
-                    print "prio",prio,last_prio
-                    print "passing",dataset,bytes_per_item_per_site[site][dataset],priority_by_using[dataset]
+            if available - bytes_per_item_per_site[site][dataset] > 0:
+                if last_prio is None or prio >= last_prio:
+                    print "remaining", available
+                    print "prio", prio, last_prio
+                    print "passing", dataset, bytes_per_item_per_site[
+                        site][dataset], priority_by_using[dataset]
                     available -= bytes_per_item_per_site[site][dataset]
                 else:
-                    no_go[site].add( dataset )
-                    last_prio = max(prio,last_prio)
-                    print "no go",dataset,prio,last_prio
+                    no_go[site].add(dataset)
+                    last_prio = max(prio, last_prio)
+                    print "no go", dataset, prio, last_prio
 
             else:
-                no_go[site].add( dataset )
-                last_prio = max(prio,last_prio)
-                print "no go",dataset,prio,last_prio
-  
-    print "no go at",site
+                no_go[site].add(dataset)
+                last_prio = max(prio, last_prio)
+                print "no go", dataset, prio, last_prio
+
+    print "no go at", site
     print json.dumps(list(no_go[site]), indent=2)
 
 
@@ -1344,47 +1442,55 @@ for item in items:
     dataset = item['dataset']
     site = item['node']
     tier = dataset.split('/')[-1]
-    if dataset in dont_touch: 
-        print "no relevant wf for",dataset
+    if dataset in dont_touch:
+        print "no relevant wf for", dataset
         continue
     if dataset in no_go[site]:
-        print "not fitting in space and time",dataset
+        print "not fitting in space and time", dataset
         continue
     time.sleep(0.1)
     ph_item = item.get('block', item.get('dataset'))
-    print "unsuspending",ph_item,"at",site
+    print "unsuspending", ph_item, "at", site
     if (recent or fresh) and item['suspended'] == 'n':
         print "already not suspended"
-        continue ## we do not have 
+        continue  # we do not have
 
-    r=updateSubscription(url, site, ph_item, suspend=0)['phedex']
+    r = updateSubscription(url, site, ph_item, suspend=0)['phedex']
     print r
 
     continue
-    if priority_by_using[dataset] >= 90000 or tier in ['LHE','AODSIM']:
-        print "unsuspending",ph_item
+    if priority_by_using[dataset] >= 90000 or tier in ['LHE', 'AODSIM']:
+        print "unsuspending", ph_item
         if (recent or fresh) and item['suspended'] == 'n':
             print "already not suspended"
-            continue ## we do not have the live value, only cached
-        r=updateSubscription(url, item['node'], ph_item, suspend=0)['phedex']
-        if r.get('block', r.get('dataset')): print "\tadd effect"
-        else: print "\thad NO effect",r
+            continue  # we do not have the live value, only cached
+        r = updateSubscription(url, item['node'], ph_item, suspend=0)['phedex']
+        if r.get('block', r.get('dataset')):
+            print "\tadd effect"
+        else:
+            print "\thad NO effect", r
         #print r
     else:
-        ### the assumption is that all are suspended, no need to re-suspend anything
+        # the assumption is that all are suspended, no need to re-suspend
+        # anything
         continue
-        print "suspending",ph_item
+        print "suspending", ph_item
         if (recent or fresh) and item['suspended'] == 'y':
             print "already suspended"
-            continue ## we do not have the live value, only cached
-        r=updateSubscription(url, item['node'], ph_item, suspend=9999999999)['phedex']
-        if r.get('block', r.get('dataset')): print "\tadd effect"
-        else: print "\thad NO effect",r
+            continue  # we do not have the live value, only cached
+        r = updateSubscription(
+            url,
+            item['node'],
+            ph_item,
+            suspend=9999999999)['phedex']
+        if r.get('block', r.get('dataset')):
+            print "\tadd effect"
+        else:
+            print "\thad NO effect", r
         #print r
 
 
-
-#for wfo in session.query(Workflow).filter(Workflow.status=='away').filter(Workflow.name.contains('160206')).filter(Workflow.name.startswith('vlimant')).all():
+# for wfo in session.query(Workflow).filter(Workflow.status=='away').filter(Workflow.name.contains('160206')).filter(Workflow.name.startswith('vlimant')).all():
 #    if '06_10' in wfo.name or '06_16' in wfo.name:
 #        print wfo.name
 
@@ -1420,9 +1526,9 @@ print '\n'.join( readys )
 SI =siteInfo()
 
 wfi = workflowInfo(url, 'pdmvserv_task_B2G-RunIIFall15DR76-00808__v1_T_160121_122607_6357')
-(_,primaries,_,secondaries,sites_allowed) = wfi.getSiteWhiteList(verbose=False) 
+(_,primaries,_,secondaries,sites_allowed) = wfi.getSiteWhiteList(verbose=False)
 se_allowed = [SI.CE_to_SE(site) for site in sites_allowed]
-se_allowed.sort()   
+se_allowed.sort()
 se_allowed_key = ','.join(se_allowed)
 prim_where = set()
 for need in list(primaries):
@@ -1432,20 +1538,19 @@ for need in list(primaries):
     prim_where.update( presence.keys() )
 
 print prim_where
-for need in list(secondaries): 
+for need in list(secondaries):
     presence = getDatasetPresence( url, need , within_sites=se_allowed)
     presence = dict([(k,v) for (k,v) in presence.items() if k in prim_where])
-    
+
     print presence
 """
 
-#for wfo in session.query(Workflow).filter(Workfow.status=='assistance-recovered-recovering').all():
+# for wfo in session.query(Workflow).filter(Workfow.status=='assistance-recovered-recovering').all():
 #    wfo.status = 'assistance-recovering-recovered'
-#session.commit()
+# session.commit()
 
 #COI = closeoutInfo()
-#COI.html()
-
+# COI.html()
 
 
 #wfi = workflowInfo(url, 'fabozzi_Run2015D-SingleMuon-16Dec2015_763_151218_000333_2963', deprecated=True)
@@ -1465,9 +1570,9 @@ for need in list(secondaries):
 #print len(session.query(Workflow).filter(Workflow.status.startswith('done')).all())
 #print findLateFiles(url, '/RSGravToWW_width0p2_M-3000_TuneCUETP8M1_13TeV-madgraph-pythia8/RunIISummer15GS-MCRUN2_71_V1-v1/GEN-SIM', going_to = 'T1_IT_CNAF_Disk' )
 
-#for wfo in session.query(Workflow).filter(Workflow.status == 'staged').all():
+# for wfo in session.query(Workflow).filter(Workflow.status == 'staged').all():
 #    wfo.status = 'staging'
-#session.commit()
+# session.commit()
 """
 now = time.mktime( time.gmtime() )
 for wf in getWorkflows(url, 'closed-out', user=None,details=True):
@@ -1498,7 +1603,7 @@ for agent in wmss:
 
 #print json.dumps( wms['AgentJobInfo'] , indent=2)
 #locs =  wfi.getGQLocations()
-#for b,loc in locs.items():
+# for b,loc in locs.items():
 #    if not loc:
 #        print b,"has no location for GQ in",wfi.request['RequestName']
 
@@ -1513,7 +1618,6 @@ sys.exit(1)
 #wf = sys.argv[1]
 #wfi = workflowInfo(url, wf)
 #print json.dumps( wfi.getAgents() , indent=2)
-
 
 
 """
@@ -1560,7 +1664,7 @@ for site in SI.cpu_pledges:
 if True:
     ds = sys.argv[1]
     print ds
-    c,i= findCustodialCompletion(url,  ds) 
+    c,i= findCustodialCompletion(url,  ds)
     print c
     b,f = findLostBlocksFiles(url,ds)
     if len(b) or len(f):
@@ -1572,80 +1676,86 @@ sys.exit(3)
 
 #ds = '/WJetsToLNu_HT-200To400_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/RunIISpring15DR74-Asympt25ns_MCRUN2_74_V9_ext1-v2/AODSIM'
 ds = '/ADDdiPhoton_LambdaT-5000_Pt-500_TuneCUETP8M1_13TeV-pythia8/RunIISpring15DR74-Asympt25ns_MCRUN2_74_V9-v2/AODSIM'
-#ds = '/WRToNuMuToMuMuJJ_MW-4600_MNu-2300_TuneCUETP8M1_13TeV-pythia8/RunIIFall15DR76-PU25nsData2015v1_76X_mcRun2_asymptotic_v12-v1/AODSIM' # Nov 23 01:05:43 2015
-#ds = '/SMS-T2tt_mStop-275_mLSP-75to200_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/RunIISpring15FSPremix-FastAsympt25ns_MCRUN2_74_V9-v1/AODSIM' # Nov 24 12:27:07 2015
-#ds = '/SMS-T1tttt_mGluino-1000_mLSP-1to700_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/RunIISpring15FSPremix-MCRUN2_74_V9-v3/AODSIM' #Nov 28 09:36:52 2015
-#ds = '/WprimeToMuNu_M-5400_TuneCUETP8M1_13TeV-pythia8/RunIIFall15DR76-PU25nsData2015v1_76X_mcRun2_asymptotic_v12-v1/AODSIM' #Dec  2 09:55:23 2015
-#ds = '/WToTauNu_M-1000_TuneCUETP8M1_13TeV-pythia8-tauola/RunIIFall15DR76-PU25nsData2015v1_76X_mcRun2_asymptotic_v12-v1/AODSIM' #Sun Dec  6 04:34:22 2015
-#ds = '/TprimeBToBW_M-1400_TuneCUETP8M1_13TeV-madgraph-pythia8/RunIIFall15DR76-PU25nsData2015v1_76X_mcRun2_asymptotic_v12-v1/AODSIM' 
+# ds = '/WRToNuMuToMuMuJJ_MW-4600_MNu-2300_TuneCUETP8M1_13TeV-pythia8/RunIIFall15DR76-PU25nsData2015v1_76X_mcRun2_asymptotic_v12-v1/AODSIM' # Nov 23 01:05:43 2015
+# ds = '/SMS-T2tt_mStop-275_mLSP-75to200_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/RunIISpring15FSPremix-FastAsympt25ns_MCRUN2_74_V9-v1/AODSIM' # Nov 24 12:27:07 2015
+# ds = '/SMS-T1tttt_mGluino-1000_mLSP-1to700_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/RunIISpring15FSPremix-MCRUN2_74_V9-v3/AODSIM' #Nov 28 09:36:52 2015
+# ds = '/WprimeToMuNu_M-5400_TuneCUETP8M1_13TeV-pythia8/RunIIFall15DR76-PU25nsData2015v1_76X_mcRun2_asymptotic_v12-v1/AODSIM' #Dec  2 09:55:23 2015
+# ds = '/WToTauNu_M-1000_TuneCUETP8M1_13TeV-pythia8-tauola/RunIIFall15DR76-PU25nsData2015v1_76X_mcRun2_asymptotic_v12-v1/AODSIM' #Sun Dec  6 04:34:22 2015
+#ds = '/TprimeBToBW_M-1400_TuneCUETP8M1_13TeV-madgraph-pythia8/RunIIFall15DR76-PU25nsData2015v1_76X_mcRun2_asymptotic_v12-v1/AODSIM'
 #ds = '/tGamma_FCNC_tGc_13TeV-madgraph-pythia8_TuneCUETP8M1/RunIIFall15MiniAODv2-PU25nsData2015v1_76X_mcRun2_asymptotic_v12-v1/MINIAODSIM'
 ds = '/QCD_Pt_30to50_TuneCUETP8M1_13TeV_pythia8/RunIIFall15DR76-25nsFlat10to50NzshcalRaw_76X_mcRun2_asymptotic_v12-v1/AODSIM'
 
 ds = sys.argv[1]
 
 #around= time.mktime( time.gmtime(session.query(Output).filter(Output.datasetname == ds ).all()[0].date))
-outs= []
-#for ds in filter(None, open('recent.unlock').read().split('\n'))[:100]:
+outs = []
+# for ds in filter(None, open('recent.unlock').read().split('\n'))[:100]:
 #    outs.extend(session.query(Output).filter(Output.datasetname == ds).all())
-random.shuffle( outs )
+random.shuffle(outs)
 
-outs = session.query(Output).filter(Output.datasetname.contains('Run2015')).filter(Output.datasetname.endswith('DQMIO')).all()
+outs = session.query(Output).filter(
+    Output.datasetname.contains('Run2015')).filter(
+        Output.datasetname.endswith('DQMIO')).all()
 #outs = session.query(Output).filter(Output.date > around - 96*60*60).filter(Output.date < around + 96*60*60).all()
 
 
-
-
 for out in outs:
-    if not any([pattern in out.datasetname for pattern in ['ZeroBias/','SinglePhoton/','SingelMuon/','JetHT/']]):
+    if not any([pattern in out.datasetname for pattern in [
+               'ZeroBias/', 'SinglePhoton/', 'SingelMuon/', 'JetHT/']]):
         continue
-    #if 'DQM' in out.datasetname: continue
+    # if 'DQM' in out.datasetname: continue
     dataset = out.datasetname
-    presence = getDatasetPresence( url, dataset, vetoes=[])
+    presence = getDatasetPresence(url, dataset, vetoes=[])
     print dataset
     print presence
-    where = [site for site,info in presence.items() if info[0]]
+    where = [site for site, info in presence.items() if info[0]]
     #print where
     on_tape = (where and any(['MSS' in s for s in where]))
     if on_tape:
         print "on tape"
     else:
         print "\t\t not on tape"
-        #nfsvodnf
+        # nfsvodnf
     if where:
         print "somewhere"
     else:
         print "nowhere"
     continue
-#for out in outs:
-    rs= listRequests(url, out.datasetname)
-    if 'DQM' in out.datasetname: continue
-    if not 'AODSIM' in out.datasetname: continue
-    print out.datasetname,"inserted by closor at",time.asctime( time.gmtime( out.date))
-    all_comments= set()
+# for out in outs:
+    rs = listRequests(url, out.datasetname)
+    if 'DQM' in out.datasetname:
+        continue
+    if 'AODSIM' not in out.datasetname:
+        continue
+    print out.datasetname, "inserted by closor at", time.asctime(
+        time.gmtime(out.date))
+    all_comments = set()
     all_dest = set()
     for site in rs:
         for phid in rs[site]:
-            conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
-            there = '/phedex/datasvc/json/prod/transferrequests?request=%d'%phid
-            r1=conn.request("GET", there)
-            r2=conn.getresponse()
+            conn = httplib.HTTPSConnection(url, cert_file=os.getenv(
+                'X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
+            there = '/phedex/datasvc/json/prod/transferrequests?request=%d' % phid
+            r1 = conn.request("GET", there)
+            r2 = conn.getresponse()
             result = json.loads(r2.read())
             #print json.dumps( result['phedex']['request'], indent=2)
             for req in result['phedex']['request']:
                 for d in req['destinations']['node']:
-                    all_dest.add( d['name'] )
-                all_comments.add( req['requested_by']['comments']['$t'])
+                    all_dest.add(d['name'])
+                all_comments.add(req['requested_by']['comments']['$t'])
 
     has_ddm = any(['IntelROCCS' in com for com in all_comments if com])
     has_tape = any(['MSS' in d for d in all_dest])
     #if all_comments:         print list(all_comments)
-    if has_ddm:        print "injected"
-    else:        print "\t not injected",out.datasetname
-    if has_tape:        print "requested to tape"
-    else:        print "\t missing tape request",out.datasetname
-
-
-
+    if has_ddm:
+        print "injected"
+    else:
+        print "\t not injected", out.datasetname
+    if has_tape:
+        print "requested to tape"
+    else:
+        print "\t missing tape request", out.datasetname
 
 
 """
@@ -1655,7 +1765,7 @@ random.shuffle( outs )
 for output in outs:
     ds = output.datasetname
     print ds
-    c,i= findCustodialCompletion(url,  ds) 
+    c,i= findCustodialCompletion(url,  ds)
     print c
     b,f = findLostBlocksFiles(url,ds)
     if len(b) or len(f):
@@ -1664,7 +1774,7 @@ for output in outs:
 """
 
 
-#while True:
+# while True:
 #    print len(getWorkflowByOutput(url, ds, details=True))
 
 
@@ -1678,23 +1788,23 @@ for output in outs:
 #print custodials
 #print info
 
-#for ds,info in json.loads(open('lagging_custodial.json').read()).items():
+# for ds,info in json.loads(open('lagging_custodial.json').read()).items():
 #    for node in info['nodes']:
 #        if node in ['T1_UK_RAL_MSS','T1_US_FNAL_MSS']: continue
 #        print "check",ds,"at",node
 #        findLateFiles(url, ds, going_to = node)
 
 #CI = closeoutInfo()
-#CI.assistance()
+# CI.assistance()
 
-#for wfo in session.query(Workflow).filter(Workflow.status=='assistance-recovering-filemismatch').all()
-#for wfo in session.query(Workflow).filter(Workflow.status=='assistance-manual-filemismatch').all():
-#for wfo in session.query(Workflow).filter(Workflow.status=='assistance-recovery-filemismatch').all():
+# for wfo in session.query(Workflow).filter(Workflow.status=='assistance-recovering-filemismatch').all()
+# for wfo in session.query(Workflow).filter(Workflow.status=='assistance-manual-filemismatch').all():
+# for wfo in session.query(Workflow).filter(Workflow.status=='assistance-recovery-filemismatch').all():
 #    wfo.status = wfo.status.replace('-filemismatch','')
 #    print wfo.status
-#session.commit()
+# session.commit()
 
-#for wfo in session.query(Workflow).filter(Workflow.status=='close').all():
+# for wfo in session.query(Workflow).filter(Workflow.status=='close').all():
 #    print wfo.name
 
 """
@@ -1767,37 +1877,35 @@ for dsname in json.loads(open('lost_blocks_datasets.json').read()):
     print getDatasetBlockFraction( dsname, lost_names )
 """
 
-#for wfo in session.query(Workflow).filter(Workflow.status == 'staging').filter(Workflow.name.contains('2015C_25')).all():
+# for wfo in session.query(Workflow).filter(Workflow.status == 'staging').filter(Workflow.name.contains('2015C_25')).all():
 #    print wfo.name,wfo.status
-#    wfo.status = 'considered'  
-#session.commit()
-
-
+#    wfo.status = 'considered'
+# session.commit()
 
 
 #print "\n".join(d)
 
 #data = json.loads(open('/afs/cern.ch/user/c/cmst2/www/unified/incomplete_transfers.json').read())
-#for dataset in data:
+# for dataset in data:
 #    for phedexid in data[dataset]:
 #        print dataset,phedexid
 
 
-#for wfo in session.query(Workflow).filter(Workflow.status =='away').filter(Workflow.name.startswith('vlimant')).all():
+# for wfo in session.query(Workflow).filter(Workflow.status =='away').filter(Workflow.name.startswith('vlimant')).all():
 #    print wfo.name
 
 
 """
 agents = defaultdict(lambda : defaultdict(int))
 wfs =  session.query(Workflow).filter(Workflow.status == 'away').all()
-random.shuffle( wfs ) 
+random.shuffle( wfs )
 for iwf,wfo in enumerate(wfs):
     wfi = workflowInfo(url, wfo.name)
     for a,ss in wfi.getAgents().items():
         for s,c in ss.items():
             agents[a][s] += c
     print iwf,len( wfs), wfo.name
-    
+
     if iwf%50==0:
         print json.dumps( agents, indent=2 )
 
@@ -1832,9 +1940,9 @@ for wfo in session.query(Workflow).filter(Workflow.status == 'away').all():
         print wfo.name
         wfo.status = 'done'
 session.commit()
-   
+
 """
-     
+
 """
 pid = 549566
 checks = checkTransferStatus(url, pid, nocollapse=True)
@@ -1852,8 +1960,6 @@ print event_count,lumi_count
 #tapes = [site for site in getDatasetPresence( url, prim, vetoes=['T0','T3','T2','Disk']) if site.endswith('MSS')]
 
 #print tapes
-
-
 
 
 """
@@ -1882,12 +1988,12 @@ for wfo in session.query(Workflow).filter(Workflow.status.startswith('assistance
             print wfo.name,wfo.wm_status
             wfo.status ='away'
             session.commit()
-"""           
-#for wfn in json.loads(open('/afs/cern.ch/user/v/vlimant/public/ops/bypass.json').read()):
+"""
+# for wfn in json.loads(open('/afs/cern.ch/user/v/vlimant/public/ops/bypass.json').read()):
 #    wfo = session.query(Workflow).filter(Workflow.name == wfn).first()
 #    print wfo.status
 #    #wfo.status = 'away'
-##session.commit()
+# session.commit()
 
 """
 dbsapi = DbsApi(url='https://cmsweb.cern.ch/dbs/prod/global/DBSReader')
@@ -1917,8 +2023,7 @@ print s
 """
 
 
-
-#for ds in filter(None,os.popen("grep size ../logs/lockor/2015-12-09_07:45:38.log  | awk '{ print $3}'").read().split('\n')):
+# for ds in filter(None,os.popen("grep size ../logs/lockor/2015-12-09_07:45:38.log  | awk '{ print $3}'").read().split('\n')):
 #    findCustodialCompletion(url, ds )
 #print findCustodialCompletion(url, '/WJetsToLNu_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/RunIIWinter15GS-MCRUN2_71_V1_ext1-v1/GEN-SIM')
 #print findCustodialCompletion(url, '/TT_TuneCUETP8M1_13TeV-powheg-pythia8/RunIISummer15GS-MCRUN2_71_V1_ext3-v1/GEN-SIM')
@@ -1930,18 +2035,18 @@ print s
 #print len(locks)
 #open('/afs/cern.ch/user/c/cmst2/www/unified/globallocks.json','w').write( json.dumps( list(locks), indent=2))
 
-#for wfo in session.query(Workflow).filter(Workflow.status == 'considered-unlock').all():
+# for wfo in session.query(Workflow).filter(Workflow.status == 'considered-unlock').all():
 #    wfo.status = 'considered'
-#session.commit()
+# session.commit()
 
-#sys.exit(2)
+# sys.exit(2)
 """
 all_datasets=[]
 item = GET(url, '/phedex/datasvc/json/prod/transferrequests?request=%s'% 525772) ['phedex']['request'][0]
 #print type( item['data']['dbs']['dataset'])
 for ds in item['data']['dbs']['dataset']:
     #print ds['name']
-    if ds['name'] in ['/BlackHole_BH2_MD-2000_MBH-9000_n-2_TuneCUETP8M1_13TeV-blackmax/RunIISpring15MiniAODv2-74X_mcRun2_asymptotic_v2-v1/MINIAODSIM']: 
+    if ds['name'] in ['/BlackHole_BH2_MD-2000_MBH-9000_n-2_TuneCUETP8M1_13TeV-blackmax/RunIISpring15MiniAODv2-74X_mcRun2_asymptotic_v2-v1/MINIAODSIM']:
         print "SKIP",ds['name']
         continue
     all_datasets.append( ds['name'] )
@@ -1961,16 +2066,17 @@ while all_datasets:
 print s
 """
 
-#for wfo in session.query(Workflow).filter(Workflow.name=='fabozzi_Run2015D-DoubleEG-03Dec2015_7415p1_151203_165123_4976').all():
+# for wfo in session.query(Workflow).filter(Workflow.name=='fabozzi_Run2015D-DoubleEG-03Dec2015_7415p1_151203_165123_4976').all():
 #    print wfo.id,wfo.name,wfo.status
 
 #wfo = session.query(Workflow).get(29024)
 #print wfo.status
-#session.delete(wfo)
-#session.commit()
+# session.delete(wfo)
+# session.commit()
 
 
-#print getWorkflows(url, "assignment-approved", details=True)#, rtype="ReReco", details=True, user='pdmvserv,')
+# print getWorkflows(url, "assignment-approved", details=True)#,
+# rtype="ReReco", details=True, user='pdmvserv,')
 
 #print getDatasetEventsAndLumis('/SMS-T2tt_mStop-600-950_mLSP-1to450_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/RunIIWinter15pLHE-MCRUN2_71_V1-v1/LHE')
 #print getDatasetEventsAndLumis('/SMS-T2tt_mStop-600-950_mLSP-1to450_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/RunIISpring15FSPremix-FastAsympt25ns_MCRUN2_74_V9-v1/MINIAODSIM')
@@ -1999,7 +2105,7 @@ for wfo in session.query(Workflow).filter(Workflow.status=='away').all():
     (_,_,_,s) = wfi.getIO()
     ## collect the site/pu to be deleted
     running_at = wfi.request['SiteWhitelist']
-    
+
     good = [ "T1_US_FNAL", "T1_ES_PIC", "T1_FR_CCIN2P3","T1_IT_CNAF","T1_RU_JINR","T1_UK_RAL","T1_DE_KIT","T2_CH_CERN"]
     if all([d in good for d in running_at]):
         print wfo.name,"is ok to stay alive"
@@ -2008,7 +2114,7 @@ for wfo in session.query(Workflow).filter(Workflow.status=='away').all():
     delete_site.update( set(running_at) - set(good) )
 
     delete_pu.update( s )
-    
+
     ## need to kill and clone
     print "taking out",wfo.name
     os.system('Unified/rejector.py --clone %s'% wfo.name)
@@ -2021,12 +2127,11 @@ print delete_pu
 """
 
 
-
 #c = listCustodial(url)
 #print json.dumps( c, indent=1)
 #oldest = min([min(v) for v in c.values()])
-#s=0
-#for site in c:
+# s=0
+# for site in c:
 #    for pid in c[site]:
 #        d=GET(url,'/phedex/datasvc/json/prod/transferrequests?request=%d'%pid)
 #        a_s = sum( [i['data']['bytes'] for i in d['phedex']['request']])
@@ -2072,7 +2177,7 @@ session.commit()
 #print checkDownTime()
 
 #si = siteInfo()
-#for t in si.storage:
+# for t in si.storage:
 #    print t,si.storage[t]
 
 #wfi = workflowInfo(url, 'pdmvserv_task_SUS-RunIIWinter15wmLHE-00097__v1_T_151012_202658_9615')
@@ -2090,13 +2195,13 @@ session.commit()
 #print findCustodialCompletion(url, '/GluGluToRadionToHHTo2B2G_M-260_narrow_13TeV-madgraph/RunIIWinter15GS-MCRUN2_71_V1-v1/GEN-SIM')
 
 #si = siteInfo()
-#to_go=defaultdict(set)
-#for output in session.query(Output).filter(Output.datasetname.endswith('MINIAODSIM')).all():
+# to_go=defaultdict(set)
+# for output in session.query(Output).filter(Output.datasetname.endswith('MINIAODSIM')).all():
 #    if 'RunIISpring15MiniAODv2' in output.datasetname:
 #        to_go[si.pick_SE()].add( output.datasetname )
 
 #print len(to_go)
-#for site in to_go:
+# for site in to_go:
 #    print len(to_go[site]),"to",site
 #    result = makeReplicaRequest(url, site, list(to_go[site]),"custodial copy of RunIISpring15MiniAODv2", custodial='y', priority='low', approve = (site in si.sites_auto_approve) )
 #    print result
@@ -2112,13 +2217,12 @@ for ds in filter(None, os.popen("grep 'because it is not custodial' ../logs/lock
 """
 
 
-
-#for wfo in session.query(Workflow).filter( Workflow.status == 'staging').all():
+# for wfo in session.query(Workflow).filter( Workflow.status == 'staging').all():
 #    wfi = workflowInfo(url, wfo.name)
 #    if wfi.request['RequestDate'][2] < 23-7:
 #        print wfo.name, wfi.request['RequestDate']
 #        wfo.status = 'considered'
-#session.commit()
+# session.commit()
 
 
 #print findLostBlocks(url, '/GJet_Pt-15To6000_TuneCUETP8M1-Flat_13TeV_pythia8/RunIISpring15DR74-Asympt50ns_MCRUN2_74_V9A-v3/AODSIM')
@@ -2137,78 +2241,92 @@ sys.exit(5)
 #statuses = checkTransferLag( url, 517998 ,datasets=['/QCD_Pt-15to7000_TuneCUETP8M1_Flat_13TeV_pythia8/RunIISpring15DR74-Asympt25nsRaw_MCRUN2_74_V9-v3/AODSIM'])
 #statuses = checkTransferLag( url, 483745, datasets=['/TstarTstarToTgammaTgluon_M-1400_TuneCUETP8M1_13TeV-madgraph-pythia8/RunIISpring15DR74-Asympt25ns_MCRUN2_74_V9-v4/AODSIM'])
 if False:
-    missing_in_action=defaultdict(list)
-    for line in filter(None, os.popen('grep incomple ../logs/stagor/last.log').read().split('\n')):
-        (_,dataset) = line.split()
+    missing_in_action = defaultdict(list)
+    for line in filter(None, os.popen(
+            'grep incomple ../logs/stagor/last.log').read().split('\n')):
+        (_, dataset) = line.split()
         #print dataset
-        for sline in filter(None, os.popen('grep -A 1 "incomplete %s" ../logs/stagor/last.log | grep "{"'%dataset).read().split('\n')):
-            tests=sline.replace("{","").replace("}","").split(',')
+        for sline in filter(
+            None, os.popen(
+                'grep -A 1 "incomplete %s" ../logs/stagor/last.log | grep "{"' %
+                dataset).read().split('\n')):
+            tests = sline.replace("{", "").replace("}", "").split(',')
             for test in tests:
                 test = test.strip()
                 #print test
-                (pid,check) = test.split(":")
+                (pid, check) = test.split(":")
                 if "False" in check:
-                    missing_in_action[dataset].append( int(pid) )
-        
+                    missing_in_action[dataset].append(int(pid))
 
-    open('incomplete_transfers.json','w').write(json.dumps( missing_in_action, indent=2))
+    open(
+        'incomplete_transfers.json',
+        'w').write(
+        json.dumps(
+            missing_in_action,
+            indent=2))
     fdagfsd
     report = ""
     for phid in missing_in_action:
-        print "test",phid
-        issues = checkTransferLag( url, phid )
+        print "test", phid
+        issues = checkTransferLag(url, phid)
         for dataset in issues:
             for block in issues[dataset]:
                 for destination in issues[dataset][block]:
-                    (block_size,destination_size,rate,dones) = issues[dataset][block][destination]
-                    report += "%s is not getting to %s, out of %s faster than %f [GB/s]\n"%(block,destination,", ".join(dones), rate)
-                    print "%s is not getting to %s, out of %s faster than %f [GB/s]\n"%(block,destination,", ".join(dones), rate)
+                    (block_size, destination_size, rate,
+                     dones) = issues[dataset][block][destination]
+                    report += "%s is not getting to %s, out of %s faster than %f [GB/s]\n" % (
+                        block, destination, ", ".join(dones), rate)
+                    print "%s is not getting to %s, out of %s faster than %f [GB/s]\n" % (
+                        block, destination, ", ".join(dones), rate)
 
 #print json.dumps( statuses, indent=2 )
 #print getDatasetBlocks('/HLTPhysicspart4/Run2015C-v1/RAW', runs=[254790])
 
 sys.exit(34)
-#for wfl in getWorkflowByMCPileup(url, "/Neutrino_E-10_gun/RunIISpring15PrePremix-MCRUN2_74_V9-v1/GEN-SIM-DIGI-RAW", details=True):
+# for wfl in getWorkflowByMCPileup(url, "/Neutrino_E-10_gun/RunIISpring15PrePremix-MCRUN2_74_V9-v1/GEN-SIM-DIGI-RAW", details=True):
 #    if wfl['RequestStatus'] in ['acquired','assignment-approved','running-open','running-closed']:
 #        print wfl['RequestName'], wfl['RequestStatus']
 
 #wfn = 'jen_a_EXO-RunIISpring15MiniAODv2-00351_00059_v0__151015_215025_3022'
 #wfn= 'pdmvserv_HIG-RunIISpring15MiniAODv2-00332_00043_v0__151008_035453_4934'
 
-#for wfo in session.query(Workflow).filter(Workflow.name == wfn).all():
+# for wfo in session.query(Workflow).filter(Workflow.name == wfn).all():
 #    print wfo.name,wfo.status
-#statuses=set()
-#for wfo in session.query(Workflow).filter(Workflow.status.endswith('-unlock')).all():
+# statuses=set()
+# for wfo in session.query(Workflow).filter(Workflow.status.endswith('-unlock')).all():
 #    statuses.add( wfo.status )
-    #print wfo.name,wfo.status
-    #wfo.status ='trouble'
-#session.commit()
-#print list( statuses ) 
+#print wfo.name,wfo.status
+#wfo.status ='trouble'
+# session.commit()
+#print list( statuses )
 
-#for wfo in session.query(Workflow).filter(Workflow.status == 'away-unlock').all():
+# for wfo in session.query(Workflow).filter(Workflow.status == 'away-unlock').all():
 #    print wfo.name,wfo.status
 #    wfo.status ='away'
-#session.commit()
-
-
+# session.commit()
 
 
 sys.exit(1)
 si = siteInfo()
 
-t1=0
-t2g=0
-t2=0
-for (site,cpu) in sorted(si.cpu_pledges.items(), key=lambda d : d[1], reverse=True):
-    g=""
+t1 = 0
+t2g = 0
+t2 = 0
+for (
+        site,
+        cpu) in sorted(
+            si.cpu_pledges.items(),
+            key=lambda d: d[1],
+        reverse=True):
+    g = ""
     if site in si.sites_with_goodIO:
-        t2g+=cpu
-        g="i/o"
+        t2g += cpu
+        g = "i/o"
     if site.startswith('T1'):
-        t1+=cpu
+        t1 += cpu
     else:
-        t2+=cpu
-    print site,cpu,g
+        t2 += cpu
+    print site, cpu, g
 
 print t1
 print t2g
@@ -2217,34 +2335,50 @@ print t2
 sys.exit(2)
 
 
-datasets=[]
-sites=[ si.CE_to_SE(ce) for ce in si.sites_ready]
-random.shuffle( sites )
+datasets = []
+sites = [si.CE_to_SE(ce) for ce in si.sites_ready]
+random.shuffle(sites)
 for ce in sites[:4]:
     site = si.CE_to_SE(ce)
     print ce
-    datasets.extend(filter(lambda w: w.count('/')==3, [w for w in itertools.chain.from_iterable([line.split() for line in os.popen('curl -s http://t3serv001.mit.edu/~cmsprod/IntelROCCS/Detox/result/%s/DeleteDatasets.txt'%site).read().split('\n')])]))
+    datasets.extend(
+        filter(
+            lambda w: w.count('/') == 3, [
+                w for w in itertools.chain.from_iterable(
+                    [
+                        line.split() for line in os.popen(
+                            'curl -s http://t3serv001.mit.edu/~cmsprod/IntelROCCS/Detox/result/%s/DeleteDatasets.txt' %
+                            site).read().split('\n')])]))
 
 print len(datasets)
 if True:
     random.shuffle(datasets)
     for dataset in datasets[:50]:
-        if 'BACKFILL' in dataset: continue
-        outs = getWorkflowByOutput(url, dataset,details=True)
-        ins = getWorkflowByInput(url, dataset,details=True)
-        pus = getWorkflowByMCPileup(url, dataset,details=True)
-        statuses = list(set([r['RequestStatus'] for r in outs+ins+pus]))
-        if any([s in ['assignment-approved','assigned','failed','acquired','running-open','running-closed','force-complete','completed','closed-out'] for s in statuses]):
-            print dataset,"SHOULD NOT BE THERE",statuses
+        if 'BACKFILL' in dataset:
             continue
-        status = getDatasetStatus( dataset )
-        (_,_,_,tier) = dataset.split('/')
-        if status == 'VALID' and not tier in ['DQMIO','DQM','MINIAODSIM']:
+        outs = getWorkflowByOutput(url, dataset, details=True)
+        ins = getWorkflowByInput(url, dataset, details=True)
+        pus = getWorkflowByMCPileup(url, dataset, details=True)
+        statuses = list(set([r['RequestStatus'] for r in outs + ins + pus]))
+        if any([s in ['assignment-approved',
+                      'assigned',
+                      'failed',
+                      'acquired',
+                      'running-open',
+                      'running-closed',
+                      'force-complete',
+                      'completed',
+                      'closed-out'] for s in statuses]):
+            print dataset, "SHOULD NOT BE THERE", statuses
+            continue
+        status = getDatasetStatus(dataset)
+        (_, _, _, tier) = dataset.split('/')
+        if status == 'VALID' and tier not in ['DQMIO', 'DQM', 'MINIAODSIM']:
             custodials = findCustodialLocation(url, dataset)
             if len(custodials) == 0:
-                print dataset,"SHOULD NOT BE THERE, NO CUSTODIAL"
+                print dataset, "SHOULD NOT BE THERE, NO CUSTODIAL"
                 send
-        print dataset,"rightfully deletable"
+        print dataset, "rightfully deletable"
 
 
 #print json.dumps( si.sites_pressure, indent=2)
@@ -2252,17 +2386,17 @@ if True:
 #print 'T2_UA_KIPT' in si.sites_ready
 #d= dataCache.get('gwmsmon_site_summary')
 
-#for site in d:
+# for site in d:
 #    print site,d[site]['MaxWasRunning']
 
-#for wfo in session.query(Workflow).filter(Workflow.status == 'staging'):
+# for wfo in session.query(Workflow).filter(Workflow.status == 'staging'):
 #    wfi = workflowInfo( url , wfo.name)
 #    (_,prim,_,_) = wfi.getIO()
 #    for p in prim:
 #        lost = findLostBlocks(url, p)
 #        if len
 
-#for d in json.loads( open('lost_blocks_datasets.json').read()):
+# for d in json.loads( open('lost_blocks_datasets.json').read()):
     #lost = findLostBlocks(url, d)
     #print d
     #print len(lost)
@@ -2276,7 +2410,7 @@ if True:
 #print d
 #print 'T2_UA_KIPT' in d
 #l = json.loads(open('datalocks.json').read())
-#for s,info in l.items():
+# for s,info in l.items():
 #    try:
 #        if '/BlackHole_BH1_MD-5000_MBH-11000_n-2_TuneCUETP8M1_13TeV-blackmax/RunIISpring15DR74-Asympt25ns_MCRUN2_74_V9-v1/AODSIM' in #info:
 #            print s
@@ -2298,49 +2432,49 @@ if True:
 sys.exit(23)
 
 counts = defaultdict(int)
-wfl=[
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00384_00018_v0__151007_104629_2988",
-"pdmvserv_HIG-RunIISpring15MiniAODv2-00357_00044_v0__151008_094331_7272",
-"pdmvserv_HIG-RunIISpring15MiniAODv2-00249_00032_v0__151007_175050_6219",
-"pdmvserv_SUS-RunIISpring15MiniAODv2-00032_00037_v0__151007_181719_7743",
-"pdmvserv_EXO-RunIISpring15MiniAODv2-01266_00098_v0__151012_130403_5373",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00019_00006_v0__151007_091225_8953",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00104_00009_v0__151007_101023_3657",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00120_00009_v0__151007_101218_4802",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00195_00011_v0__151007_102448_4239",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00207_00013_v0__151007_102634_7599",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00298_00015_v0__151007_103716_8300",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00324_00016_v0__151007_104117_4852",
+wfl = [
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00384_00018_v0__151007_104629_2988",
+    "pdmvserv_HIG-RunIISpring15MiniAODv2-00357_00044_v0__151008_094331_7272",
+    "pdmvserv_HIG-RunIISpring15MiniAODv2-00249_00032_v0__151007_175050_6219",
+    "pdmvserv_SUS-RunIISpring15MiniAODv2-00032_00037_v0__151007_181719_7743",
+    "pdmvserv_EXO-RunIISpring15MiniAODv2-01266_00098_v0__151012_130403_5373",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00019_00006_v0__151007_091225_8953",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00104_00009_v0__151007_101023_3657",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00120_00009_v0__151007_101218_4802",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00195_00011_v0__151007_102448_4239",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00207_00013_v0__151007_102634_7599",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00298_00015_v0__151007_103716_8300",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00324_00016_v0__151007_104117_4852",
 
-"pdmvserv_HIG-RunIISpring15MiniAODv2-00024_00021_v0__151007_115424_687",
-"pdmvserv_HIG-RunIISpring15MiniAODv2-00204_00031_v0__151007_174557_5141",
-"pdmvserv_HIG-RunIISpring15MiniAODv2-00205_00031_v0__151007_174602_6898",
-"pdmvserv_HIG-RunIISpring15MiniAODv2-00205_00031_v0__151007_174602_6898",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00019_00006_v0__151007_091225_8953",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00019_00006_v0__151007_091225_8953",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00040_00007_v0__151007_100358_5724",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00104_00009_v0__151007_101023_3657",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00120_00009_v0__151007_101218_4802",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00127_00009_v0__151007_101753_1048",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00195_00011_v0__151007_102448_4239",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00207_00013_v0__151007_102634_7599",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00265_00014_v0__151007_103407_6419",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00298_00015_v0__151007_103716_8300",
-"pdmvserv_B2G-RunIISpring15MiniAODv2-00324_00016_v0__151007_104117_4852",
-"pdmvserv_HIG-RunIISpring15MiniAODv2-00024_00021_v0__151007_115424_687",
-"pdmvserv_HIG-RunIISpring15MiniAODv2-00204_00031_v0__151007_174557_5141",
-"pdmvserv_HIG-RunIISpring15MiniAODv2-00205_00031_v0__151007_174602_6898",
+    "pdmvserv_HIG-RunIISpring15MiniAODv2-00024_00021_v0__151007_115424_687",
+    "pdmvserv_HIG-RunIISpring15MiniAODv2-00204_00031_v0__151007_174557_5141",
+    "pdmvserv_HIG-RunIISpring15MiniAODv2-00205_00031_v0__151007_174602_6898",
+    "pdmvserv_HIG-RunIISpring15MiniAODv2-00205_00031_v0__151007_174602_6898",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00019_00006_v0__151007_091225_8953",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00019_00006_v0__151007_091225_8953",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00040_00007_v0__151007_100358_5724",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00104_00009_v0__151007_101023_3657",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00120_00009_v0__151007_101218_4802",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00127_00009_v0__151007_101753_1048",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00195_00011_v0__151007_102448_4239",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00207_00013_v0__151007_102634_7599",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00265_00014_v0__151007_103407_6419",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00298_00015_v0__151007_103716_8300",
+    "pdmvserv_B2G-RunIISpring15MiniAODv2-00324_00016_v0__151007_104117_4852",
+    "pdmvserv_HIG-RunIISpring15MiniAODv2-00024_00021_v0__151007_115424_687",
+    "pdmvserv_HIG-RunIISpring15MiniAODv2-00204_00031_v0__151007_174557_5141",
+    "pdmvserv_HIG-RunIISpring15MiniAODv2-00205_00031_v0__151007_174602_6898",
 ]
-wfl=set(wfl)
+wfl = set(wfl)
 
 for wf in wfl:
-    wfi = workflowInfo( url, wf)
+    wfi = workflowInfo(url, wf)
     wl = wfi.request['SiteWhitelist']
     print wl
     for s in wl:
         counts[s] += 1
 
-#for wfo in session.query(Workflow).filter(Workflow.status=='assistance-manual').all():
+# for wfo in session.query(Workflow).filter(Workflow.status=='assistance-manual').all():
 #    if not 'MiniAODv2' in wfo.name: continue
 #    if not wfo.name in wfl: continue
 #    print wfo.name
@@ -2351,11 +2485,11 @@ for wf in wfl:
 #        counts[s] += 1
 
 #si = siteInfo()
-#for s in counts:
+# for s in counts:
 #    counts[s] = counts[s] / float(si.cpu_pledges[s])*100.
 
-print "\n".join(["%s : %4.2f"%(item[0],item[1]) for item in sorted(counts.items(), reverse=True, key=lambda i :i[1])])
-
+print "\n".join(["%s : %4.2f" % (item[0], item[1])
+                 for item in sorted(counts.items(), reverse=True, key=lambda i:i[1])])
 
 
 #presence = getDatasetPresence( 'cmsweb.cern.ch', '/Neutrino_E-10_gun/RunIISpring15PrePremix-MCRUN2_74_V9-v1/GEN-SIM-DIGI-RAW')
@@ -2367,68 +2501,66 @@ print "\n".join(["%s : %4.2f"%(item[0],item[1]) for item in sorted(counts.items(
 #print subscriptions
 #print sec_destination
 
-#si=siteInfo()
+# si=siteInfo()
 #print 'T2_UA_KIPT' in si.sites_ready
 #print 'T2_UA_KIPT' in si.sites_not_ready
 
 #li= lockInfo()
-#li.release('/QCD_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCUETP8M1_13TeV_Pythia8/RunIISummer15GS-MCRUN2_71_V1-v2/GEN-SIM','T2_US_MIT',reason='unlocking')
+# li.release('/QCD_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCUETP8M1_13TeV_Pythia8/RunIISummer15GS-MCRUN2_71_V1-v2/GEN-SIM','T2_US_MIT',reason='unlocking')
 
 #print getDatasetEventsPerLumi('/BlackHole_BH1_MD-4000_MBH-11000_n-6_TuneCUETP8M1_13TeV-blackmax/RunIIWinter15pLHE-MCRUN2_71_V1-v2/LHE')
 #print getDatasetEventsPerLumi('/BlackHole_BH1_MD-4000_MBH-11000_n-6_TuneCUETP8M1_13TeV-blackmax/RunIIWinter15GS-MCRUN2_71_V1-v1/GEN-SIM')
 #print getDatasetEventsPerLumi('/BlackHole_BH1_MD-4000_MBH-11000_n-6_TuneCUETP8M1_13TeV-blackmax/RunIISpring15DR74-Asympt25ns_MCRUN2_74_V9-v2/AODSIM')
 
 #print len(session.query(Workflow).filter(Workflow.status.endswith('done')).all())
-#for wfo in session.query(Workflow).filter(Workflow.status.endswith('done')).all():
+# for wfo in session.query(Workflow).filter(Workflow.status.endswith('done')).all():
 #    wfo.status += "-unlock"
-#session.commit()
+# session.commit()
 
 #print getDatasetEventsPerLumi('/DYJetsToQQ_HT180_13TeV-madgraphMLM-pythia8/RunIIWinter15GS-MCRUN2_71_V1-v3/GEN-SIM')
 
 #print getDatasetEventsPerLumi('/DYJetsToQQ_HT180_13TeV-madgraphMLM-pythia8/RunIISpring15DR74-Asympt25ns_MCRUN2_74_V9-v1/AODSIM')
 
-#def doThis():
+# def doThis():
 #    htmlor()
 
-#doThis()
+# doThis()
 
-#for wfo in session.query(Workflow).filter(Workflow.status == 'staged').all():
+# for wfo in session.query(Workflow).filter(Workflow.status == 'staged').all():
 #    wfo.status = 'considered'
-#session.commit()
+# session.commit()
 
 
-#for site in si.all_sites:
+# for site in si.all_sites:
 #    pass
-    #li.release('/MinBias_TuneCUETP8M1_13TeV-pythia8/RunIIWinter15GS-MCRUN2_71_V1-v1/GEN-SIMM', si.CE_to_SE(site), reason='typo')
+#li.release('/MinBias_TuneCUETP8M1_13TeV-pythia8/RunIIWinter15GS-MCRUN2_71_V1-v1/GEN-SIMM', si.CE_to_SE(site), reason='typo')
 #    li.lock('/Neutrino_E-10_gun/RunIISpring15PrePremix-MCRUN2_74_V9-v1/GEN-SIM-DIGI-RAW', si.CE_to_SE(site), reason='lock by hand')
 
 #check_ggus( 112366 )
 
 
-
-
-#for wfo in session.query(Workflow).filter(Workflow.name == 'jbadillo_B2G-RunIISpring15MiniAODv2-00254_00014_v0__151012_134742_2527').all():
+# for wfo in session.query(Workflow).filter(Workflow.name == 'jbadillo_B2G-RunIISpring15MiniAODv2-00254_00014_v0__151012_134742_2527').all():
 #    print wfo.name,wfo.status
 
 #wfs = session.query(Workflow).filter(Workflow.status=='away').all()
 #random.shuffle( wfs )
-#i=0
-#for wfo in wfs:
+# i=0
+# for wfo in wfs:
 #    print i
 #    i+=1
 #    wfi = workflowInfo( url , wfo.name )
 #    if wfi.request['RequestStatus'] == 'closed-out':
 #        print "closing",wfo.name
 #        wfo.status = 'close'
-#session.commit()
+# session.commit()
 
-#print json.dumps( dict(getDatasetDestinations(url, '/BBbarDMJets_pseudoscalar_Mchi-150_Mphi-10000_13TeV-madgraph/RunIIWinter15wmLHE-MCRUN2_71_V1-v2/LHE',only_blocks=['/BBbarDMJets_pseudoscalar_Mchi-150_Mphi-10000_13TeV-madgraph/RunIIWinter15wmLHE-MCRUN2_71_V1-v2/LHE#ce8fb2a8-3525-11e5-90cd-a0369f23d008'])[0]), indent=2)
+# print json.dumps( dict(getDatasetDestinations(url, '/BBbarDMJets_pseudoscalar_Mchi-150_Mphi-10000_13TeV-madgraph/RunIIWinter15wmLHE-MCRUN2_71_V1-v2/LHE',only_blocks=['/BBbarDMJets_pseudoscalar_Mchi-150_Mphi-10000_13TeV-madgraph/RunIIWinter15wmLHE-MCRUN2_71_V1-v2/LHE#ce8fb2a8-3525-11e5-90cd-a0369f23d008'])[0]), indent=2)
 #print json.dumps( dict(getDatasetDestinations(url, '/BBbarDMJets_pseudoscalar_Mchi-150_Mphi-10000_13TeV-madgraph/RunIIWinter15wmLHE-MCRUN2_71_V1-v2/LHE')), indent=2)
 #print json.dumps( dict(getDatasetDestinations(url, '/MinBias_TuneCUETP8M1_13TeV-pythia8/RunIISummer15GS-MCRUN2_71_V1-v1/GEN-SIM')))
 
 #print sorted(getSiteWhiteList((False,'/DM_PseudoscalarWH_Mphi-1000_Mchi-10_gSM-1p0_gDM-1p0_13TeV-JHUGen/RunIIWinter15GS-MCRUN2_71_V1-v1/GEN-SIM',None,'/MinBias_TuneCUETP8M1_13TeV-pythia8/RunIIWinter15GS-MCRUN2_71_V1-v1/GEN-SIM')))
 
-#sys.exit(34)
+# sys.exit(34)
 
 #print getDatasetBlocksFraction( url, '/BBbarDMJets_pseudoscalar_Mchi-150_Mphi-10000_13TeV-madgraph/RunIIWinter15wmLHE-MCRUN2_71_V1-v2/LHE')
 
@@ -2467,11 +2599,13 @@ sys.exit(34)
 
 ds = '/BBbarDMJets_pseudoscalar_Mchi-1_Mphi-10000_13TeV-madgraph/RunIIWinter15wmLHE-MCRUN2_71_V1-v4/LHE'
 
-destinations,all_block_names = getDatasetDestinations(url, ds, complement=False)
+destinations, all_block_names = getDatasetDestinations(
+    url, ds, complement=False)
 
 print json.dumps(destinations, indent=2)
 
-destinations,all_block_names = getDatasetDestinations(url, ds, complement=True)
+destinations, all_block_names = getDatasetDestinations(
+    url, ds, complement=True)
 
 print json.dumps(destinations, indent=2)
 
@@ -2480,17 +2614,18 @@ sys.exit(23)
 #wfi = workflowInfo(url, acdc)
 #print wfi.getSplittings()
 
-factor = 2 
+factor = 2
 for split in wfi.getSplittings():
-    for act in ['avg_events_per_job','lumis_per_job']: 
-        if act in split:     
-            print "Changing %s (%d) by a factor %d"%( act, split[act], factor),   
-            split[act] /= factor    
-            print "to",split[act] 
+    for act in ['avg_events_per_job', 'lumis_per_job']:
+        if act in split:
+            print "Changing %s (%d) by a factor %d" % (
+                act, split[act], factor),
+            split[act] /= factor
+            print "to", split[act]
             break
     split['requestName'] = acdc
-    print json.dumps( split, indent=2 )
-    print reqMgrClient.setWorkflowSplitting(url, split )
+    print json.dumps(split, indent=2)
+    print reqMgrClient.setWorkflowSplitting(url, split)
 
 
 #print [ task.taskType for task in  wfi.getAllTasks()]
@@ -2516,10 +2651,11 @@ sys.exit(24)
 
 """
 
-wfi = workflowInfo(url ,'pdmvserv_BPH-Summer12DR53X-00188_00414_v0__150820_193454_4274')
+wfi = workflowInfo(
+    url, 'pdmvserv_BPH-Summer12DR53X-00188_00414_v0__150820_193454_4274')
 params = wfi.getSplittings()
 print json.dumps(params, indent=2)
-pprint.pprint( wfi.full_spec )
+pprint.pprint(wfi.full_spec)
 sys.exit(3)
 
 
@@ -2528,27 +2664,30 @@ ci.assistance()
 sys.exit(545)
 si = siteInfo()
 si.fetch_glidein_info()
-a = si.sitesByMemory( 3500 )
+a = si.sitesByMemory(3500)
 print a
 
 sys.exit(3)
-wfi = workflowInfo(url,'pdmvserv_SUS-RunIISpring15DR74-00051_00284_v0__150803_001642_3546')
+wfi = workflowInfo(
+    url,
+    'pdmvserv_SUS-RunIISpring15DR74-00051_00284_v0__150803_001642_3546')
 wfi.getSummary()
-for task,errors in wfi.summary['errors'].items():
+for task, errors in wfi.summary['errors'].items():
     print task
-    for name,codes in errors.items():
-        if type(codes)==int: continue
-        for errorCode,info in codes.items():
-            print "Task",task,"had",info['jobs'],"failures with error code",errorCode,"in stage",name
-    
-    #print json.dumps( wfi.summary['errors'][task], indent=2 ) 
+    for name, codes in errors.items():
+        if isinstance(codes, int):
+            continue
+        for errorCode, info in codes.items():
+            print "Task", task, "had", info['jobs'], "failures with error code", errorCode, "in stage", name
+
+    #print json.dumps( wfi.summary['errors'][task], indent=2 )
 
 #LI = lockInfo()
-#LI.clean_unlock(view=True)
+# LI.clean_unlock(view=True)
 
 sys.exit(1)
 
-#si.fetch_detox_info()
+# si.fetch_detox_info()
 #print json.dumps(si.disk, indent=2)
 
 #ws = si.disk.values()
@@ -2559,7 +2698,7 @@ while True:
     picked=None
     rnd = random.random() * sum(ws)
     for i, w in enumerate(ws):
-        rnd -= w 
+        rnd -= w
         if rnd < 0:
             print "pick:",i,"from",ws,"and",rnd
             picked=i
@@ -2571,7 +2710,7 @@ while True:
 
 
 #wfi = workflowInfo(url, 'pdmvserv_task_TOP-RunIIWinter15wmLHE-00028__v1_T_150608_090934_3263')
-#wfi.getSummary()
+# wfi.getSummary()
 #print json.dumps( wfi.summary, indent=2 )
 
 sys.exit(1)
@@ -2591,7 +2730,7 @@ for wfo in session.query(Workflow).filter(Workflow.status=='away').filter(Workfl
         presence = getDatasetPresence(url, out)
         print presence
 """
-#sys.exit(10)
+# sys.exit(10)
 
 """
 li = lockInfo()
@@ -2627,7 +2766,7 @@ for wfo in session.query(Workflow).filter(Workflow.status == 'away').all():
     wfi = workflowInfo(url, wfo.name)
     #if wfi.request['RequestStatus'] == 'acquired':
     if wfi.request['RequestStatus'] in ['running-closed','running-open','completed']:
-        ## check 
+        ## check
         wfi.getWorkQueue()
         #print json.dumps( wfi.workqueue, indent=2)
         for work in wfi.workqueue:
@@ -2658,9 +2797,9 @@ for tid in [443786]:
             l = copy.deepcopy( tfo.workflows_id )
             l.append( ins.id )
             print "adding",ins.name,"to",tid
-            tfo.workflows_id = l 
+            tfo.workflows_id = l
             #session.commit()
-    
+
 """
 #SI = siteInfo()
 
@@ -2727,19 +2866,19 @@ for wfo in session.query(Workflow).filter(Workflow.status == 'staging').all():
     if available>2.:
         print "\t\t",wfo.name,"can go staged"
 """
-    
+
 #tfo = Transfer( phedexid = 443786, workflows_id = wfs)
 #session.add( tfo )
-#session.commit()
+# session.commit()
 
 #tfo = session.query(Transfer).filter(Transfer.phedexid == 443786).first()
-#print tfo 
+#print tfo
 
-#for wfid in tfo.workflows_id:
+# for wfid in tfo.workflows_id:
 #    wfo = session.query(Workflow).get( wfid)
 #    print wfo.name,wfo.status
 
-#sys.exit( 12) 
+#sys.exit( 12)
 """
 for wfo in session.query(Workflow).filter(Workflow.status.endswith('-out')).all():
     print wfo.status
@@ -2763,7 +2902,7 @@ for ti in [443244, 443245, 443246, 443247, 443248, 443249, 443250, 443251, 44325
 """
 
 """
-print updateSubscription(url, 
+print updateSubscription(url,
                          'T2_US_Nebraska',
                          '/ReggeGribovPartonMC_castorJet_13TeV-QGSJetII/RunIIWinter15GS-castor_MCRUN2_71_V0-v2/GEN-SIM#7b2047a6-e203-11e4-bead-a0369f23d138',
                          priority = 'high'
@@ -2792,7 +2931,7 @@ print json.dumps( sites_and_datasets, indent = 2)
 open('leftovers.json','w').write( json.dumps( sites_and_datasets, indent = 2) )
 """
 
-        
+
 """
 wfi = workflowInfo(url, 'pdmvserv_HIG-TP2023SHCALDR-00027_00008_v0__150329_182803_7806')
 ns = wfi.getSchema()
@@ -2804,12 +2943,12 @@ print ns['ProcessingString']
 """
 wfs = ['alahiff_EGM-Fall14DR73-00008_00022_v0__150329_110300_5744']
 for wf in wfs:
-    if session.query(Workflow).filter(Workflow.name==wf).first(): 
+    if session.query(Workflow).filter(Workflow.name==wf).first():
         print "already there"
         continue
     nwf = Workflow(name = wf )
     session.add( nwf)
-    session.commit()   
+    session.commit()
 """
 
 """
@@ -2827,10 +2966,10 @@ for wfo in session.query(Workflow).filter(Workflow.status == 'staging').all():
 #wfi = workflowInfo(url, wfo.name)
 #print wfi.request['RequestStatus']
 #session.delete( wfo )
-#session.commit()
+# session.commit()
 #print json.dumps(wfi.getSchema(), indent=2)
 
-#sys.exit(11)
+# sys.exit(11)
 
 """
 out_by_wf ={}
@@ -2884,7 +3023,7 @@ sites = set()
 datasets = set()
 #result = makeDeleteRequest(url,','.join( sites ), datasets, comments="cleanup after production")
 
-for site in delete_per_site:  
+for site in delete_per_site:
     list_dataset = [info[0] for info in delete_per_site[site]]
     #result = makeDeleteRequest(url,site, list_dataset, comments="cleanup after production")
     #print result
@@ -2894,30 +3033,29 @@ for site in delete_per_site:
 
 print sites
 print datasets
-####print makeDeleteRequest(url ,sites ,datasets, comments="cleanup after production") 
+####print makeDeleteRequest(url ,sites ,datasets, comments="cleanup after production")
 
 
 sys.exit(10)
 """
 
-#for wfo in session.query(Workflow).filter(Workflow.status == 'clean').all():
+# for wfo in session.query(Workflow).filter(Workflow.status == 'clean').all():
 #    wfi = workflowInfo( url, wfo.name)
 #    print wfi.request['InputDataset']
-    
-    
+
 
 #wf = session.query(Workflow).filter(Workflow.name=='dmason_EXO-RunIIWinter15GS-00734_00052_v0__150417_231132_8083').first()
 #print wf.name
 #session.delete( wf )
-#session.commit()
-#sys.exit(1)
+# session.commit()
+# sys.exit(1)
 
 #wfo = session.query(Workflow).filter(Workflow.name == 'pdmvserv_HIG-TP2023SHCALDR-00020_00008_v0__150329_182738_4161').first()
 #print wfo.status
 #wfo.status = 'nono'
-#session.commit()
+# session.commit()
 #wfo.status = 'forget'
-#session.commit()
+# session.commit()
 
 """
 ds_to_sites = json.loads(open('mss.list').read())
@@ -2933,10 +3071,10 @@ for site in ds_to_sites:
 ds_to_sites = {}
 for wfo in session.query(Workflow).filter(Workflow.status=='away').all()+session.query(Workflow).filter(Workflow.status=='done').all():
     wfi = workflowInfo(url, wfo.name, deprecated=True)
-    if not 'SubscriptionInformation' in wfi.deprecated_request: 
+    if not 'SubscriptionInformation' in wfi.deprecated_request:
         print wfo.name,"no info"
         continue
-    
+
     for (ds,sub) in wfi.deprecated_request['SubscriptionInformation'].items():
         print wfo.name,sub['AutoApproveSites']
         mss = filter(lambda s : 'MSS' in s, sub['AutoApproveSites'])
@@ -2955,24 +3093,24 @@ for s in ds_to_sites:
 open('mss.list','w').write(json.dumps(ds_to_sites, indent=2))
 """
 
-#sys.exit(10)    
+# sys.exit(10)
 #out = session.query(Output).filter(Output.datasetname == '/SingleNeutrino/Fall14DR73-Ave40bx25_tsg_MCRUN2_73_V11-v1/DQMIO').first()
 #print out.workfow_id
 #wf = session.query(Workflow).get(out.workfow_id)
 #print wf
-#session.delete(out)
-#session.commit()
+# session.delete(out)
+# session.commit()
 
 #tr = session.query(Transfer).filter(Transfer.phedexid==441155).first()
-#for wfid in tr.workflows_id:
+# for wfid in tr.workflows_id:
 #    wfo = session.query(Workflow).get(wfid)
 #    print wfo.name
 
 #wf = session.query(Workflow).filter(Workflow.name=='jen_a_HCA-Fall14DR73-00002_00009_v0__150327_210008_3674').first()
 #wf = session.query(Workflow).filter(Workflow.name=='jen_a_HIG-TP2023HGCALDR-00014_00003_v0__150412_180828_4973').first()
-#session.delete(wf)
+# session.delete(wf)
 #print wf
-#session.commit()
+# session.commit()
 
 """
 sys.exit(23)
@@ -2999,7 +3137,7 @@ for tr in session.query(Transfer).all():
     for wfid in tr.workflows_id:
         wfo = session.query(Workflow).get(wfid)
         if wfo.status == 'considered':
-            wfo.status = 'staging' 
+            wfo.status = 'staging'
             print "changing",wfo.name,"to staging in",tr.phedexid
             #session.commit()
 
@@ -3013,7 +3151,7 @@ sys.exit(1)
 #wfi = workflowInfo( url, "jen_a_BTV-TP2023HGCALDR-00002_00002_v0__150407_161443_2246")
 #wfi = workflowInfo( url, "jen_a_HIG-TP2023SHCALDR-00029_00008_v0__150407_161522_3546")
 #checkWorkflowSplitting(url, 'jen_a_BTV-TP2023HGCALDR-00002_00002_v0__150407_161443_2246')
-#sys.exit(1)
+# sys.exit(1)
 
 """
 #print wfi.full_spec.__dict__.keys()
@@ -3036,36 +3174,36 @@ if splits[0]['events_per_job']< evt_per_lumi_in:
 
 #pid = sys.argv[1]
 #tr = session.query(Transfer).filter(Transfer.phedexid== pid).first()
-#for wfid in tr.workflows_id:
+# for wfid in tr.workflows_id:
 #    wf = session.query(Workflow).get(wfid)
 #    print wf.id,wf.name
 #    wf.status = 'staging'
-#session.commit()
+# session.commit()
 
 #checks = checkTransferStatus( 'cmsweb.cern.ch',440053 )
 #print checks
 
 #tr = session.query(Transfer).filter(Transfer.phedexid== 440100 ).first()
 #session.delete( tr )
-#session.commit()
+# session.commit()
 
-#wf = session.query(Workflow).filter(Workflow.name=="pdmvserv_TOP-Summer12DR53X-00302_00379_v0__150331_100923_4420"
+# wf = session.query(Workflow).filter(Workflow.name=="pdmvserv_TOP-Summer12DR53X-00302_00379_v0__150331_100923_4420"
 #                                    ).first()
 
 #wl = getWorkLoad( 'cmsweb.cern.ch', wf.name )
 #pprint.pprint( wl )
 #wf.status = 'staging'
-#session.commit()
+# session.commit()
 
-#for out in session.query(Output).all():
+# for out in session.query(Output).all():
 #    if  out.workflow.status == 'done':
 #        print "%150s on week %s"%(out.datasetname,time.strftime("%W (%x %X)",time.gmtime(out.date)))
 
-#for out in session.query(Output).all():
+# for out in session.query(Output).all():
 #    print out.status
 
 #print "\n\n"
-#for out in session.query(Output).all():
+# for out in session.query(Output).all():
 #    if  out.workflow.status == 'away':
 #        print "%150s %d/%d = %3.2f%% %s %s "%(out.datasetname,
 #                                              out.nlumis,
@@ -3073,15 +3211,15 @@ if splits[0]['events_per_job']< evt_per_lumi_in:
 #                                              out.nlumis/float(out.expectedlumis)*100.,
 #                                              out.workflow.name,
 #                                              out.workflow.status)
-    
+
 #print "\n\n"
 
-#for wf in session.query(Workflow).filter(Workflow.name=='pdmvserv_TAU-2019GEMUpg14DR-00038_00084_v0__150329_162031_7993').all():
+# for wf in session.query(Workflow).filter(Workflow.name=='pdmvserv_TAU-2019GEMUpg14DR-00038_00084_v0__150329_162031_7993').all():
 #
 
 """
-for wf in session.query(Workflow).filter(Workflow.status == 'considered').all(): 
-    print "workflow:",wf.name,wf.id,wf.status,wf.wm_status   
+for wf in session.query(Workflow).filter(Workflow.status == 'considered').all():
+    print "workflow:",wf.name,wf.id,wf.status,wf.wm_status
 
 """
 

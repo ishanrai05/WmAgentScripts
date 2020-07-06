@@ -4,6 +4,7 @@ ReqMgr request handling.
 """
 from WMCoreService.CouchClient import CouchServer
 
+
 def splitCouchServiceURL(serviceURL):
     """
     split service URL to couchURL and couchdb name
@@ -13,24 +14,25 @@ def splitCouchServiceURL(serviceURL):
     splitedURL = serviceURL.rstrip('/').rsplit('/', 1)
     return splitedURL[0], splitedURL[1]
 
+
 class WMStatsClient(object):
-    
+
     ACTIVE_STATUS = ["new",
-                    "assignment-approved",
-                    "assigned",
-                    "ops-hold",
-                    "negotiating",
-                    "acquired",
-                    "running",
-                    "running-open",
-                    "running-closed",
-                    "failed",
-                    "completed",
-                    "closed-out",
-                    "announced",
-                    "aborted",
-                    "rejected"]
-    
+                     "assignment-approved",
+                     "assigned",
+                     "ops-hold",
+                     "negotiating",
+                     "acquired",
+                     "running",
+                     "running-open",
+                     "running-closed",
+                     "failed",
+                     "completed",
+                     "closed-out",
+                     "announced",
+                     "aborted",
+                     "rejected"]
+
     def __init__(self, url):
         # main CouchDB database where requests/workloads are stored
         url = url or "https://cmsweb.cern.ch/couchdb/wmstats"
@@ -38,21 +40,22 @@ class WMStatsClient(object):
         self.server = CouchServer(couchUrl)
         self.couchdb = self.server.connectDatabase(dbName)
         self.couchapp = "WMStats"
-    
-    def getRequestByNames(self, requestNames, jobInfoFlag = False):
+
+    def getRequestByNames(self, requestNames, jobInfoFlag=False):
         data = self._getRequestByNames(requestNames, True)
         requestInfo = self._formatCouchData(data)
         if jobInfoFlag:
             # get request and agent info
             self._updateReuestInfoWithJobInfo(requestInfo)
         return requestInfo
-    
-    def getActiveData(self, jobInfoFlag = False):
-        
-        return self.getRequestByStatus(WMStatsClient.ACTIVE_STATUS, jobInfoFlag)
-    
-    def getRequestByStatus(self, statusList, jobInfoFlag = False):
-        
+
+    def getActiveData(self, jobInfoFlag=False):
+
+        return self.getRequestByStatus(
+            WMStatsClient.ACTIVE_STATUS, jobInfoFlag)
+
+    def getRequestByStatus(self, statusList, jobInfoFlag=False):
+
         data = self._getRequestByStatus(statusList, True)
         requestInfo = self._formatCouchData(data)
 
@@ -60,30 +63,30 @@ class WMStatsClient(object):
             # get request and agent info
             self._updateReuestInfoWithJobInfo(requestInfo)
         return requestInfo
-    
+
     def _updateReuestInfoWithJobInfo(self, requestInfo):
         if len(requestInfo.keys()) != 0:
             requestAndAgentKey = self._getRequestAndAgent(requestInfo.keys())
             jobDocIds = self._getLatestJobInfo(requestAndAgentKey)
             jobInfoByRequestAndAgent = self._getAllDocsByIDs(jobDocIds)
-            self._combineRequestAndJobData(requestInfo, jobInfoByRequestAndAgent)
-            
-    def _getCouchView(self, view, options, keys = []):
-        
+            self._combineRequestAndJobData(
+                requestInfo, jobInfoByRequestAndAgent)
+
+    def _getCouchView(self, view, options, keys=[]):
+
         if not options:
             options = {}
         options.setdefault("stale", "update_after")
-        if keys and type(keys) == str:
+        if keys and isinstance(keys, str):
             keys = [keys]
         return self.couchdb.loadView(self.couchapp, view, options, keys)
-            
-        
-    def _formatCouchData(self, data, key = "id"):
+
+    def _formatCouchData(self, data, key="id"):
         result = {}
         for row in data['rows']:
             result[row[key]] = row["doc"]
         return result
-    
+
     def _combineRequestAndJobData(self, requestData, jobData):
         """
         update the request data with job info
@@ -133,11 +136,10 @@ class WMStatsClient(object):
         """
         for row in jobData["rows"]:
             jobInfo = requestData[row["doc"]["workflow"]]
-            jobInfo["AgentJobInfo"]  = {} 
+            jobInfo["AgentJobInfo"] = {}
             jobInfo["AgentJobInfo"][row["doc"]["agent_url"]] = row["doc"]
-    
-            
-    def _getRequestByNames(self, requestNames, detail = True):
+
+    def _getRequestByNames(self, requestNames, detail=True):
         """
         'status': list of the status
         """
@@ -145,8 +147,8 @@ class WMStatsClient(object):
         options["include_docs"] = detail
         result = self.couchdb.allDocs(options, requestNames)
         return result
-        
-    def _getRequestByStatus(self, statusList, detail = True):
+
+    def _getRequestByStatus(self, statusList, detail=True):
         """
         'status': list of the status
         """
@@ -154,8 +156,8 @@ class WMStatsClient(object):
         options["include_docs"] = detail
         keys = statusList or WMStatsClient.ACTIVE_STATUS
         return self._getCouchView("requestByStatus", options, keys)
-    
-    def _getRequestAndAgent(self, filterRequest = None):
+
+    def _getRequestAndAgent(self, filterRequest=None):
         """
         returns the [['request_name', 'agent_url'], ....]
         """
@@ -163,13 +165,14 @@ class WMStatsClient(object):
         options["reduce"] = True
         options["group"] = True
         result = self._getCouchView("requestAgentUrl", options)
-        
-        if filterRequest == None:
+
+        if filterRequest is None:
             keys = [row['key'] for row in result["rows"]]
         else:
-            keys = [row['key'] for row in result["rows"] if row['key'][0] in filterRequest]
+            keys = [row['key']
+                    for row in result["rows"] if row['key'][0] in filterRequest]
         return keys
-    
+
     def _getLatestJobInfo(self, keys):
         """
         keys is [['request_name', 'agent_url'], ....]
@@ -181,7 +184,7 @@ class WMStatsClient(object):
         result = self._getCouchView("latestRequest", options, keys)
         ids = [row['value']['id'] for row in result["rows"]]
         return ids
-    
+
     def _getAllDocsByIDs(self, ids):
         """
         keys is [id, ....]
@@ -190,5 +193,5 @@ class WMStatsClient(object):
         options = {}
         options["include_docs"] = True
         result = self.couchdb.allDocs(options, ids)
-        
+
         return result
