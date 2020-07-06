@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from optparse import OptionParser
-from utils import setAgentDrain, reqmgr_url
+from .utils import setAgentDrain, reqmgr_url
 
 if __name__ == "__main__":
     myOptParser = OptionParser()
@@ -20,4 +20,4 @@ if __name__ == "__main__":
                        options.agent,
                        drain = d)
     if not ok:
-        print "was not able to set drain",d,"to agent",options.agent
+        print("was not able to set drain",d,"to agent",options.agent)

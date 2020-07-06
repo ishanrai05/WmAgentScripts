@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-from utils import getWorkflows, getWorkflowById, getWorkLoad, componentInfo, sendEmail, workflowInfo, sendLog, reqmgr_url, getDatasetStatus, unifiedConfiguration, moduleLock, do_html_in_each_module, getDatasetFiles
+from .utils import getWorkflows, getWorkflowById, getWorkLoad, componentInfo, sendEmail, workflowInfo, sendLog, reqmgr_url, getDatasetStatus, unifiedConfiguration, moduleLock, do_html_in_each_module, getDatasetFiles
 import sys
 
 def step_chain_test(url, wf):
     transform_keywords = None
     wfi = workflowInfo(url, wf)
     good_for_stepchain = wfi.isGoodToConvertToStepChain( keywords = transform_keywords, debug=True)
-    print "%s: %s\n" %(wf, good_for_stepchain)
+    print("%s: %s\n" %(wf, good_for_stepchain))
 
 if __name__ == "__main__":
     url = reqmgr_url

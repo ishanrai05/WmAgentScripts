@@ -17,8 +17,8 @@ def setStatusDBS2(url2, dataset, newStatus, files):
 
     try:
         dbsapi.updateProcDSStatus(dataset, newStatus)
-    except Exception, ex:
-        print "Caught DBS2 Exception %s "  % str(ex)
+    except Exception as ex:
+        print("Caught DBS2 Exception %s "  % str(ex))
         sys.exit(1)
 
     ### invalidating files as well
@@ -28,10 +28,10 @@ def setStatusDBS2(url2, dataset, newStatus, files):
         elif newStatus in ['PRODUCTION', 'VALID']:
             newStatus = 'VALID'
         else:
-            print "Sorry, I don't know this status and you cannot set files to %s" % newStatus
-            print "Only the dataset was changed. Quitting the program!"
+            print("Sorry, I don't know this status and you cannot set files to %s" % newStatus)
+            print("Only the dataset was changed. Quitting the program!")
             sys.exit(1)
-        print "Files will be set to:",newStatus,"in DBS2"
+        print("Files will be set to:",newStatus,"in DBS2")
         retrieveList=['retrive_status']
         files=dbsapi.listFiles(path=dataset,retriveList=retrieveList)
         for f in files:
@@ -45,8 +45,8 @@ def setStatusDBS3(url3, dataset3, newStatus, files):
 
     try:
         dbsapi.updateDatasetType(dataset=dataset3, dataset_access_type=newStatus)
-    except Exception, ex:
-        print "Caught Exception %s " % str(ex)
+    except Exception as ex:
+        print("Caught Exception %s " % str(ex))
         sys.exit(1)
 
     ### invalidating the files
@@ -56,10 +56,10 @@ def setStatusDBS3(url3, dataset3, newStatus, files):
         elif newStatus in ['PRODUCTION', 'VALID']:
             file_status = 1
         else:
-            print "Sorry, I don't know this state and you cannot set files to %s" % newStatus
-            print "Only the dataset was changed. Quitting the program!"
+            print("Sorry, I don't know this state and you cannot set files to %s" % newStatus)
+            print("Only the dataset was changed. Quitting the program!")
             sys.exit(1)
-        print "Files will be set to:",file_status,"in DBS3"
+        print("Files will be set to:",file_status,"in DBS3")
         files = dbsapi.listFiles(dataset=dataset3)
         for this_file in files:
             dbsapi.updateFileStatus(logical_file_name=this_file['logical_file_name'],is_file_valid=file_status)
@@ -86,12 +86,12 @@ def main():
     #    sys.exit(0)
         
     if opts.dsets == None:
-        print "--datasets option must be provided"
-        print usage;
+        print("--datasets option must be provided")
+        print(usage);
         sys.exit(1)
     if opts.status == None:
-        print "--status option must be provided"
-        print usage;
+        print("--status option must be provided")
+        print(usage);
         sys.exit(1)
 
     #setStatusDBS2('https://cmsdbsprod.cern.ch:8443/cms_dbs_prod_global_writer/servlet/DBSServlet', opts.dataset, opts.status, opts.files)
@@ -106,7 +106,7 @@ def main():
         dset=line.strip('\n')
         setStatusDBS3('https://cmsweb.cern.ch/dbs/prod/global/DBSWriter', dset, opts.status, opts.files)
 
-    print "Done"
+    print("Done")
     sys.exit(0)
 
 if __name__ == "__main__":

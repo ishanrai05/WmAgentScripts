@@ -4,7 +4,7 @@ This is for counting jobs from each condor schedd
 Creates the following files: CondorMonitoring.json, CondorJobs_Workflows.json, Running*.txt and Pending*.txt ( * in types )
 """
 
-import sys,os,re,urllib,urllib2,subprocess,time,smtplib,os
+import sys,os,re,urllib.request,urllib.parse,urllib.error,urllib.request,urllib.error,urllib.parse,subprocess,time,smtplib,os
 import htcondor as condor
 from datetime import datetime
 from email.MIMEMultipart import MIMEMultipart
@@ -55,7 +55,7 @@ def createSiteList():
     """
     Creates a initial site list with the data from site status in Dashboard
     """
-    sites = urllib2.urlopen(url_site_status).read()
+    sites = urllib.request.urlopen(url_site_status).read()
     try:
         site_status = json.read(sites)['csvdata']
     except:
@@ -71,7 +71,7 @@ def getSitePledge():
     """
     Get the expected pledge to use from Dashboard
     """
-    sites = urllib2.urlopen(url_site_pledges).read()
+    sites = urllib.request.urlopen(url_site_pledges).read()
     try:
         site_pledges = json.read(sites)['csvdata']
     except:
@@ -90,7 +90,7 @@ def initJobDictonaries():
     """
     Init running/pending jobs for each site in the baseSiteList
     """
-    for site in baseSiteList.keys():
+    for site in list(baseSiteList.keys()):
         if '_Disk' not in site: # Avoid _Disk suffixes
             jobCounting[site] = {}
 
@@ -110,17 +110,17 @@ def addSite(site):
     """
     Add a site to all the dictionaries
     """
-    print "DEBUG: Adding site %s to base lists" % site
-    if site not in jobCounting.keys():
+    print("DEBUG: Adding site %s to base lists" % site)
+    if site not in list(jobCounting.keys()):
         jobCounting[site] = {}
-    if site not in baseSiteList.keys():
+    if site not in list(baseSiteList.keys()):
         baseSiteList[site] = 'on'
 
 def addSchedd(site,sched):
     """
     Add a schedd to all the dictionaries for a given site
     """
-    if sched not in jobCounting[site].keys():
+    if sched not in list(jobCounting[site].keys()):
         jobCounting[site][sched] = {}
         for type in jobTypes:
             jobCounting[site][sched][type] = {}
@@ -129,7 +129,7 @@ def addCore(site,sched,type,cores):
     """
     Add a Number of cores for a given site, schedd and type to all the dictionaries
     """
-    if cores not in jobCounting[site][sched][type].keys():
+    if cores not in list(jobCounting[site][sched][type].keys()):
         jobCounting[site][sched][type][cores] = {}
         for status in ['Running', 'Pending']:
             jobCounting[site][sched][type][cores][status] = 0.0
@@ -139,11 +139,11 @@ def increaseRunning(site,sched,type,cores):
     Increase the number of running jobs for the given site, schedd, type and cores
     This always increase job count by 1
     """
-    if site not in jobCounting.keys():
+    if site not in list(jobCounting.keys()):
         addSite(site)
-    if sched not in jobCounting[site].keys():
+    if sched not in list(jobCounting[site].keys()):
         addSchedd(site,sched)
-    if cores not in jobCounting[site][sched][type].keys():
+    if cores not in list(jobCounting[site][sched][type].keys()):
         addCore(site,sched,type,cores)
     #Now do the actual counting
     jobCounting[site][sched][type][cores]['Running'] += 1
@@ -153,11 +153,11 @@ def increasePending(site,sched,type,cores,num):
     Increase the number of pending jobs for the given site and type
     This handles smart counting: sum the relative pending 'num'
     """
-    if site not in jobCounting.keys():
+    if site not in list(jobCounting.keys()):
         addSite(site)
-    if sched not in jobCounting[site].keys():
+    if sched not in list(jobCounting[site].keys()):
         addSchedd(site,sched)
-    if cores not in jobCounting[site][sched][type].keys():
+    if cores not in list(jobCounting[site][sched][type].keys()):
         addCore(site,sched,type,cores)
     #Now do the actual counting
     jobCounting[site][sched][type][cores]['Pending'] += num
@@ -166,16 +166,16 @@ def increaseRunningWorkflow(workflow,siteToExtract,cores):
     """
     Increases the number of running jobs per workflow
     """
-    if workflow not in overview_workflows.keys():
+    if workflow not in list(overview_workflows.keys()):
         addWorkflow(workflow)
-        if siteToExtract in overview_workflows[workflow]['runningJobs'].keys():
+        if siteToExtract in list(overview_workflows[workflow]['runningJobs'].keys()):
             overview_workflows[workflow]['runningJobs'][siteToExtract] += cores
             overview_workflows[workflow]['condorJobs'] += cores
         else:
             overview_workflows[workflow]['runningJobs'][siteToExtract] = cores
             overview_workflows[workflow]['condorJobs'] += cores
     else:
-        if siteToExtract in overview_workflows[workflow]['runningJobs'].keys():
+        if siteToExtract in list(overview_workflows[workflow]['runningJobs'].keys()):
             overview_workflows[workflow]['runningJobs'][siteToExtract] += cores
             overview_workflows[workflow]['condorJobs'] += cores
         else:
@@ -186,7 +186,7 @@ def increasePendingWorkflow(workflow,siteToExtract,cores):
     """
     Increases the number of pending jobs per workflow
     """
-    if workflow not in overview_workflows.keys():
+    if workflow not in list(overview_workflows.keys()):
         addWorkflow(workflow)
         overview_workflows[workflow]['condorJobs'] += cores
         overview_workflows[workflow]['pendingJobs'] += cores
@@ -252,11 +252,11 @@ def relativePending(siteToExtract):
     relative = {}
     total = 0.0
     for site in siteToExtract:
-        if site in totalRunningSite.keys():
+        if site in list(totalRunningSite.keys()):
             running = totalRunningSite[site]
         else:
             running = 0.0
-        if site in baseSitePledges.keys():
+        if site in list(baseSitePledges.keys()):
             pledge = baseSitePledges[site]
         else:
             pledge = 0.0
@@ -269,7 +269,7 @@ def relativePending(siteToExtract):
     # if total = 0, it means that there is not available slots for any site, set the same for all sites
     if total == 0.0:
         total = len(siteToExtract)
-        for site in relative.keys():
+        for site in list(relative.keys()):
             relative[site] = 1.0
     
     return relative, total
@@ -292,7 +292,7 @@ def getJobsOveralls():
                              'Running' : 0.0,
                              'Pending' : 0.0
                              }
-    for site in jobCounting.keys():
+    for site in list(jobCounting.keys()):
         #Add site to the overalls by site, then add each tasks
         totalBySite[site] = {
                              'Running' : 0.0,
@@ -304,9 +304,9 @@ def getJobsOveralls():
                                        'Pending' : 0.0
                                        }
             
-        for schedd in jobCounting[site].keys():
+        for schedd in list(jobCounting[site].keys()):
             #If schedd is not in totalByServer, then add it
-            if not schedd in totalByServer.keys():
+            if not schedd in list(totalByServer.keys()):
                 totalByServer[schedd] = {
                                          'Running' : 0.0,
                                          'Pending' : 0.0
@@ -316,8 +316,8 @@ def getJobsOveralls():
                                                    'Running' : 0.0,
                                                    'Pending' : 0.0
                                                    }
-            for type in jobCounting[site][schedd].keys():
-                for ncore in jobCounting[site][schedd][type].keys():
+            for type in list(jobCounting[site][schedd].keys()):
+                for ncore in list(jobCounting[site][schedd][type].keys()):
                     
                     run_jobs = jobCounting[site][schedd][type][ncore]['Running']
                     pen_jobs = jobCounting[site][schedd][type][ncore]['Pending']
@@ -352,8 +352,8 @@ def createReports(currTime):
     
     totalBySite, totalByServer, totalByTask, totalJobs = getJobsOveralls()
     
-    sites = totalBySite.keys()
-    servers = totalByServer.keys()
+    sites = list(totalBySite.keys())
+    servers = list(totalByServer.keys())
     sites.sort()
     servers.sort()
     
@@ -375,7 +375,7 @@ def createReports(currTime):
             aux_line += " %10s |" % ('-'*10)
         title_line += " %10s |" % 'Total'
         aux_line += " %10s |" % ('-'*10)
-        print aux_line, '\n', title_line, '\n', aux_line
+        print(aux_line, '\n', title_line, '\n', aux_line)
         
         #Fill output files with all the SITES info. Also print out reports to stdout
         for site in sites: 
@@ -393,7 +393,7 @@ def createReports(currTime):
             file = open('./'+status+"Total"+'.txt', 'a')
             file.write( "%s %s\t%s\t%s\t%s\t%s%s\n" % (date, hour, site, str(siteJobs), 'green', site_link, site ))
             
-            print site_line
+            print(site_line)
         overalls_line = "| %25s |" % 'Overalls'
         for type in jobTypes:
             totalTypeJobs = int(totalByTask[type][status])
@@ -406,10 +406,10 @@ def createReports(currTime):
         overalls_line += " %10s |" % totalJobsTable
         file = open('./'+status+"Total"+'.txt', 'a')
         file.write( "%s %s\t%s%s\t%s\t%s\t%s%s\n" % (date, hour, 'Overall', 'Sites', str(totalJobsTable), 'green', overalls_link, 'T3210' ))
-        print aux_line, '\n', overalls_line, '\n', aux_line, '\n'
+        print(aux_line, '\n', overalls_line, '\n', aux_line, '\n')
         
         #Fill output files with all the SERVERS info. Also print out reports to stdout
-        print aux_line, '\n', title_line, '\n', aux_line
+        print(aux_line, '\n', title_line, '\n', aux_line)
         for server in servers: 
             site_line = "| %25s |" % server
             for type in jobTypes:
@@ -425,7 +425,7 @@ def createReports(currTime):
             file = open('./'+status+"Total"+'.txt', 'a')
             file.write( "%s %s\t%s\t%s\t%s\t%s%s%s\n" % (date, hour, server, str(siteJobs), 'green', site_link, server, '&server' ))
             
-            print site_line
+            print(site_line)
         
         overalls_line = "| %25s |" % 'Overalls'
         for type in jobTypes:
@@ -439,29 +439,29 @@ def createReports(currTime):
         overalls_line += " %10s |" % totalJobsTable
         file = open('./'+status+"Total"+'.txt', 'a')
         file.write( "%s %s\t%s%s\t%s\t%s\t%s%s\n" % (date, hour, 'Overall', 'Servers', str(totalJobsTable), 'green', overalls_link, 'Servers' ))
-        print aux_line, '\n', overalls_line, '\n', aux_line, '\n'
+        print(aux_line, '\n', overalls_line, '\n', aux_line, '\n')
     
     #Create output json file
     jsonCounting = {"UPDATE" : {"TimeDate" : currTime}, "Sites" : []}
-    for site in jobCounting.keys():
+    for site in list(jobCounting.keys()):
         siteInfo = {}
         siteInfo["Site"] = site
         siteInfo["Running"] = 0.0
         siteInfo["Pending"] = 0.0
         siteInfo["Servers"] = []
-        for server in jobCounting[site].keys():
+        for server in list(jobCounting[site].keys()):
             serverInfo = {}
             serverInfo["Server"] = server
             serverInfo["Running"] = 0.0
             serverInfo["Pending"] = 0.0
             serverInfo["Types"] = []
-            for type in jobCounting[site][server].keys():
+            for type in list(jobCounting[site][server].keys()):
                 typeInfo = {}
                 typeInfo["Type"] = type
                 typeInfo["Running"] = 0.0
                 typeInfo["Pending"] = 0.0
                 typeInfo["NCores"] = []
-                for core in jobCounting[site][server][type].keys():
+                for core in list(jobCounting[site][server][type].keys()):
                     coreInfo = {}
                     coreInfo["Cores"] = core
                     coreInfo["Running"] = jobCounting[site][server][type][core]["Running"]
@@ -530,7 +530,7 @@ def main():
     Main algorithm
     """
     starttime=datetime.now()
-    print 'INFO: Script started on: ', starttime
+    print('INFO: Script started on: ', starttime)
     
     #get time (date and hour)
     currTime = time.strftime("%Y-%m-%dh%H:%M:%S")
@@ -544,7 +544,7 @@ def main():
     all_collectors = global_pool + tier0_pool
     for collector_name in all_collectors:
         
-        print "INFO: Querying collector %s" % collector_name
+        print("INFO: Querying collector %s" % collector_name)
         
         schedds={}
         
@@ -554,14 +554,14 @@ def main():
             schedds[ad['Name']] = dict(schedd_type=ad.get('CMSGWMS_Type', ''),
                                        schedd_ad=ad)
         
-        print "DEBUG: Schedulers ", schedds.keys()
+        print("DEBUG: Schedulers ", list(schedds.keys()))
         
         for schedd_name in schedds:
             
             if schedds[schedd_name]['schedd_type'] != 'prodschedd': #Only care about production Schedds
                 continue
             
-            print "INFO: Getting jobs from collector: %s scheduler: %s" % (collector_name, schedd_name)
+            print("INFO: Getting jobs from collector: %s scheduler: %s" % (collector_name, schedd_name))
             
             schedd_ad = schedds[schedd_name]['schedd_ad']
             schedd = condor.Schedd( schedd_ad )
@@ -577,7 +577,7 @@ def main():
                 status = int(job['JobStatus'])
                 
                 if 'WMAgent_SubTaskName' not in job:
-                    print 'I found a job not coming from WMAgent: %s' % id
+                    print('I found a job not coming from WMAgent: %s' % id)
                     continue
                     
                 workflow = job['WMAgent_SubTaskName'].split('/')[1]
@@ -618,14 +618,14 @@ def main():
                     increasePendingWorkflow(workflow,siteToExtract,1)
                 else: #Ignore jobs in another state
                     continue
-    print "INFO: Querying Schedds for this collector is done"
+    print("INFO: Querying Schedds for this collector is done")
     
     # Get total running
-    for site in jobCounting.keys():
+    for site in list(jobCounting.keys()):
         totalRunningSite[site] = 0.0
-        for schedd in jobCounting[site].keys():
-            for type in jobCounting[site][schedd].keys():
-                for ncore in jobCounting[site][schedd][type].keys():
+        for schedd in list(jobCounting[site].keys()):
+            for type in list(jobCounting[site][schedd].keys()):
+                for ncore in list(jobCounting[site][schedd][type].keys()):
                     totalRunningSite[site] += jobCounting[site][schedd][type][ncore]['Running']
     
     # Now process pending jobs
@@ -642,7 +642,7 @@ def main():
         for penSite in siteToExtract:
             relative_pending = relative[penSite]/total # calculate relative pending weight
             increasePending(penSite, job_schedd, type, cpus, relative_pending)
-    print "INFO: Smart pending job counting is done \n"
+    print("INFO: Smart pending job counting is done \n")
     
     # Handling jobs that failed task extraction logic
     if jobs_failedTypeLogic != {}:      
@@ -652,12 +652,12 @@ def main():
                   mailingList,
                   '[Condor Monitoring] Failed task type logic problem',
                   body_text)
-        print 'ERROR: I find jobs that failed the type assignment logic, I will send an email to: %s' % str(mailingList)
+        print('ERROR: I find jobs that failed the type assignment logic, I will send an email to: %s' % str(mailingList))
     
-    print 'INFO: Creating reports...'
+    print('INFO: Creating reports...')
     createReports(currTime)
     
-    print 'INFO: The script has finished after: ', datetime.now()-starttime
+    print('INFO: The script has finished after: ', datetime.now()-starttime)
     
 if __name__ == "__main__":
     main()

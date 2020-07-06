@@ -4,7 +4,7 @@ import re
 import sys
 import json
 import socket
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import classad
 import hashlib
 import htcondor
@@ -19,7 +19,7 @@ def makeHighPrioAds(config):
         anAd["Name"] = str("Raising to highprio group")
         anAd["GridResource"] = "condor localhost localhost"
         anAd["TargetUniverse"] = 5
-        anAd["RaisedTaskNames"] = map(str,to_be_raised)
+        anAd["RaisedTaskNames"] = list(map(str,to_be_raised))
         wfs_escaped = anAd.lookup('RaisedTaskNames').__repr__()
         del anAd["RaisedTaskNames"]
         exp = '(HasBeenRaisedHighPrio isnt true)  && member(target.WMAgent_RequestName, %s)' % wfs_escaped
@@ -27,7 +27,7 @@ def makeHighPrioAds(config):
         anAd["set_AccountingGroup"] = "highprio.cmsdataops"
         anAd["set_HasBeenRaisedHighPrio"] = True
         anAd["set_HasBeenRouted"] = False
-        print anAd
+        print(anAd)
 
 
 def makeHoldSiteAds(config):
@@ -48,7 +48,7 @@ def makeHoldSiteAds(config):
         anAd["eval_set_DESIRED_Sites"] = classad.ExprTree(str('removeSite("%s",Holding_DESIRED_Sites)'% site))
         anAd[str("set_HasBeenHeldFrom%s"% site)] = True
         anAd["set_HasBeenRouted"] = False
-        print anAd
+        print(anAd)
 
 def makeReleaseSiteAds(config):
     """
@@ -67,14 +67,14 @@ def makeReleaseSiteAds(config):
         anAd["delete_Releasing_DESIRED_Sites"] = True
         anAd[str("set_HasBeenHeldFrom%s"% site)] = False
         anAd["set_HasBeenRouted"] = False
-        print anAd
+        print(anAd)
 
     
 def makeHoldAds(config):
     """
     Create a set of rules to hold a task from matching
     """
-    for task,where in config.get('hold',{}).items():
+    for task,where in list(config.get('hold',{}).items()):
         # task is the task name
         # where is either an empty list=all sites, or a list of sites (not implemented)
         anAd = classad.ClassAd()
@@ -88,13 +88,13 @@ def makeHoldAds(config):
         anAd["set_DESIRED_Sites"] = "T2_NW_NOWHERE"
         anAd["set_HasBeenRouted"] = False
         anAd["set_HasBeenSetHeld"] = True
-        print anAd
+        print(anAd)
 
 def makeReleaseAds(config):
     """
     Create a set of rules to release a task to match
     """
-    for task,where in config.get('release',{}).items():
+    for task,where in list(config.get('release',{}).items()):
         anAd = classad.ClassAd()
         anAd["Name"] = str("Releasing task %s"%(task))
         anAd["GridResource"] = "condor localhost localhost"
@@ -103,16 +103,16 @@ def makeReleaseAds(config):
         anAd["copy_Held_DESIRED_Sites"] = "DESIRED_Sites"
         anAd["set_HasBeenRouted"] = False
         anAd["set_HasBeenSetHeld"] = False
-        print anAd
+        print(anAd)
 
 def makeReadAds(config):
-    for needs, tasks in config.get('read',{}).items():
+    for needs, tasks in list(config.get('read',{}).items()):
         anAd = classad.ClassAd()
         set_read = int(float(needs))
         anAd["Name"] = str("Set read requirement to %s"% set_read)
         anAd["GridResource"] = "condor localhost localhost"
         anAd["TargetUniverse"] = 5
-        anAd["JobRouterTasknames"] = map(str, tasks)
+        anAd["JobRouterTasknames"] = list(map(str, tasks))
         task_names_escaped = anAd.lookup('JobRouterTasknames').__repr__()
         del anAd["JobRouterTasknames"]
         exp = classad.ExprTree('member(target.WMAgent_SubTaskName, %s) && (EstimatedInputRateKBs =!= %d)' %( task_names_escaped,int(set_read))) ## just set to a different value
@@ -120,7 +120,7 @@ def makeReadAds(config):
         anAd["set_HasBeenRouted"] = False
         anAd["set_HasBeenReadTuned"] = True
         anAd["set_EstimatedInputRateKBs"] = int(set_read)
-        print anAd
+        print(anAd)
 
 def makeOverflowAds(config):
     # Mapping from source to a list of destinations.
@@ -128,8 +128,8 @@ def makeOverflowAds(config):
     reversed_mapping = config['reversed_mapping']
 
     overflow_tasks = {}
-    for workflow, tasks in config.get('modifications',{}).items():
-        for taskname,specs in tasks.items():
+    for workflow, tasks in list(config.get('modifications',{}).items()):
+        for taskname,specs in list(tasks.items()):
             anAd = classad.ClassAd()
             anAd["GridResource"] = "condor localhost localhost"
             anAd["TargetUniverse"] = 5
@@ -142,7 +142,7 @@ def makeOverflowAds(config):
                 anAd['set_Rank'] = classad.ExprTree("stringlistmember(GLIDEIN_CMSSite, ExtDESIRED_Sites)")
                 anAd["set_HasBeenReplaced"] = True
                 anAd["set_HasBeenRouted"] = False
-                print anAd
+                print(anAd)
             elif add_whitelist:
                 add_whitelist.sort()
                 add_whitelist_key = ",".join(add_whitelist)
@@ -151,7 +151,7 @@ def makeOverflowAds(config):
 
     # Create a source->dests mapping from the provided reverse_mapping.
     source_to_dests = {}
-    for dest, sources in reversed_mapping.items():
+    for dest, sources in list(reversed_mapping.items()):
         for source in sources:
             dests = source_to_dests.setdefault(source, set())
             dests.add(dest)
@@ -160,14 +160,14 @@ def makeOverflowAds(config):
     # For each unique set of site whitelists, create a new rule.  Each task
     # should appear on just one of these ads, meaning it should only get routed
     # once.
-    for whitelist_sites, tasks in overflow_tasks.items():
+    for whitelist_sites, tasks in list(overflow_tasks.items()):
         ## these are the sites that need to be added in whitelist.
         whitelist_sites_set = set(whitelist_sites.split(","))
 
         # Create an updated source_to_dests, where the dests are filtered
         # on the whitelist.
         source_to_dests = {}
-        for source, dests in tmp_source_to_dests.items():
+        for source, dests in list(tmp_source_to_dests.items()):
             new_dests = [str(i) for i in dests if i in whitelist_sites_set]
             if new_dests:
                 source_to_dests[str(source)] = new_dests
@@ -178,7 +178,7 @@ def makeOverflowAds(config):
         anAd["Name"] = "Master overflow rule to run at %s in addition" % str(whitelist_sites)
 
         # ClassAds trick to create a properly-formatted ClassAd list.
-        anAd["OverflowTasknames"] = map(str, tasks)
+        anAd["OverflowTasknames"] = list(map(str, tasks))
         overflow_names_escaped = anAd.lookup('OverflowTasknames').__repr__()
         del anAd['OverflowTaskNames']
 
@@ -191,25 +191,25 @@ def makeOverflowAds(config):
         anAd['set_Rank'] = classad.ExprTree("stringlistmember(GLIDEIN_CMSSite, ExtDESIRED_Sites)")
         anAd['set_HasBeenRouted'] = False
         anAd['set_HasBeenRouted_Overflow'] = True
-        print anAd
+        print(anAd)
 
 
 def makeResizeAds(config):
     policies = {}
-    for workflow, info in config.get('resizing', {}).items():
+    for workflow, info in list(config.get('resizing', {}).items()):
         minCores = info.get("minCores", 3)
         maxCores = info.get("maxCores", 8)
         memoryPerThread = info.get("memoryPerThread")
         workflows = policies.setdefault((minCores, maxCores, memoryPerThread), set())
         workflows.add(workflow)
-    for policy, workflows in policies.items():
+    for policy, workflows in list(policies.items()):
         minCores, maxCores, memoryPerThread = policy
         anAd = classad.ClassAd()
         anAd['GridResource'] = 'condor localhost localhost'
         anAd['TargetUniverse'] = 5
 
         # Same trick as above to convert the set to a ClassAd list.
-        anAd["OverflowTasknames"] = map(str, workflows)
+        anAd["OverflowTasknames"] = list(map(str, workflows))
         tasks_escaped = anAd.lookup('OverflowTasknames').__repr__()
         del anAd['OverflowTaskNames']
 
@@ -221,7 +221,7 @@ def makeResizeAds(config):
         anAd['set_HasBeenRouted'] = False
         anAd['set_ExtraMemory'] = memoryPerThread
         #anAd['set_RequestMemory'] = classad.ExprTree('OriginalMemory + %d * ( WMCore_ResizeJob ? ( RequestCpus - OriginalCpus ) : 0 )' % memoryPerThread)
-        print anAd
+        print(anAd)
 
 
 def makeSortAds():
@@ -263,7 +263,7 @@ def makePrioCorrectionsAds():
     anAd["eval_set_JR_PostJobPrio2"] = classad.ExprTree("-MaxWallTimeMins - RequestDisk/1000000")
     anAd["set_PostJobPrio1"] = classad.Attribute("JR_PostJobPrio1")
     anAd["set_PostJobPrio2"] = classad.Attribute("JR_PostJobPrio2")
-    print anAd
+    print(anAd)
 
 def makePerformanceCorrectionsAds(configs):
     m_config = configs.get('memory',{})
@@ -273,14 +273,14 @@ def makePerformanceCorrectionsAds(configs):
         anAd["GridResource"] = "condor localhost localhost"
         anAd["TargetUniverse"] = 5
         anAd["Name"] = str("Set memory requirement to %s"% memory)
-        anAd["MemoryTasknames"] = map(str, wfs)
+        anAd["MemoryTasknames"] = list(map(str, wfs))
         memory_names_escaped = anAd.lookup('MemoryTasknames').__repr__()
         exp = classad.ExprTree('member(target.WMAgent_SubTaskName, %s) && ((target.HasBeenMemoryTuned =!= true) || (target.OriginalMemory =!= %d))' %( memory_names_escaped, int(memory) )) ## just set to a different value
         anAd["Requirements"] = classad.ExprTree(str(exp))
         anAd['set_HasBeenMemoryTuned'] = True
         anAd['set_HasBeenRouted'] = False
         anAd['set_OriginalMemory'] = int(memory)
-        print anAd
+        print(anAd)
 
     t_config = configs.get('time',{})
     for timing in t_config:
@@ -289,7 +289,7 @@ def makePerformanceCorrectionsAds(configs):
         anAd["GridResource"] = "condor localhost localhost"
         anAd["TargetUniverse"] = 5
         anAd["Name"] = str("Set timing requirement to %s"% timing)
-        anAd["TimeTasknames"] = map(str, wfs)
+        anAd["TimeTasknames"] = list(map(str, wfs))
         time_names_escaped = anAd.lookup('TimeTasknames').__repr__()
         exp = classad.ExprTree('member(target.WMAgent_SubTaskName, %s) && ((target.HasBeenTimingTuned =!= true) || (target.EstimatedSingleCoreMins <= %d))' %( time_names_escaped, int(timing) ))
         anAd["Requirements"] = classad.ExprTree(str(exp))
@@ -297,7 +297,7 @@ def makePerformanceCorrectionsAds(configs):
         anAd['set_HasBeenRouted'] = False
         anAd['set_EstimatedSingleCoreMins'] = int(timing)
         anAd['set_OriginalMaxWallTimeMins'] = classad.ExprTree('EstimatedSingleCoreMins / OriginalCpus')
-        print anAd
+        print(anAd)
 
     s_config = configs.get('slope',{})
     for slope in s_config:
@@ -306,14 +306,14 @@ def makePerformanceCorrectionsAds(configs):
         anAd["GridResource"] = "condor localhost localhost"
         anAd["TargetUniverse"] = 5
         anAd["Name"] = str("Set memory per thread requirement to %s"% slope)
-        anAd["TimeTasknames"] = map(str, wfs)
+        anAd["TimeTasknames"] = list(map(str, wfs))
         time_names_escaped = anAd.lookup('TimeTasknames').__repr__()
         exp = classad.ExprTree('member(target.WMAgent_SubTaskName, %s) && (target.ExtraMemory =!= %d)' %( time_names_escaped , int(slope))) ## just set to a different value
         anAd["Requirements"] = classad.ExprTree(str(exp))
         anAd['set_HasBeenSlopeTuned'] = True 
         anAd['set_HasBeenRouted'] = False
         anAd['set_ExtraMemory'] = int(slope)
-        print anAd
+        print(anAd)
 
 def makeDrainAds(config=None):
     anAd = classad.ClassAd()                                                                                                                                                                       
@@ -327,7 +327,7 @@ def makeDrainAds(config=None):
         anAd["Requirements"] = classad.ExprTree(str(exp))
         anAd["set_JobPrio"] = set_To
         anAd["set_HasBeenRouted"] = False
-        print anAd
+        print(anAd)
 
 def makeAdhocAds(config):
     #anAd = classad.ClassAd()
@@ -422,7 +422,7 @@ def makeAdhocAds(config):
     anAd["Requirements"] = classad.ExprTree("MaxWallTimeMins == 3000 && JobStatus == 1")
     anAd["set_MaxWallTimeMins"] = 2750
     anAd["set_HasBeenRouted"] = False
-    print anAd 
+    print(anAd) 
 
     ############################################################
     ## if you want to reset the routing of eveything in the pool
@@ -436,7 +436,7 @@ def makeAdhocAds(config):
         anAd["Requirements"] = classad.ExprTree(str(exp))
         anAd["set_HasBeenRouted"] = False
         anAd["set_%s"% which_route] = False
-        print anAd
+        print(anAd)
 
 
 
@@ -462,7 +462,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     try:
-        config = json.load(urllib.urlopen(htcondor.param['UNIFIED_OVERFLOW_CONFIG']))
+        config = json.load(urllib.request.urlopen(htcondor.param['UNIFIED_OVERFLOW_CONFIG']))
         makeAds(config)
     except:
         ### well that's too bad

@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-import urllib2, urllib
+import urllib.request, urllib.error, urllib.parse, urllib.request, urllib.parse, urllib.error
 from xml.dom import minidom
 
 def loadnamingconvention():
 	sitelist = {}
 	url = 'https://cmsweb.cern.ch/sitedb/reports/showXMLReport/?reportid=naming_convention.ini'
-	naming = minidom.parse(urllib.urlopen(url))
+	naming = minidom.parse(urllib.request.urlopen(url))
 	for node in naming.getElementsByTagName('item'):
 		# the http call doesn't work with T3*
 		tname = node.getElementsByTagName('cms')[0].firstChild.data
@@ -17,7 +17,7 @@ def loadnamingconvention():
 
 def getslots(index):
 	url = 'https://cmsweb.cern.ch/sitedb/json/index/Pledge?site=%s' % index
-	data = urllib2.urlopen(url)
+	data = urllib.request.urlopen(url)
 	s = data.read()
 	try:
 		res = eval(s)
@@ -29,7 +29,7 @@ def allpledged():
 	sitelist = {}
 	pledged = {}
 	sites = loadnamingconvention()
-	for (k,v) in sites.items():
+	for (k,v) in list(sites.items()):
 		slots = getslots(k)
 		if slots > 0:
 		#if 1:
@@ -38,5 +38,5 @@ def allpledged():
 
 p = allpledged()
 
-for (k,v) in sorted(p.iteritems()):
-	print "%s %s" % (k,v)
+for (k,v) in sorted(p.items()):
+	print("%s %s" % (k,v))

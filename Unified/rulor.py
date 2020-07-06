@@ -1,22 +1,22 @@
 #!/usr/bin/env python
 from collections import deque
-from assignSession import *
-from utils import closeoutInfo, reportInfo, reqmgr_url, componentInfo, moduleLock, workflowInfo
+from .assignSession import *
+from .utils import closeoutInfo, reportInfo, reqmgr_url, componentInfo, moduleLock, workflowInfo
 from collections import defaultdict
-from wtcClient import wtcClient
-from JIRAClient import JIRAClient
+from .wtcClient import wtcClient
+from .JIRAClient import JIRAClient
 import optparse
 import json
 
 def sum_per_code( task_dict ):
     s = defaultdict(int)
-    for code,codes in task_dict.items():
-        for site,count in codes.items():
+    for code,codes in list(task_dict.items()):
+        for site,count in list(codes.items()):
             s[code] += count
     return dict(s)
 
 def main_errors( task_dict ):
-    per_code = sorted(sum_per_code(task_dict).items(), key = lambda o:o[1])
+    per_code = sorted(list(sum_per_code(task_dict).items()), key = lambda o:o[1])
     return per_code
 
 def dominant_error(task_dict, fraction = 0.5 ):
@@ -29,28 +29,28 @@ def majority_of_139_nanoaod(wfi, record, report):
     return []
 
 def majority_of_X( wfi, report, code):
-    for tname,tinfo in report.get('tasks',{}).items():
+    for tname,tinfo in list(report.get('tasks',{}).items()):
         terror = tinfo.get('errors',{})
         if terror:
             dominant,main_error = dominant_error( terror, fraction = 0.7 )
             if dominant and main_error == code:
-                print "the main errors codes are", per_code
-                print per_code
+                print("the main errors codes are", per_code)
+                print(per_code)
     return []
     
 def majority_of_71104(wfi, record, report):
     all_bad = True
-    for tname,tinfo in report.get('tasks',{}).items():
+    for tname,tinfo in list(report.get('tasks',{}).items()):
         terror = tinfo.get('errors',{})
         if terror:
             dominant,main_error = dominant_error( terror, fraction = 0.7 )
             if dominant and main_error == '71104':
-                print "the main errors code is 71104"
+                print("the main errors code is 71104")
             else:
                 all_bad = False
     
     if all_bad:
-        print "go on with simple acdc?"
+        print("go on with simple acdc?")
     
     return []
 
@@ -83,12 +83,12 @@ def rulor(spec=None, options=None):
         record = COI.get( wfo.name )
         report = RI.get( wfo.name )
         if not record: 
-            print "no information to look at"
+            print("no information to look at")
             continue
-        print "close out information as in the assistance page"
-        print json.dumps(record, indent=2)
-        print "report information as in the unified report"
-        print json.dumps(report, indent=2)
+        print("close out information as in the assistance page")
+        print(json.dumps(record, indent=2))
+        print("report information as in the unified report")
+        print(json.dumps(report, indent=2))
 
         
         ## parse the information and produce an action document
@@ -97,9 +97,9 @@ def rulor(spec=None, options=None):
         for condition in rules:
             acts = condition( wfi, record, report)
             if acts:
-                print "list of actions being taken for",wfo.name
+                print("list of actions being taken for",wfo.name)
                 for a in acts:
-                    print json.dumps(a, indent=2)
+                    print(json.dumps(a, indent=2))
                 if not options.test:
                     acted = True
                     WC.set_actions( acts )
@@ -124,7 +124,7 @@ def rulor(spec=None, options=None):
 if __name__ == "__main__":
     url = reqmgr_url
     
-    print "yup"
+    print("yup")
     parser = optparse.OptionParser()
     parser.add_option('--test',help="Dry run, only show what you want to do", default=False, action="store_true")
     (options,args) = parser.parse_args()

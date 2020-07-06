@@ -13,8 +13,8 @@
 import sys
 import os
 import pwd
-import resubmit, reqMgrClient
-import dbs3Client as dbs3
+from . import resubmit, reqMgrClient
+from . import dbs3Client as dbs3
 from optparse import OptionParser
 
 
@@ -65,13 +65,13 @@ def main():
 
     for wf in wfs:
         #abort workflow
-        print "Rejecting workflow: " + wf
+        print("Rejecting workflow: " + wf)
         reqMgrClient.rejectWorkflow(url, wf)
         #invalidates datasets
-        print "Invalidating datasets"
+        print("Invalidating datasets")
         datasets = reqMgrClient.outputdatasetsWorkflow(url, wf)
         for ds in datasets:
-            print ds
+            print(ds)
             dbs3.setDatasetStatus(ds, 'INVALID', files=True)
 
         #clone workflow

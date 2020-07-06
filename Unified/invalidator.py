@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-from assignSession import *
-from McMClient import McMClient
-from utils import workflowInfo, invalidate
-import reqMgrClient
-from utils import componentInfo, setDatasetStatus, sendLog
+from .assignSession import *
+from .McMClient import McMClient
+from .utils import workflowInfo, invalidate
+from . import reqMgrClient
+from .utils import componentInfo, setDatasetStatus, sendLog
 from collections import defaultdict
 import time
 
@@ -16,7 +16,7 @@ def invalidator(url, invalid_status='INVALID'):
     invalids = mcm.getA('invalidations',query='status=announced')
     if not invalids: return
 
-    print len(invalids),"Object to be invalidated"
+    print(len(invalids),"Object to be invalidated")
     text_to_batch = defaultdict(str)
     text_to_request = defaultdict(str)
     for invalid in invalids:
@@ -26,16 +26,16 @@ def invalidator(url, invalid_status='INVALID'):
         text = ""
         if invalid['type'] == 'request':
             wfn = invalid['object']
-            print "need to invalidate the workflow",wfn
+            print("need to invalidate the workflow",wfn)
             wfo = session.query(Workflow).filter(Workflow.name == wfn).first()
             if wfo:
                 ## set forget of that thing (although checkor will recover from it)
-                print "setting the status of",wfo.status,"to forget"
+                print("setting the status of",wfo.status,"to forget")
                 wfo.status = 'forget'
                 session.commit()
             else:
                 ## do not go on like this, do not acknoledge it
-                print wfn,"is set to be rejected, but we do not know about it yet"
+                print(wfn,"is set to be rejected, but we do not know about it yet")
                 #continue
             wfi = workflowInfo(url, wfn)
             success = "not rejected"
@@ -54,7 +54,7 @@ def invalidator(url, invalid_status='INVALID'):
             if 'None-' in dataset: continue
             if 'FAKE-' in dataset: continue
 
-            print "setting",dataset,"to",invalid_status
+            print("setting",dataset,"to",invalid_status)
             success = setDatasetStatus(dataset , invalid_status )
             if success:
                 acknowledge= True
@@ -64,31 +64,31 @@ def invalidator(url, invalid_status='INVALID'):
                 print(msg)
                 sendLog('invalidator', msg, level='critical')
         else:
-            print "\t\t",invalid['type']," type not recognized"
+            print("\t\t",invalid['type']," type not recognized")
 
         if acknowledge:
             ## acknoldge invalidation in mcm, provided we can have the api
-            print "acknowledgment to mcm"
+            print("acknowledgment to mcm")
             ackno_url = '/restapi/invalidations/acknowledge/%s'%( invalid['_id'] )
-            print "at",ackno_url
+            print("at",ackno_url)
             mcm.get(ackno_url)
             # prepare the text for batches
             batches = []
             batches.extend(mcm.getA('batches',query='contains=%s'%batch_lookup))
-            batches = filter(lambda b : b['status'] in ['announced','done','reset'], batches)
+            batches = [b for b in batches if b['status'] in ['announced','done','reset']]
             if len(batches):
                 bid = batches[-1]['prepid']
-                print "batch nofication to",bid
+                print("batch nofication to",bid)
                 text_to_batch[bid] += text+"\n\n"
             # prepare the text for requests
             text_to_request[pid] += text+"\n\n"
 
-    for bid,text in text_to_batch.items():    
+    for bid,text in list(text_to_batch.items()):    
         if not text: continue
         text += '\n This is an automated message'
         mcm.put('/restapi/batches/notify',{ "notes" : text, "prepid" : bid})
         pass
-    for pid,text in text_to_request.items():
+    for pid,text in list(text_to_request.items()):
         if not text: continue
         text += '\n This is an automated message'
         mcm.put('/restapi/requests/notify',{ "message" : text, "prepids" : [pid]})

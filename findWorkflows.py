@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import json
-import urllib2,urllib, httplib, sys, re, os, random
+import urllib.request, urllib.error, urllib.parse,urllib.request,urllib.parse,urllib.error, http.client, sys, re, os, random
 from xml.dom.minidom import getDOMImplementation
-import reqMgrClient as reqMgrClient
+from . import reqMgrClient as reqMgrClient
 
 """
     Filters through the list of workflows in the overview
@@ -15,7 +15,7 @@ def getOverviewRequestsWMStats(url):
     by querying couch db JSON direcly
     """
     #TODO use the couch API from WMStatsClient instead of wmstats URL
-    conn = httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'),
+    conn = http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'),
                                      key_file = os.getenv('X509_USER_PROXY'))
     conn.request("GET",
                  "/couchdb/reqmgr_workload_cache/_design/ReqMgr/_view/bystatusandtype?stale=update_after")
@@ -39,7 +39,7 @@ def getReRecos(url, requests):
         name=request['id']
         #if a wrong or weird name
         if len(request['key'])<3:
-            print request
+            print(request)
             continue
         status=request['key'][1]
         #filter out rejected
@@ -61,7 +61,7 @@ def findIncludeParents(url, wfs):
             if 'IncludeParents' in wf.info:
                 #print wf.name, wf.info['IncludeParents']
                 if wf.info['IncludeParents'] == "True" or wf.info['IncludeParents'] is True:
-                    print wf.name, wf.status
+                    print(wf.name, wf.status)
                     result.append(wf.name)
             else:
                 #print "-",wf.name
@@ -74,12 +74,12 @@ def findIncludeParents(url, wfs):
 def main():
     url='cmsweb.cern.ch'
     #url='cmsweb-testbed.cern.ch'
-    print "Gathering Requests"
+    print("Gathering Requests")
     requests = getOverviewRequestsWMStats(url)
-    print "Only ReRecos"
+    print("Only ReRecos")
     rerecos = getReRecos(url, requests)
-    print len(rerecos)
-    print "Filtering ReRecos with IncludeParents=True"
+    print(len(rerecos))
+    print("Filtering ReRecos with IncludeParents=True")
     wfs = findIncludeParents(url, rerecos)
     #for r in wfs:
     #    print '\t'.join(r)

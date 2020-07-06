@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from closeOutWorkflows import *
+from .closeOutWorkflows import *
 
 """
     Runs Closeout script only with a selected list of workflows.
@@ -22,7 +22,7 @@ def classifyAndFilterCompletedRequests(url, requests, filtered):
             continue
         #if a wrong or weird name
         if len(request['key'])<3:
-            print request
+            print(request)
             continue
         status=request['key'][1]
         if status != "completed":
@@ -44,20 +44,20 @@ def classifyAndFilterCompletedRequests(url, requests, filtered):
 
 
 def main():
-    print "Getting requests from file"
+    print("Getting requests from file")
     #get file from parameters
     wfsFile = open(sys.argv[1],'r')
     wfsList = [wf.strip() for wf in wfsFile.readlines() if wf.strip()]
     url='cmsweb.cern.ch'
-    print "Gathering Requests"
+    print("Gathering Requests")
     requests=getOverviewRequestsWMStats(url)
-    print "Classifying Requests"
+    print("Classifying Requests")
     workflowsCompleted=classifyAndFilterCompletedRequests(url, requests, wfsList)
     #print header    
     #print header
-    print '-'*220
-    print '| Request'+(' '*74)+'| OutputDataSet'+(' '*86)+'|%Compl|Dupl|Correct|Subscr|Tran|ClosOu|'
-    print '-'*220
+    print('-'*220)
+    print('| Request'+(' '*74)+'| OutputDataSet'+(' '*86)+'|%Compl|Dupl|Correct|Subscr|Tran|ClosOu|')
+    print('-'*220)
     noSiteWorkflows = closeOutReRecoWorkflows(url, workflowsCompleted['ReReco'])
     workflowsCompleted['NoSite-ReReco'] = noSiteWorkflows
 
@@ -76,14 +76,14 @@ def main():
     noSiteWorkflows = closeOutStoreResultsWorkflows(url, workflowsCompleted['StoreResults'])
     workflowsCompleted['NoSite-StoreResults'] = noSiteWorkflows
 
-    print "MC Workflows for which couldn't find Custodial Tier1 Site"
+    print("MC Workflows for which couldn't find Custodial Tier1 Site")
     listWorkflows(workflowsCompleted['NoSite-ReReco'])
     listWorkflows(workflowsCompleted['NoSite-ReDigi'])
     listWorkflows(workflowsCompleted['NoSite-MonteCarlo'])
     listWorkflows(workflowsCompleted['NoSite-MonteCarloFromGEN'])
     listWorkflows(workflowsCompleted['NoSite-LHEStepZero'])
 
-    print "StoreResults Workflows for which couldn't find PhEDEx Subscription"
+    print("StoreResults Workflows for which couldn't find PhEDEx Subscription")
     listWorkflows(workflowsCompleted['NoSite-StoreResults'])
     sys.exit(0);
 

@@ -11,7 +11,7 @@ import matplotlib.cm as cm
 from collections import defaultdict 
 from operator import itemgetter
 import matplotlib.ticker as ticker
-from utils import base_eos_dir
+from .utils import base_eos_dir
 
 import os
 
@@ -39,7 +39,7 @@ for files in filenames:
                     sec= (obj['timestamp'])
                     days= sec//(60*60*24)
                     if component in obj["data"]:
-                        print  (files, component,  len(obj["data"][component]), obj['timestamp'],  days, datetime.now())
+                        print((files, component,  len(obj["data"][component]), obj['timestamp'],  days, datetime.now()))
                         failuresDict[files][component] = len(obj["data"][component])
                     else:
                         failuresDict[files][component] = 0

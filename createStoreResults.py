@@ -19,9 +19,9 @@ Expected input json file like:
 
 """
 
-from __future__ import print_function, division
 
-import httplib
+
+import http.client
 import json
 import os
 import sys
@@ -93,7 +93,7 @@ def buildRequest(userDict):
     Expects the following user data:
       CMSSWVersion, ScramArch, DbsUrl, InputDataset, SiteWhitelist and PhysicsGroup 
     """
-    if Counter(userDict.keys()) != Counter(["CMSSWVersion", "ScramArch", "DbsUrl",
+    if Counter(list(userDict.keys())) != Counter(["CMSSWVersion", "ScramArch", "DbsUrl",
                                             "InputDataset", "SiteWhitelist", "PhysicsGroup"]):
         print("ERROR: user input data is incomplete: %s" % userDict)
         return None
@@ -117,7 +117,7 @@ def submitWorkflow(schema):
     headers = {"Content-type": "application/json",
                "Accept": "application/json"}
     encodedParams = json.dumps(schema)
-    conn = httplib.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
+    conn = http.client.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
     conn.request("POST", "/reqmgr2/data/request", encodedParams, headers)
     resp = conn.getresponse()
     data = resp.read()
@@ -140,7 +140,7 @@ def approveRequest(workflow):
     headers = {"Content-type": "application/json",
                "Accept": "application/json"}
 
-    conn = httplib.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
+    conn = http.client.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
     conn.request("PUT", "/reqmgr2/data/request/%s" % workflow, encodedParams, headers)
     resp = conn.getresponse()
     data = resp.read()

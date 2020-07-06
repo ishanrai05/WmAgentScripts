@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
 import re
-import reqMgrClient
+from . import reqMgrClient
 from optparse import OptionParser
 """
     Calculates event progress percentage of a given workflow,
@@ -50,12 +50,12 @@ def percentageCompletion(url, workflow, verbose=False, checkLumis=False, checkFi
             perc = 100.0 * outputEvents / float(inputEvents) / filterEff
         # print results
         if verbose:
-            print dataset
-            print "Input %s: %d" % ("lumis" if checkLumis else "events", int(inputEvents))
-            print ("Output %s: %d (%s%%)" % ("lumis" if checkLumis else "events", int(outputEvents), perc) +
-                   ('(filter=%s)' % filterEff if checkFilter and not checkLumis else ''))
+            print(dataset)
+            print("Input %s: %d" % ("lumis" if checkLumis else "events", int(inputEvents)))
+            print(("Output %s: %d (%s%%)" % ("lumis" if checkLumis else "events", int(outputEvents), perc) +
+                   ('(filter=%s)' % filterEff if checkFilter and not checkLumis else '')))
         else:
-            print dataset, "%s%%" % perc
+            print(dataset, "%s%%" % perc)
 
 
 def percentageCompletion2StepMC(url, workflow, verbose=False, checkLumis=False):
@@ -98,15 +98,15 @@ def percentageCompletion2StepMC(url, workflow, verbose=False, checkLumis=False):
                 100.0 * outputEvents[1] / float(inputEvents) / filterEff]
     # print results
     if verbose:
-        print "Input %s: %d" % ("lumis" if checkLumis else "events", int(inputEvents))
-        print workflow.outputDatasets[0]
-        print "Output %s: %d (%s%%)" % ("lumis" if checkLumis else "events", int(outputEvents[0]), perc[0])
-        print workflow.outputDatasets[1]
-        print ("Output %s: %d (%s%%)" % ("lumis" if checkLumis else "events", int(outputEvents[1]), perc[1]) +
-               ('(filter=%s)' % filterEff if not checkLumis else ''))
+        print("Input %s: %d" % ("lumis" if checkLumis else "events", int(inputEvents)))
+        print(workflow.outputDatasets[0])
+        print("Output %s: %d (%s%%)" % ("lumis" if checkLumis else "events", int(outputEvents[0]), perc[0]))
+        print(workflow.outputDatasets[1])
+        print(("Output %s: %d (%s%%)" % ("lumis" if checkLumis else "events", int(outputEvents[1]), perc[1]) +
+               ('(filter=%s)' % filterEff if not checkLumis else '')))
     else:
-        print workflow.outputDatasets[0], "%s%%" % perc[0]
-        print workflow.outputDatasets[1], "%s%%" % perc[1]
+        print(workflow.outputDatasets[0], "%s%%" % perc[0])
+        print(workflow.outputDatasets[1], "%s%%" % perc[1])
 
 
 def percentageCompletionTaskChain(url, workflow, verbose=False, checkLumis=False, skipInvalid=False):
@@ -121,14 +121,14 @@ def percentageCompletionTaskChain(url, workflow, verbose=False, checkLumis=False
     else:
         inputEvents = workflow.getInputEvents()
     if verbose:
-        print "Input %s:" % ("lumis" if checkLumis else "events"), inputEvents
+        print("Input %s:" % ("lumis" if checkLumis else "events"), inputEvents)
     i = 1
 
     # task-chain 1, starts with GEN or LHE, a GEN-SIM, GEN-SIM-RAW, AODSIM,
     # DQM and so on
     for dataset in workflow.outputDatasets:
         if verbose:
-            print dataset
+            print(dataset)
         if not checkLumis:
             outputEvents = workflow.getOutputEvents(dataset, skipInvalid)
         else:
@@ -142,15 +142,15 @@ def percentageCompletionTaskChain(url, workflow, verbose=False, checkLumis=False
             percentage = 100.0 * outputEvents / \
                 float(inputEvents) if inputEvents > 0 else 0.0
             if verbose:
-                print "Output %s:" % ("lumis" if checkLumis else "events"), int(outputEvents), "(%.2f%%)" % percentage
+                print("Output %s:" % ("lumis" if checkLumis else "events"), int(outputEvents), "(%.2f%%)" % percentage)
         # Other datasets, or lumis, we ignore filter efficiency
         else:
             percentage = 100.0 * outputEvents / \
                 float(inputEvents) if inputEvents > 0 else 0.0
             if verbose:
-                print "Output %s:" % ("lumis" if checkLumis else "events"), int(outputEvents), "(%.2f%%)" % percentage
+                print("Output %s:" % ("lumis" if checkLumis else "events"), int(outputEvents), "(%.2f%%)" % percentage)
         if not verbose:
-            print dataset, "%s%%" % percentage
+            print(dataset, "%s%%" % percentage)
         i += 1
 
 url = 'cmsweb.cern.ch'
@@ -178,7 +178,7 @@ def main():
         workflows = [l.strip() for l in open(options.fileName) if l.strip()]
 
     for wf in workflows:
-        print wf
+        print(wf)
         workflow = reqMgrClient.Workflow(wf, url)
         # by type
         if workflow.type != 'TaskChain':

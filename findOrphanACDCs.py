@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import json
-import httplib, os
-import reqMgrClient as reqMgrClient
+import http.client, os
+from . import reqMgrClient as reqMgrClient
 
 """
     Filters through the list of ACDC's that are in "completed" which ones
@@ -14,7 +14,7 @@ def getOverviewRequestsWMStats(url):
     by querying couch db JSON direcly
     """
     #TODO use the couch API from WMStatsClient instead of wmstats URL
-    conn = httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'),
+    conn = http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'),
                                      key_file = os.getenv('X509_USER_PROXY'))
     #conn.request("GET",
     #             "/couchdb/reqmgr_workload_cache/_design/ReqMgr/_view/bystatusandtype?stale=update_after")
@@ -39,7 +39,7 @@ def getAcdcs(url, requests):
         name=request['id']
         #if a wrong or weird name
         if len(request['key'])<3:
-            print request
+            print(request)
             continue
         if 'ACDC' not in name:
             continue
@@ -74,15 +74,15 @@ def filterOrphanAcdc(url, acdcs):
 
 def main():
     url='cmsweb.cern.ch'
-    print "Gathering Requests"
+    print("Gathering Requests")
     requests = getOverviewRequestsWMStats(url)
-    print "Only ACDCs"
+    print("Only ACDCs")
     acdcs = getAcdcs(url, requests)
-    print len(acdcs)
-    print "Filtering orphan acdcs"
+    print(len(acdcs))
+    print("Filtering orphan acdcs")
     orphan = filterOrphanAcdc(url, acdcs)
     for o in orphan:
-        print '\t'.join(o)
+        print('\t'.join(o))
     
 if __name__ == "__main__":
     main()

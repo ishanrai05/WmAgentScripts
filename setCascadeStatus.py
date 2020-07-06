@@ -2,17 +2,17 @@
 #import json
 import sys
 import json
-import reqMgrClient as reqmgr
+from . import reqMgrClient as reqmgr
 import optparse
 
 def setStatus(url, workflowname,newstatus):
-    print "Setting %s to %s" % (workflowname,newstatus)
+    print("Setting %s to %s" % (workflowname,newstatus))
     if newstatus == 'closed-out':
         return reqmgr.closeOutWorkflowCascade(url, workflowname)
     elif newstatus == 'announced':
         return reqmgr.announceWorkflowCascade(url, workflowname)
     else:
-        print "cannot cascade to",newstatus
+        print("cannot cascade to",newstatus)
 
 def getStatus(url, workflow):
     conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))

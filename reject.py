@@ -12,8 +12,8 @@
 import sys
 import os
 import pwd
-import resubmit, reqMgrClient
-import dbs3Client as dbs3
+from . import resubmit, reqMgrClient
+from . import dbs3Client as dbs3
 from optparse import OptionParser
 
 url = 'cmsweb.cern.ch'
@@ -58,10 +58,10 @@ def main():
         try:
             workflowInfo = reqMgrClient.Workflow(workflow)
         except:
-            print("The workflow name: "+ workflow+" is  not valid.")
+            print(("The workflow name: "+ workflow+" is  not valid."))
             continue
         # invalidates workflow
-        print("Invalidating the workflow: "+ workflow)
+        print(("Invalidating the workflow: "+ workflow))
         reqMgrClient.invalidateWorkflow(url,workflow,workflowInfo.status)
 
         # invalidates datasets
@@ -74,7 +74,7 @@ def main():
 
         # clones workflow
         if options.clone:
-            print("Cloning workflow: "+ workflow)
+            print(("Cloning workflow: "+ workflow))
             if options.memory:
                 mem = float(options.memory)
             else:

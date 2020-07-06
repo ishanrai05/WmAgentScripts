@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-from assignSession import *
-from utils import workflowInfo, getWorkflows, global_SI, sendEmail, componentInfo, getDatasetPresence, monitor_dir, monitor_pub_dir, reqmgr_url, campaignInfo, unifiedConfiguration, sendLog, do_html_in_each_module, base_eos_dir, eosRead, eosFile, agent_speed_draining, cacheInfo
-import reqMgrClient
+from .assignSession import *
+from .utils import workflowInfo, getWorkflows, global_SI, sendEmail, componentInfo, getDatasetPresence, monitor_dir, monitor_pub_dir, reqmgr_url, campaignInfo, unifiedConfiguration, sendLog, do_html_in_each_module, base_eos_dir, eosRead, eosFile, agent_speed_draining, cacheInfo
+from . import reqMgrClient
 import json
 import os, sys
 import time
@@ -11,7 +11,7 @@ from collections import defaultdict
 import random
 import copy 
 import itertools
-from htmlor import htmlor
+from .htmlor import htmlor
 import math
 
 def mappor(url , options=None):
@@ -61,10 +61,10 @@ def mappor(url , options=None):
         if s in SI.sites_pressure:
             (m, r, pressure) = SI.sites_pressure[s]
             if float(m) < float(r):
-                print s,m,r,"lacking pressure"
+                print(s,m,r,"lacking pressure")
                 return True
             else:
-                print s,m,r,"pressure"
+                print(s,m,r,"pressure")
                 pass
                 
         return False
@@ -151,7 +151,7 @@ def mappor(url , options=None):
 
     take_site_out = UC.get('site_out_of_overflow')
 
-    for site,fallbacks in mapping.items():
+    for site,fallbacks in list(mapping.items()):
         mapping[site] = list(set(fallbacks))
     
 
@@ -160,9 +160,9 @@ def mappor(url , options=None):
     ### reverserd mapping is a dictionnary where
     # key can be read by site in values.
     ## create the reverse mapping for the condor module
-    for site,fallbacks in mapping.items():
+    for site,fallbacks in list(mapping.items()):
         if site in take_site_out:
-            print "taking",site,"out of overflow source by unified configuration"
+            print("taking",site,"out of overflow source by unified configuration")
             mapping.pop(site)
             continue
         for fb in fallbacks:
@@ -172,7 +172,7 @@ def mappor(url , options=None):
                 continue
             if fb in take_site_out:
                 ## remove those to be removed
-                print "taking",fb,"out of overflow destination by unified configuration"
+                print("taking",fb,"out of overflow destination by unified configuration")
                 mapping[site].remove(fb)
                 continue
             if not site in reversed_mapping[fb]:

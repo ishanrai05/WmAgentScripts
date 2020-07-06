@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-from assignSession import * 
-from utils import sendEmail
+from .assignSession import * 
+from .utils import sendEmail
 from collections import defaultdict
 import time
 
@@ -42,7 +42,7 @@ for t in sorted(ds):
 
 text+="\n\n Regards,\nthe production team\n\nThis is an automated message."
 
-print text
+print(text)
 
 sendEmail(subject, text, destination=['hn-cms-datasets@cern.ch'])
 #sendEmail(subject, text)

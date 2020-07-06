@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-from condor_overview import *
+from .condor_overview import *
 try:
     import htcondor
 except ImportError:
-    print "You do not have a proper environment, please source the following:"
-    print "source /data/srv/wmagent/current/apps/wmagent/etc/profile.d/init.sh"
+    print("You do not have a proper environment, please source the following:")
+    print("source /data/srv/wmagent/current/apps/wmagent/etc/profile.d/init.sh")
     sys.exit(1)
 
 
@@ -44,7 +44,7 @@ def main():
     for ad in schedd_ads:
         if ad["Name"] not in schedds:
             continue
-        print "getting jobs from %s"%ad["Name"]
+        print("getting jobs from %s"%ad["Name"])
         #fill the overview
         get_overview(overview_running,
                         overview_pending,

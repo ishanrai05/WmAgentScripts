@@ -7,8 +7,8 @@
 
 import sys
 import optparse
-import dbs3Client
-import reqMgrClient
+from . import dbs3Client
+from . import reqMgrClient
 
 
 def duplicateLumisWorkflow(url, workflow, verbose=False):
@@ -17,31 +17,31 @@ def duplicateLumisWorkflow(url, workflow, verbose=False):
     """
     datasets = reqMgrClient.outputdatasetsWorkflow(url, workflow)
     duplicate = False
-    print 'workflow:',workflow
+    print('workflow:',workflow)
     #check e
     for dataset in datasets:
-        print 'dataset :', dataset		
+        print('dataset :', dataset)		
         #if dbs3Client.duplicateLumi(dataset, verbose):
         if dbs3Client.duplicateRunLumi(dataset, verbose, skipInvalid=True):
             duplicate = True
             #fast check, one dataset duplicated
             if not verbose:
-                print 'Has duplicated lumis'
+                print('Has duplicated lumis')
                 return True
     if not duplicate:
-        print "No duplicate found"
+        print("No duplicate found")
     return duplicate
 
 def duplicateLumisDataset(url, dataset, verbose=False):
-    print 'dataset :', dataset        
+    print('dataset :', dataset)        
     #if dbs3Client.duplicateLumi(dataset, verbose):
     if dbs3Client.duplicateRunLumi(dataset, verbose, skipInvalid=True):
         #fast check, one dataset duplicated
         if not verbose:
-            print 'Has duplicated lumis'
+            print('Has duplicated lumis')
             return True
     else:
-        print "No duplicate found"
+        print("No duplicate found")
     return False
 
 def main():
@@ -70,9 +70,9 @@ def main():
     
     for workflow in workflows:
         if duplicateLumisWorkflow(url, workflow, options.verbose):
-            print workflow, "has duplicated lumis"
+            print(workflow, "has duplicated lumis")
         else:
-            print "No duplicate found"
+            print("No duplicate found")
     
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 import sys
-import urllib, urllib2
+import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
 import logging
 from dbs.apis.dbsClient import DbsApi
 #import reqMgrClient
-import httplib
+import http.client
 import os
 import socket
 import json
@@ -67,7 +67,7 @@ logging.basicConfig(format = FORMAT, datefmt = DATEFMT, level=logging.DEBUG)
 do_html_in_each_module = False
 
 def deep_update(d, u):
-    for k, v in u.items():
+    for k, v in list(u.items()):
         if isinstance(v, collections.Mapping) or isinstance(v, dict):
             default = v.copy()
             default.clear()
@@ -91,12 +91,12 @@ def sendLog( subject, text , wfi = None, show=True ,level='info'):
     try:
         try_sendLog( subject, text , wfi, show, level)
     except Exception as e:
-        print "failed to send log to elastic search"
-        print str(e)
+        print("failed to send log to elastic search")
+        print(str(e))
         sendEmail('failed logging',subject+text+str(e))
 
 def new_searchLog( q, actor=None, limit=50 ):
-    conn = httplib.HTTPSConnection( 'es-unified7.cern.ch' )
+    conn = http.client.HTTPSConnection( 'es-unified7.cern.ch' )
     return _searchLog(q, actor, limit,conn, prefix = '/es/unified-logs/_doc', h = es_header())
 
 def _searchLog( q, actor, limit, conn, prefix, h = None):
@@ -135,7 +135,7 @@ def _searchLog( q, actor, limit, conn, prefix, h = None):
         goodquery['query']['bool']['filter'] = { "term" : { "subject" : actor}}
 
     turl = prefix+'/_search?size=%d'%limit
-    print turl
+    print(turl)
     conn.request("GET" , turl, json.dumps(goodquery) ,headers = h if h else {})
     ## not it's just a matter of sending that query to ES.
     #lq = q.replace(':', '\:').replace('-','\\-')
@@ -160,12 +160,12 @@ def es_header():
     return header
 
 def new_sendLog( subject, text , wfi = None, show=True, level='info'):
-    conn = httplib.HTTPSConnection( 'es-unified7.cern.ch' )
+    conn = http.client.HTTPSConnection( 'es-unified7.cern.ch' )
 
     conn.request("GET", "/es", headers=es_header())
     response = conn.getresponse()
     data = response.read()
-    print data
+    print(data)
 
     ## historical information on how the schema was created
     """
@@ -222,7 +222,7 @@ def try_sendLog( subject, text , wfi = None, show=True, level='info'):
     #_try_sendLog(subject, text , wfi, show, level, conn = conn)
 
     ## send it to the new instance too. Without showing it
-    re_conn = httplib.HTTPSConnection( 'es-unified7.cern.ch' )
+    re_conn = http.client.HTTPSConnection( 'es-unified7.cern.ch' )
     _try_sendLog( subject, text, wfi, show, level, conn = re_conn, prefix='/es/unified-logs', h = es_header())
 
 
@@ -232,15 +232,15 @@ def _try_sendLog( subject, text , wfi = None, show=True, level='info', conn= Non
     meta_text="level:%s\n"%level
     if wfi:
         ## add a few markers automatically
-        meta_text += '\n\n'+'\n'.join(map(lambda i : 'id: %s'%i, wfi.getPrepIDs()))
+        meta_text += '\n\n'+'\n'.join(['id: %s'%i for i in wfi.getPrepIDs()])
         _,prim,_,sec = wfi.getIO()
         if prim:
-            meta_text += '\n\n'+'\n'.join(map(lambda i : 'in:%s'%i, prim))
+            meta_text += '\n\n'+'\n'.join(['in:%s'%i for i in prim])
         if sec:
-            meta_text += '\n\n'+'\n'.join(map(lambda i : 'pu:%s'%i, sec))
-        out = filter(lambda d : not any([c in d for c in ['FAKE','None']]),wfi.request['OutputDatasets'])
+            meta_text += '\n\n'+'\n'.join(['pu:%s'%i for i in sec])
+        out = [d for d in wfi.request['OutputDatasets'] if not any([c in d for c in ['FAKE','None']])]
         if out:
-            meta_text += '\n\n'+'\n'.join(map(lambda i : 'out:%s'%i, out))
+            meta_text += '\n\n'+'\n'.join(['out:%s'%i for i in out])
         meta_text += '\n\n'+wfi.request['RequestName']
 
     now_ = time.gmtime()
@@ -254,8 +254,8 @@ def _try_sendLog( subject, text , wfi = None, show=True, level='info', conn= Non
            "date" : now_d}
 
     if show:
-        print text
-    encodedParams = urllib.urlencode( doc )
+        print(text)
+    encodedParams = urllib.parse.urlencode( doc )
     conn.request("POST" , prefix+'/_doc/', json.dumps(doc), headers = h if h else {})
     response = conn.getresponse()
     data = response.read()
@@ -264,8 +264,8 @@ def _try_sendLog( subject, text , wfi = None, show=True, level='info', conn= Non
         #print res
         #print 'log:',res['_id'],"was created"
     except Exception as e:
-        print "failed"
-        print str(e)
+        print("failed")
+        print(str(e))
         pass
 
 
@@ -326,12 +326,12 @@ def url_encode_params(params = {}):
     like this: param=val1&param=val2...
     """
     params_list = []
-    for key, value in params.items():
+    for key, value in list(params.items()):
         if isinstance(value, list):
             params_list.extend([(key, x) for x in value])
         else:
             params_list.append((key, value))
-    return urllib.urlencode(params_list)
+    return urllib.parse.urlencode(params_list)
 
 def download_data(url = None, params = None, headers = None, logger = None):
     """
@@ -346,10 +346,10 @@ def download_data(url = None, params = None, headers = None, logger = None):
         if params:
             params = url_encode_params(params)
             url = "{url}?{params}".format(url = url, params = params)
-        response = urllib2.urlopen(url)
+        response = urllib.request.urlopen(url)
         data = response.read()
         return data
-    except urllib2.HTTPError as err:
+    except urllib.error.HTTPError as err:
         error = "{msg} (HTTP Error: {code})"
         logger.error(error.format(code = err.code, msg = err.msg))
         logger.error("URL called: {url}".format(url = url))
@@ -363,9 +363,9 @@ def download_file(url, params, path = None, logger = None):
         url = "{url}?{params}".format(url = url, params = params)
     logger.debug(url)
     try:
-        filename, message = urllib.urlretrieve(url)
+        filename, message = urllib.request.urlretrieve(url)
         return filename
-    except urllib2.HTTPError as err:
+    except urllib.error.HTTPError as err:
         error = "{msg} (HTTP Error: {code})"
         logger.error(error.format(code = err.code, msg = err.msg))
         logger.error("URL called: {url}".format(url = url))
@@ -376,7 +376,7 @@ def make_x509_conn(url=reqmgr_url,max_try=5):
     tries = 0
     while tries<max_try:
         try:
-            conn = httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+            conn = http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
             return conn
         except:
             tries+=1
@@ -398,7 +398,7 @@ def check_ggus( ticket ):
     #conn  =  httplib.HTTPSConnection('ggus.eu', cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
     r1=conn.request("GET",'/index.php?mode=ticket_info&ticket_id=%s&writeFormat=XML'%ticket)
     r2=conn.getresponse()
-    print r2
+    print(r2)
     return False
 
 def getSubscriptions(url, dataset):
@@ -504,8 +504,8 @@ def pass_to_dynamo( items, N ,sites = None, group = None ):
             return _pass_to_dynamo( items, N, sites, group)
         except Exception as e:
             if check_N_times<=0:
-                print "Failed to pass %s to dynamo"% items
-                print str(e)
+                print("Failed to pass %s to dynamo"% items)
+                print(str(e))
                 return False
 
 def _pass_to_dynamo( items, N ,sites = None, group = None ):
@@ -519,7 +519,7 @@ def _pass_to_dynamo( items, N ,sites = None, group = None ):
     if group:
         par.update( {'group' : group })
     #params = urllib.urlencode(par)
-    print par
+    print(par)
     #print params
     par.update({'cache':'y'})
     conn.request("POST","/registry/request/copy", json.dumps(par))
@@ -527,22 +527,22 @@ def _pass_to_dynamo( items, N ,sites = None, group = None ):
     data = response.read()
     #print data
     stop = time.mktime(time.gmtime())
-    print stop-start,"[s] to hand over to dynamo of",items
+    print(stop-start,"[s] to hand over to dynamo of",items)
     try:
         res = json.loads( data )
         isOK = (res['result'] == "OK")
-	if not isOK: print json.dumps( res, indent=2)
+	if not isOK: print(json.dumps( res, indent=2))
 	return isOK
 	
     except Exception as e:
         #if data.replace('\n','') == '':
         #    print "consider blank as OK"
         #    return True
-        print "Failed _pass_to_dynamo"
-        print "---"
-        print data
-        print "---"
-        print str(e)
+        print("Failed _pass_to_dynamo")
+        print("---")
+        print(data)
+        print("---")
+        print(str(e))
         return False
 
 class UnifiedLock:
@@ -565,17 +565,17 @@ class UnifiedLock:
         from assignSession import session, LockOfLock
         to_remove = []
         for ll in session.query(LockOfLock).filter(LockOfLock.lock== True).filter(LockOfLock.owner.contains(host)).all():
-            print ll.owner
+            print(ll.owner)
             try:
                 host,pid = ll.owner.split('-')
                 process = os.popen('ps -e -f | grep %s | grep -v grep'%pid).read()
                 if not process:
-                    print "the lock",ll,"is a deadlock"
+                    print("the lock",ll,"is a deadlock")
                     to_remove.append( ll )
                 else:
-                    print "the lock on",ll.owner,"is legitimate"
+                    print("the lock on",ll.owner,"is legitimate")
             except:
-                print ll.owner,"is not good"
+                print(ll.owner,"is not good")
 
         if to_remove:
             for ll in to_remove:
@@ -624,10 +624,10 @@ class DynamoLock:
                 if self.timeout and waited > self.timeout:
                     break
                 time.sleep(wait)
-                print "wait on dynamo"
+                print("wait on dynamo")
             break
 
-        print "dynamo lock acquired",self.go
+        print("dynamo lock acquired",self.go)
         #self.go = lock_DDM(owner=self.owner, wait=self.wait, timeout=self.timeout)
 
     def free(self):
@@ -639,8 +639,8 @@ class DynamoLock:
             try:
                 return self._check()
             except Exception as e:
-                print "Failed to check on dynamo",retry
-		print(str(e))
+                print("Failed to check on dynamo",retry)
+		print((str(e)))
                 retry-=1
                 time.sleep(5)
         return True
@@ -652,7 +652,7 @@ class DynamoLock:
         r2 = conn.getresponse()
         r = json.loads(r2.read())
         if (r['result'] == 'OK' and r['message'] == 'Locked'):
-            print "waiting on dynamo",r
+            print("waiting on dynamo",r)
             locked = True
         else:
             locked = False
@@ -682,21 +682,21 @@ def unlock_DDM(owner=None):
     try:
         return _lock_DDM(owner=owner, lock=False, wait=None, timeout=None)
     except Exception as e:
-        print "Failure in unlocking DDM"
-        print str(e)
+        print("Failure in unlocking DDM")
+        print(str(e))
         return False
 
 def lock_DDM(owner=None, wait=True, timeout=None):
     try:
         return _lock_DDM(owner=owner, lock=True, wait=wait, timeout=timeout)
     except Exception as e:
-        print "Failure in locking DDM"
-        print str(e)
+        print("Failure in locking DDM")
+        print(str(e))
         return False
 
 
 def _lock_DDM(owner=None, lock=True, wait=True, timeout=None):
-    print "deprecated"
+    print("deprecated")
     sys.exit(5)
     return
     conn = make_x509_conn('dynamo.mit.edu')
@@ -715,15 +715,15 @@ def _lock_DDM(owner=None, lock=True, wait=True, timeout=None):
                 time.sleep( sleep )
                 waited += sleep
             elif res['result'].lower() == 'ok':
-                print "we locked dynamo for",service
+                print("we locked dynamo for",service)
                 go = True
                 break
             else:
                 go = False
-                print res
+                print(res)
                 break
             if timeout and waited>timeout:
-                print "locking dynamo has timedout for",service
+                print("locking dynamo has timedout for",service)
                 go = False
     else:
         conn.request("POST","/registry/applock/unlock?service=%s&app=detox"% service)
@@ -731,11 +731,11 @@ def _lock_DDM(owner=None, lock=True, wait=True, timeout=None):
         data = response.read()
         res = json.loads( data )
         if res['result'].lower() == 'ok':
-            print "we unlocked dynamo for",service
+            print("we unlocked dynamo for",service)
             go = True
         else:
-            print 'possible deadlock on',service
-            print res
+            print('possible deadlock on',service)
+            print(res)
             go = True
 
     return go
@@ -755,8 +755,8 @@ class lockInfo:
         try:
             self._release(item)
         except Exception as e:
-            print "failed to release"
-            print str(e)
+            print("failed to release")
+            print(str(e))
 
     def _release(self, item ):
         #from dataLock import locksession, Lock
@@ -777,13 +777,13 @@ class lockInfo:
     def _lock(self, item, site, reason):
         if not item:
             sendEmail('lockInfo', "trying to lock item %s" % item)
-            print "[ERROR] trying to lock item",item
+            print("[ERROR] trying to lock item",item)
             
         from assignSession import session, Lock
         l = session.query(Lock).filter(Lock.item == item).first()
         do_com = False
         if not l:
-            print "in lock, making a new object for",item
+            print("in lock, making a new object for",item)
             l = Lock(lock=False)
             #l.site = site
             l.item = item
@@ -791,7 +791,7 @@ class lockInfo:
             session.add ( l )
             do_com = True
         else:
-            print "lock for",item,"already existing",l.lock
+            print("lock for",item,"already existing",l.lock)
         now = time.mktime(time.gmtime())
         ## overwrite the lock
         message = "[Lock] %s"%item
@@ -814,8 +814,8 @@ class lockInfo:
             self._lock( item, site, reason)
         except Exception as e:
             ## to be removed once we have a fully functional lock db
-            print "could not lock",item,"at",site
-            print str(e)
+            print("could not lock",item,"at",site)
+            print(str(e))
 
 
     def items(self, locked=True):
@@ -827,10 +827,10 @@ class lockInfo:
     def tell(self, comment):
         #from dataLock import locksession, Lock
         from assignSession import session, Lock
-        print "---",comment,"---"
+        print("---",comment,"---")
         for l in session.query(Lock).all():
-            print l.item,l.lock
-        print "------"+"-"*len(comment)
+            print(l.item,l.lock)
+        print("------"+"-"*len(comment))
 
 
 def mongo_client():
@@ -857,7 +857,7 @@ class statusHistory:
         now = time.mktime(now)
         for doc in self.db.find():
             if (float(now)-float(doc['time'])) > days*24*60*60:
-                print "trim history of",doc['_id']
+                print("trim history of",doc['_id'])
                 self.db.delete_one( {'_id' : doc['_id']})
 
             
@@ -980,7 +980,7 @@ class unifiedConfiguration:
                 self.db = self.client.unified.unifiedConfiguration
                 quest = self.db.find_one()
             except:
-                print "could not reach pymongo"
+                print("could not reach pymongo")
                 self.configs = json.loads(open('unifiedConfiguration.json').read())
 
     def get(self, parameter):
@@ -988,8 +988,8 @@ class unifiedConfiguration:
             if parameter in self.configs:
                 return self.configs[parameter]['value']
             else:
-                print parameter,'is not defined in global configuration'
-                print ','.join(self.configs.keys()),'possible'
+                print(parameter,'is not defined in global configuration')
+                print(','.join(list(self.configs.keys())),'possible')
                 sys.exit(124)
         else:
             found = self.db.find_one({"name": parameter})
@@ -999,8 +999,8 @@ class unifiedConfiguration:
                 return found
             else:
                 availables = [o['name'] for o in self.db.find_one()]
-                print parameter,'is not defined in mongo configuration'
-                print ','.join(availables),'possible'
+                print(parameter,'is not defined in mongo configuration')
+                print(','.join(availables),'possible')
                 sys.exit(124)
 
 
@@ -1040,12 +1040,12 @@ class componentInfo:
                 alarm =  "Timeout in checking the sanity of components %d > %d , while checking on %s"%(now-check_start,self.check_timeout, self.checks.checking)
                 sendLog('componentInfo',alarm, level='critical')
                 return False
-            print "componentInfo, ping",now,check_start,now-check_start
+            print("componentInfo, ping",now,check_start,now-check_start)
             time.sleep(ping)
         
         self.status = self.checks.status
-        print "componentInfo, going with"
-        print self.checks.go
+        print("componentInfo, going with")
+        print(self.checks.go)
         return self.checks.go
 
 class componentCheck(threading.Thread):
@@ -1075,7 +1075,7 @@ class componentCheck(threading.Thread):
 
     def run(self):
         self.go = self.check()
-        print "componentCheck finished"
+        print("componentCheck finished")
 
     def check_cmsr(self):
         from assignSession import session, Workflow
@@ -1085,7 +1085,7 @@ class componentCheck(threading.Thread):
         data = getReqmgrInfo(reqmgr_url)
         
     def check_mcm(self):
-        from McMClient import McMClient
+        from .McMClient import McMClient
         mcmC = McMClient(dev=False)
         test = mcmC.getA('requests',page=0)
         time.sleep(1)
@@ -1109,7 +1109,7 @@ class componentCheck(threading.Thread):
             cust = findCustodialLocation(phedex_url,'/TTJets_mtop1695_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8/RunIIWinter15GS-MCRUN2_71_V1-v1/GEN-SIM')
 
     def check_wtc(self):
-        from wtcClient import wtcClient
+        from .wtcClient import wtcClient
         WC = wtcClient()
         a = WC.get_actions()
         if a is None:
@@ -1130,7 +1130,7 @@ class componentCheck(threading.Thread):
         infos = [a['status'] for a in db.find()]
         
     def check_jira(self):
-        from JIRAClient import JIRAClient
+        from .JIRAClient import JIRAClient
         JC = JIRAClient()
         opened = JC.find({'status': 'OPEN'})
         
@@ -1142,7 +1142,7 @@ class componentCheck(threading.Thread):
             self.checking = component
             while True:
                 try:
-                    print "checking on",component
+                    print("checking on",component)
                     sys.stdout.flush()
                     getattr(self,'check_%s'%component)()
                     self.status[component] = True
@@ -1150,19 +1150,19 @@ class componentCheck(threading.Thread):
                 except Exception as e:
                     self.tell(component)
                     if self.keep_trying:
-                        print "re-checking on",component
+                        print("re-checking on",component)
                         time.sleep(30)
                         continue
                     import traceback
-                    print traceback.format_exc()
-                    print component,"is unreachable"
-                    print str(e)
+                    print(traceback.format_exc())
+                    print(component,"is unreachable")
+                    print(str(e))
                     if self.block and not (self.soft and component in self.soft):
                         self.code = ecode
                         return False
                     break
 
-        print json.dumps( self.status, indent=2)
+        print(json.dumps( self.status, indent=2))
         sys.stdout.flush()
         return True
 
@@ -1174,7 +1174,7 @@ class componentCheck(threading.Thread):
 def is_json(myjson):
     try:
         json_object = json.loads(myjson)
-    except ValueError, e:
+    except ValueError as e:
         return False
     return True
 
@@ -1193,7 +1193,7 @@ def read_file(target):
 def eosRead(filename,trials=5):
     filename = filename.replace('//','/')
     if not filename.startswith('/eos/'):
-        print filename,"is not an eos path in eosRead"
+        print(filename,"is not an eos path in eosRead")
         #sys.exit(2)
         #return open(filename).read()
     T=0
@@ -1202,20 +1202,20 @@ def eosRead(filename,trials=5):
         try:
             return read_file(filename) 
         except Exception as e:
-            print "failed to read",filename,"from eos"
+            print("failed to read",filename,"from eos")
             time.sleep(2)
             cache = (cache_dir+'/'+filename.replace('/','_')).replace('//','/')
             r = os.system('cp %s %s'%( filename, cache ))
             if r==0:
                 return read_file(cache)
-    print "unable to read from eos"
+    print("unable to read from eos")
     #sys.exit(2)
     return None
         
 class eosFile(object):
     def __init__(self, filename, opt='w', trials=5):
         if not filename.startswith('/eos/'):
-            print filename,"is not an eos path"
+            print(filename,"is not an eos path")
             sys.exit(2)
         self.opt = opt
         self.eos_filename = filename.replace('//','/')
@@ -1235,24 +1235,24 @@ class eosFile(object):
         while T < self.trials:
             T += 1
             try:
-                print "moving",self.cache_filename,"to",self.eos_filename
-                print("Attempt {}".format(T))
+                print("moving",self.cache_filename,"to",self.eos_filename)
+                print(("Attempt {}".format(T)))
                 r = os.system("eoscp %s %s"%( self.cache_filename, self.eos_filename))
                 if r==0 and os.path.getsize(self.eos_filename) > 0: return True
-                print "not able to copy to eos",self.eos_filename,"with code",r
+                print("not able to copy to eos",self.eos_filename,"with code",r)
                 time.sleep(30)
                 
                 if bail_and_email:
                     h = socket.gethostname()
-                    print 'eos is acting up on %s on %s. not able to copy %s to eos code %s'%( h, time.asctime(), self.eos_filename, r)
+                    print('eos is acting up on %s on %s. not able to copy %s to eos code %s'%( h, time.asctime(), self.eos_filename, r))
                     #sendEmail('eosFile','eos is acting up on %s on %s. not able to copy %s to eos code %s'%( h, time.asctime(), self.eos_filename, r))
                     break
 
             except Exception as e:
-                print "Failed to copy",self.eos_filename,"with",str(e)
+                print("Failed to copy",self.eos_filename,"with",str(e))
                 if bail_and_email:
                     h = socket.gethostname()
-                    print 'eos is acting up on %s on %s. not able to copy %s to eos \n%s'%( h, time.asctime(), self.eos_filename, str(e))
+                    print('eos is acting up on %s on %s. not able to copy %s to eos \n%s'%( h, time.asctime(), self.eos_filename, str(e)))
                     #sendEmail('eosFile','eos is acting up on %s on %s. not able to copy %s to eos \n%s'%( h, time.asctime(), self.eos_filename, stre(e)))
                     break
                 else:
@@ -1334,7 +1334,7 @@ class campaignInfo:
         return [o['name'] for o in self.db.find() if (c_type == None or o.get('type',None) == c_type)]
 
     def update(self, c_dict, c_type=None):
-        for k,v in c_dict.items():
+        for k,v in list(c_dict.items()):
             self.add( k, v, c_type=c_type)
             
     def add(self, name, content, c_type=None):
@@ -1348,7 +1348,7 @@ class campaignInfo:
                        )
 
     def pop(self, item_name):
-        print "removing",item_name,"from campaign configuration"
+        print("removing",item_name,"from campaign configuration")
         #sendEmail('campaignInfo','removing %s from configuration'% item_name, destination=['vlimant@cern.ch'])
         self.db.delete_one({'name' : item_name})
 
@@ -1359,7 +1359,7 @@ class campaignInfo:
                 if s!=None:
                     GO = (s in self.campaigns[c]['labels']) or any([l in s for l in self.campaigns[c]['labels']])
                 else:
-                    print "Not allowed to go for",c,s
+                    print("Not allowed to go for",c,s)
                     GO = False
             else:
                 GO = True
@@ -1367,7 +1367,7 @@ class campaignInfo:
             if s and 'pilot' in s.lower():
                 GO = True
         else:
-            print "Not allowed to go for",c
+            print("Not allowed to go for",c)
             GO = False
         return GO
 
@@ -1396,9 +1396,9 @@ def notRunningBefore( component, time_out = 60*5 ):
     s = 10
     while True:
         if time_out<0:
-            print "Could not wait any longer for %s to finish"% component
+            print("Could not wait any longer for %s to finish"% component)
             return False
-        process_check = filter(None,os.popen('ps -f -e | grep %s.py | grep -v grep  |grep python'%component).read().split('\n'))
+        process_check = [_f for _f in os.popen('ps -f -e | grep %s.py | grep -v grep  |grep python'%component).read().split('\n') if _f]
         if len(process_check):
             ## there is still the component running. wait
             time.sleep(s)
@@ -1432,7 +1432,7 @@ class moduleLock(object):
         now = time.mktime(time.gmtime())
         for lock in locks:
             pid = lock.get('pid',None)
-            print "checking on %s on %s"%( pid, host)
+            print("checking on %s on %s"%( pid, host))
             on_since = now - lock.get('time',now)
             if on_since > (hours_before_kill*60*60):
                 alarm = "process %s on %s for module %s is running since %s : killing"%( pid, host, lock.get('component',None), display_time( on_since))
@@ -1447,8 +1447,8 @@ class moduleLock(object):
 
     def all_locks(self):
         locks = [l for l in self.db.find()]
-        print "module locks available in mongodb"
-        print sorted(locks)
+        print("module locks available in mongodb")
+        print(sorted(locks))
         
     def clean(self, component=None, pid=None, host=None):
         sdoc = {'component' : component}
@@ -1459,7 +1459,7 @@ class moduleLock(object):
         self.db.delete_many( sdoc )
                
     def __call__(self):
-        print "module lock for component",self.component,"from mongo db"
+        print("module lock for component",self.component,"from mongo db")
         polled = 0
         nogo = True
         locks = []
@@ -1475,7 +1475,7 @@ class moduleLock(object):
                     nogo =True
                     break
                 else:
-                    print "Waiting for other %s components to stop running \n%s" % ( self.component , locks)
+                    print("Waiting for other %s components to stop running \n%s" % ( self.component , locks))
                     time.sleep( self.poll )
                     polled += self.poll
             else:
@@ -1484,7 +1484,7 @@ class moduleLock(object):
                 break
             i_try += 1
             if self.max_wait and polled > self.max_wait:
-                print "stop waiting for %s to be released"% ( self.component )
+                print("stop waiting for %s to be released"% ( self.component ))
                 break
         if not nogo:
             ## insert a lock doc
@@ -1504,7 +1504,7 @@ class moduleLock(object):
                                                                                                  polled,
                                                                                                  locks)
                 sendLog('heartbeat', msg , level='critical')
-                print msg
+                print(msg)
 
 
         return nogo
@@ -1523,7 +1523,7 @@ def userLock(component=None):
     lockers = ['dmytro','mcremone','vlimant']
     for who in lockers:
         if os.path.isfile('/afs/cern.ch/user/%s/%s/public/ops/%s.lock'%(who[0],who,component)):
-            print "disabled by",who
+            print("disabled by",who)
             return True
     return False
 
@@ -1559,7 +1559,7 @@ def _get_dashbssb(path_name, ssb_metric):
 
 def genericGet( base, url, load=True, headers=None):
     if not headers: headers={"Accept":"*/*"}
-    conn  =  httplib.HTTPSConnection( base,
+    conn  =  http.client.HTTPSConnection( base,
                                       #cert_file = os.getenv('X509_USER_PROXY'),
                                       cert_file = '/data/certs/servicecert.pem',
                                       #key_file = os.getenv('X509_USER_PROXY'),
@@ -1600,7 +1600,7 @@ class ThreadHandler(threading.Thread):
     def _run(self):
         random.shuffle(self.threads)
         ntotal=len(self.threads)
-        print "[%s] Processing %d threads with %d max concurrent and timeout %s [min]"%( self.label, ntotal,self.n_threads, self.timeout)
+        print("[%s] Processing %d threads with %d max concurrent and timeout %s [min]"%( self.label, ntotal,self.n_threads, self.timeout))
         start_now = time.mktime(time.gmtime())
         self.r_threads = []
         
@@ -1619,14 +1619,14 @@ class ThreadHandler(threading.Thread):
                 if n_done > int(ntotal*0.05):
                     ## shoot for 10 reminder in total                                                                                                              
                     self.show_eta = max(self.show_eta, int(total_expected/10.))
-            print "[%s] Will finish in about %s. %d/%d. spend %s. expected total %s, ping in %d [s] "%(
+            print("[%s] Will finish in about %s. %d/%d. spend %s. expected total %s, ping in %d [s] "%(
                 self.label,
                 display_time(eta) if eta else "N/A", 
                 n_done, ntotal,
                 display_time(spend),
                 display_time(total_expected),
             self.show_eta
-            )
+            ))
         
 
 
@@ -1638,7 +1638,7 @@ class ThreadHandler(threading.Thread):
         last_talk = time.mktime(time.gmtime())
         while self.threads:
             if self.timeout and (time.mktime(time.gmtime()) - start_now) > (self.timeout*60.):
-                print "[%s] Stopping to start threads because the time out is over %s "%(self.label,time.asctime(time.gmtime()))
+                print("[%s] Stopping to start threads because the time out is over %s "%(self.label,time.asctime(time.gmtime())))
                 for t in self.r_threads:
                     while t.is_alive():
                         time.sleep(refresh_ping)
@@ -1680,7 +1680,7 @@ class ThreadHandler(threading.Thread):
         while sum([t.is_alive() for t in self.r_threads]):
             now= time.mktime(time.gmtime())
             if self.timeout and (now - start_now) > (self.timeout*60.):
-                print "[%s] Stopping to start threads because the time out is over %d "%(self.label,time.asctime(time.gmtime()))
+                print("[%s] Stopping to start threads because the time out is over %d "%(self.label,time.asctime(time.gmtime())))
                 return
             if now - last_talk > self.show_eta:
                 last_talk = now
@@ -1704,7 +1704,7 @@ class UnifiedBuster(threading.Thread):
             try:
                 item = next(self.iterate_me)
             except StopIteration:
-                print "finished"
+                print("finished")
                 self.master.unlock()
                 break
             self.master.unlock()
@@ -1713,13 +1713,13 @@ class UnifiedBuster(threading.Thread):
             try:
                 self.operate( item )
             except Exception as e:
-                print "Failed in thread"
-                print str(e)
+                print("Failed in thread")
+                print(str(e))
                 break
 
 
     def operate(self, item):
-        print "to be overloaded every where"
+        print("to be overloaded every where")
         pass
 
 
@@ -1844,8 +1844,8 @@ class docCache:
         def get_invalidation():
             import csv
             TMDB_invalid = set([row[3] for row in csv.reader( os.popen('curl -s "https://docs.google.com/spreadsheets/d/11fFsDOTLTtRcI4Q3gXw0GNj4ZS8IoXMoQDC3CbOo_2o/export?format=csv"'))])
-            TMDB_invalid = map(lambda e : e.split(':')[-1], TMDB_invalid)
-            print len(TMDB_invalid),"globally invalidated files"
+            TMDB_invalid = [e.split(':')[-1] for e in TMDB_invalid]
+            print(len(TMDB_invalid),"globally invalidated files")
             return TMDB_invalid
 
         self.cache['file_invalidation'] = {
@@ -1888,7 +1888,7 @@ class docCache:
 
     def get(self, label, fresh=False, lastdoc=True):
         if not label in self.cache:
-            print "unkown cache doc key",label
+            print("unkown cache doc key",label)
             return None
         cache = cacheInfo()
         cached = cache.get( label ) if not fresh else None
@@ -1900,13 +1900,13 @@ class docCache:
                 data =  o['getter']()
             except Exception as e:
                 sendLog('doccache','Failed to get {}\n{}\n{}'.format(label,type(e),str(e)), level='critical')
-                print "failed to get",label
-                print str(e)
+                print("failed to get",label)
+                print(str(e))
                 if lastdoc:
                     last_doc = cache.get( label, no_expire=True)
-                    print "last document in cache for",label,"is",last_doc
+                    print("last document in cache for",label,"is",last_doc)
                     if last_doc:
-                        print "returning the last doc in cache"
+                        print("returning the last doc in cache")
                         return last_doc
                 data = o['default']
             cache.store( label, 
@@ -1922,7 +1922,7 @@ def getNodes(url, kind):
             return _getNodes(url, kind)
         except Exception as e:
             pass
-    print str(e)
+    print(str(e))
 
 def _getNodes(url, kind):
     conn = make_x509_conn(url)
@@ -1939,7 +1939,7 @@ def getNodeUsage(url, node):
     r2=conn.getresponse()
     result = json.loads(r2.read())
     if len(result['phedex']['node']):
-        s= max([sum([node[k] for k in node.keys() if k.endswith('_node_bytes')]) for node in result['phedex']['node']])
+        s= max([sum([node[k] for k in list(node.keys()) if k.endswith('_node_bytes')]) for node in result['phedex']['node']])
         return int(s / 1023.**4) #in TB
     else:
         return None
@@ -1950,7 +1950,7 @@ def getNodeQueue(url, node):
     r1=conn.request("GET",'/phedex/datasvc/json/prod/nodeusagehistory?node=%s'%node)
     r2=conn.getresponse()
     result = json.loads(r2.read())
-    print result
+    print(result)
     missing = 0
     if len(result['phedex']['node']):
         for node in result['phedex']['node']:
@@ -1996,12 +1996,12 @@ class DSS:
         try:
             self.bdb = json.loads(open('bdss.json').read())
         except:
-            print "no bank of dataset size. starting fresh"
+            print("no bank of dataset size. starting fresh")
             self.bdb = {}
 
     def _get(self, dataset ):
         if not dataset in self.bdb:
-            print "fetching info of",dataset
+            print("fetching info of",dataset)
             self.bdb[dataset] = getDatasetBlockSize( dataset )
 
     def get(self, dataset , blocks=None):
@@ -2022,14 +2022,14 @@ class DSS:
     def __del__(self):
         ## pop when too many entries
         if len(self.bdb) > 1000:
-            keys = self.bdb.keys()
+            keys = list(self.bdb.keys())
             random.shuffle(keys)
             for k in keys[:1000]:
                 self.bdb.pop(k)
         try:
             open('bdss.json','w').write( json.dumps( self.bdb ))
         except:
-            print "no access to bdss.json"
+            print("no access to bdss.json")
 
 
 
@@ -2042,18 +2042,18 @@ class siteInfo:
 
         try:
             agents = getAllAgents( reqmgr_url )
-            for team,agents in agents.items():
+            for team,agents in list(agents.items()):
                 #print team
                 if team !='production': continue
                 for agent in agents:
                     if agent['status'] != 'ok':
                         #print("agent status",agent['status'])
                         continue
-                    for site,site_info in agent['WMBS_INFO']['thresholds'].iteritems():
+                    for site,site_info in agent['WMBS_INFO']['thresholds'].items():
                         if site_info['state'] in ['Normal']:
                             self.sites_ready_in_agent.add( site )
         except Exception as e :
-            print e
+            print(e)
             pass
 
         try:
@@ -2099,8 +2099,8 @@ class siteInfo:
 
 
         except Exception as e:
-            print "issue with getting SSB readiness"
-            print str(e)
+            print("issue with getting SSB readiness")
+            print(str(e))
             #sendEmail('bad sites configuration','falling to get any sites')
             sys.exit(-9)
 
@@ -2193,7 +2193,7 @@ class siteInfo:
         self.addHocStorageS['T2_CH_CERN_T0'].add( 'T2_CH_CERN')
         self.addHocStorageS['T2_CH_CERN_AI'].add('T2_CH_CERN')
 
-        for s,d in self.addHocStorage.items():
+        for s,d in list(self.addHocStorage.items()):
             self.addHocStorageS[s].add( d )
 
         self._map_SE_to_CE = defaultdict(set)
@@ -2257,7 +2257,7 @@ class siteInfo:
         self.fetch_detox_info(talk=False, buffer_level=UC.get('DDM_buffer_level'), sites_space_override=sites_space_override)
 
         ## transform no disks in veto transfer
-        for (dse,free) in self.disk.items():
+        for (dse,free) in list(self.disk.items()):
             if free<=0:
                 if not dse in self.sites_veto_transfer:
                     self.sites_veto_transfer.append( dse )
@@ -2304,7 +2304,7 @@ class siteInfo:
 
     def fetch_glidein_info(self, talk=True):
         self.sites_memory = dataCache.get('gwmsmon_totals')
-        for site in self.sites_memory.keys():
+        for site in list(self.sites_memory.keys()):
             if not site in self.sites_ready:
                 self.sites_memory.pop( site )
 
@@ -2337,17 +2337,17 @@ class siteInfo:
                     self.sites_pressure[site] = (m, r, pressure)
 
     def sites_low_pressure(self, ratio):
-        sites = [site for site,(matching,running,_) in self.sites_pressure.items() if (running==0 or (matching/float(running))< ratio) and site in self.sites_ready]
+        sites = [site for site,(matching,running,_) in list(self.sites_pressure.items()) if (running==0 or (matching/float(running))< ratio) and site in self.sites_ready]
         return sites
 
     def sitesByArch(self, arch ):
         if not self.sites_memory:
-            print "not enough information about glidein mon"
+            print("not enough information about glidein mon")
             return None
         rel6=(arch.startswith('slc6'))
         rel7=(arch.startswith('slc7'))
         allowed = set()
-        for site,slots in self.sites_memory.items():
+        for site,slots in list(self.sites_memory.items()):
             for slot in slots:
                 if slot['OS'] == 'any' or slot['SINGULARITY'] == True:
                     ## should match anything
@@ -2364,7 +2364,7 @@ class siteInfo:
         for arch in set(archs):
             by_archs[arch] = self.sitesByArch(arch)
         final = None
-        for arch,sites in by_archs.items():
+        for arch,sites in list(by_archs.items()):
             if final is None:
                 final = set(sites)
             else:
@@ -2374,10 +2374,10 @@ class siteInfo:
 
     def sitesByMemory( self, maxMem, maxCore=1):
         if not self.sites_memory:
-            print "no memory information from glidein mon"
+            print("no memory information from glidein mon")
             return None
         allowed = set()
-        for site,slots in self.sites_memory.items():
+        for site,slots in list(self.sites_memory.items()):
             #for slot in slots: print site,slot['MaxMemMB'],maxMem,slot['MaxMemMB']>= maxMem,slot['MaxCpus'],maxCore,int(slot['MaxCpus'])>=int(maxCore)
             if any([slot['MaxMemMB']>= maxMem and slot['MaxCpus']>=maxCore for slot in slots]):
                 allowed.add(site)
@@ -2403,7 +2403,7 @@ class siteInfo:
             info = dataCache.get('detox_sites', fresh = True)
             #info = os.popen('curl --retry 5 -s http://t3serv001.mit.edu/~cmsprod/IntelROCCS-Dev/DetoxDataOps/SitesInfo.txt').read().split('\n')
             if len(info) < 15:
-                print "detox info is gone"
+                print("detox info is gone")
                 return
         pcount = 0
         read = False
@@ -2448,12 +2448,12 @@ class siteInfo:
             }
 
         all_data = {}
-        for name,column in columns.items():
-            if talk: print name,column
+        for name,column in list(columns.items()):
+            if talk: print(name,column)
             try:
                 all_data[name] =  dataCache.get('ssb_%s'% column) 
             except:
-                print "cannot get info from ssb for",name
+                print("cannot get info from ssb for",name)
         _info_by_site = {}
         for info in all_data:
             for item in all_data[info]:
@@ -2463,21 +2463,21 @@ class siteInfo:
                 if not site in _info_by_site: _info_by_site[site]={}
                 _info_by_site[site][info] = value
 
-        if talk: print json.dumps( _info_by_site, indent =2 )
+        if talk: print(json.dumps( _info_by_site, indent =2 ))
 
-        if talk: print self.disk.keys()
-        for (site,info) in _info_by_site.items():
-            if talk: print "\n\tSite:",site
+        if talk: print(list(self.disk.keys()))
+        for (site,info) in list(_info_by_site.items()):
+            if talk: print("\n\tSite:",site)
             ssite = self.CE_to_SE( site )
             tsite = site+'_MSS'
             #key_for_cpu ='prodCPU'
             key_for_cpu ='CPUbound'
             if key_for_cpu in info and site in self.cpu_pledges and info[key_for_cpu]:
                 if self.cpu_pledges[site] < info[key_for_cpu]:
-                    if talk: print site,"could use",info[key_for_cpu],"instead of",self.cpu_pledges[site],"for CPU"
+                    if talk: print(site,"could use",info[key_for_cpu],"instead of",self.cpu_pledges[site],"for CPU")
                     self.cpu_pledges[site] = int(info[key_for_cpu])
                 elif self.cpu_pledges[site] > 1.5* info[key_for_cpu]:
-                    if talk: print site,"could correct",info[key_for_cpu],"instead of",self.cpu_pledges[site],"for CPU"
+                    if talk: print(site,"could correct",info[key_for_cpu],"instead of",self.cpu_pledges[site],"for CPU")
                     self.cpu_pledges[site] = int(info[key_for_cpu])
 
 #             if 'FreeDisk' in info and info['FreeDisk']:
@@ -2550,7 +2550,7 @@ class siteInfo:
 
     def pick_SE(self, sites=None, size=None): ## size needs to be in TB
         if size:
-            return self._pick(sites, dict([(se,free) for (se,free) in self.storage.items() if free>size]))
+            return self._pick(sites, dict([(se,free) for (se,free) in list(self.storage.items()) if free>size]))
         else:
             return self._pick(sites, self.storage)
 
@@ -2569,7 +2569,7 @@ class siteInfo:
         else:
             r_weights = from_weights
 
-        return r_weights.keys()[self._weighted_choice_sub(r_weights.values())]
+        return list(r_weights.keys())[self._weighted_choice_sub(list(r_weights.values()))]
 
     def _weighted_choice_sub(self,ws):
         rnd = random.random() * sum(ws)
@@ -2578,7 +2578,7 @@ class siteInfo:
             rnd -= w
             if rnd <= 0:
                 return i
-        print "could not make a choice from ",ws,"and",rnd
+        print("could not make a choice from ",ws,"and",rnd)
         return None
 
 
@@ -2609,14 +2609,14 @@ class remainingDatasetInfo:
  
     def sync(self, site=None):
         if not site:
-            print "synching with all site possible"
+            print("synching with all site possible")
             sites = []
             try:
                 r = json.loads(eosRead('%s/remaining.json'%( monitor_dir)))
-                sites = r.keys()
+                sites = list(r.keys())
             except:
                 try:
-                    for fn in filter(None,os.popen('ls -1 %s/remaining_*.json | sort '%monitor_dir).read().split('\n')):
+                    for fn in [_f for _f in os.popen('ls -1 %s/remaining_*.json | sort '%monitor_dir).read().split('\n') if _f]:
                         site = fn.split('_',1)[-1].split('.')[0]
                         if not any([site.endswith(v) for v in ['_MSS','_Export']]):
                             sites.append( site )
@@ -2625,21 +2625,21 @@ class remainingDatasetInfo:
             for site in sites:
                 self.sync( site )
         else:
-            print "synching on site",site
+            print("synching on site",site)
             remaining_reasons = json.loads(eosRead('%s/remaining_%s.json'%(monitor_dir,site)))
             self.set(site, remaining_reasons)
 
     def set(self, site, info):
         if not info: return
         existings = [o['dataset'] for o in self.db.find({'site' : site})]
-        updatings = info.keys()
+        updatings = list(info.keys())
         n = time.gmtime()
         now = time.mktime( n )
         nows = time.asctime( n )
         ## drop existing datasets that are not to be updated
         for dataset in sorted(set(existings) - set(updatings)):
             self.db.delete_one({'site' : site, 'dataset' : dataset})
-        for dataset,dinfo in info.items():
+        for dataset,dinfo in list(info.items()):
             content = { 'site' : site,
                         'dataset' : dataset,
                         'reasons' : dinfo.get('reasons',[]),
@@ -2665,7 +2665,7 @@ class remainingDatasetInfo:
 
     def tell(self, site):
         info = self.get(site)
-        print json.dumps(info, indent=2)
+        print(json.dumps(info, indent=2))
 
 def isHEPCloudReady(url, limit=20):
     conn = make_x509_conn(url)
@@ -2675,13 +2675,13 @@ def isHEPCloudReady(url, limit=20):
     d = json.loads(r2.read())['result']
     ok=limit
     if len(d):
-        ok = max(0,limit-len(d[0].keys()))
+        ok = max(0,limit-len(list(d[0].keys())))
     return ok
 
 
 def global_SI(a=None):
     if a or not global_SI.instance:
-        print "making a new instance of siteInfo",a
+        print("making a new instance of siteInfo",a)
         global_SI.instance = siteInfo(a)
     return global_SI.instance
 global_SI.instance = None
@@ -2699,7 +2699,7 @@ class reportInfo:
             then = time.mktime( time.gmtime()) - (grace*24*60*60) ## s
             self.db.delete_many( { 'time': { '$lt': then } } )
         if wipe == True:
-            if raw_input('wipe repor db?').lower() in ['y','yes']:
+            if input('wipe repor db?').lower() in ['y','yes']:
                 for o in self.db.find():
                     self.db.delete_one({'_id': o['_id']})
     
@@ -2711,7 +2711,7 @@ class reportInfo:
     def _convert( self, d ):
         d = copy.deepcopy(d)
         ## convert recursively the types that cannot go in as is
-        for k,v in d.items():
+        for k,v in list(d.items()):
             if '.' in k:
                 d.pop(k)
                 k = k.replace('.','__dot__')
@@ -2738,7 +2738,7 @@ class reportInfo:
             # nested info update and pop from new doc
             for nested in ['tasks']:
                 new_info = updating_doc.pop(nested) if nested in updating_doc else {}
-                for k in sorted(exist.get(nested,{}).keys()+new_info.keys()):
+                for k in sorted(list(exist.get(nested,{}).keys())+list(new_info.keys())):
                     exist.setdefault(nested,{}).setdefault(k,{}).update( new_info.get(k,{}))
 
             #root info update
@@ -2791,13 +2791,13 @@ class cacheInfo:
                 if not 'data' in o:
                     return self.from_file(key)
                 else:
-                    print "cache hit",key
+                    print("cache hit",key)
                     return o['data']
             else:
-                print "expired doc",key
+                print("expired doc",key)
                 return None
         else:
-            print "cache miss",key
+            print("cache miss",key)
             return None
 
     def _file_key(self, key):
@@ -2807,10 +2807,10 @@ class cacheInfo:
     def from_file(self, key):
         fn = self._file_key(key)
         if os.path.isfile( fn):
-            print "file cache hit",key
+            print("file cache hit",key)
             return json.loads(open(fn).read())
         else:
-            print "file cachemiss",key
+            print("file cachemiss",key)
             return None
     def store(self, key, data, lifetime_min=10):
         import pymongo
@@ -2831,8 +2831,8 @@ class cacheInfo:
                                {"$set": content},
                                upsert = True)
         except Exception as e:
-            print type(e)
-            print str(e)
+            print(type(e))
+            print(str(e))
 
     def purge(self, grace = 2):
         limit = time.mktime(time.gmtime())
@@ -2993,7 +2993,7 @@ class closeoutInfo:
             wfo = session.query(Workflow).filter(Workflow.name == wf).first()
             if not wfo: continue
             if not (wfo.status == 'away' or wfo.status.startswith('assistance')):
-                print "Taking",wf,"out of the close-out record"
+                print("Taking",wf,"out of the close-out record")
                 self.pop( wf )
                 continue
             html.write( self.one_line( wf, wfo , count) )
@@ -3013,7 +3013,7 @@ class closeoutInfo:
             existings = glob.glob('%s/closedout.*.lock'%base_eos_dir)
             if existings:
                 ## wait until there are no such files any more
-                print len(existings),"existing content",sorted(existings)
+                print(len(existings),"existing content",sorted(existings))
                 time.sleep(10)
             else:
                 break
@@ -3038,15 +3038,15 @@ class closeoutInfo:
 
         for wf in old:
             if wf in self.removed_keys:
-                print wf,"was removed in the process, skipping"
+                print(wf,"was removed in the process, skipping")
                 continue
             update_to_old = False
             if wf not in self.record:
                 update_to_old = True
             else:
                 # the content is in both place
-                old_ts = [dsi['timestamp'] for ds,dsi in old[wf].get('datasets',{}).items()]
-                new_ts = [dsi['timestamp'] for ds,dsi in self.record[wf].get('datasets',{}).items()]
+                old_ts = [dsi['timestamp'] for ds,dsi in list(old[wf].get('datasets',{}).items())]
+                new_ts = [dsi['timestamp'] for ds,dsi in list(self.record[wf].get('datasets',{}).items())]
                 if not new_ts:
                     ##weird
                     update_to_old = True
@@ -3166,7 +3166,7 @@ Updated on %s (GMT) <br>
                 else:            color='white'
 
                 if not wfo.name in self.record:
-                    print "wtf with",wfo.name
+                    print("wtf with",wfo.name)
                     #html.write( self.no_record( wfo.name, wfo, count))
                     continue
                 prio = self.record[wfo.name]['priority']
@@ -3234,7 +3234,7 @@ def getDatasetFileArray( dataset, validFileOnly=0, detail=False, cache_timeout=3
     cached = cache.get(cache_key)
     
     if cached:
-        print ("{} {} taken from cache".format(call, dataset ))
+        print(("{} {} taken from cache".format(call, dataset )))
         all_files = cached
     else:
         dbsapi = DbsApi(url=dbs_url)
@@ -3248,7 +3248,7 @@ def getDatasetFileArray( dataset, validFileOnly=0, detail=False, cache_timeout=3
         all_files = [f for f in all_files if f['is_file_valid']==1]
     if not detail:
         keys= ['logical_file_name','is_file_valid']
-        all_files = [ dict([ (k,v) for k,v in f.items() if k in keys]) for f in all_files]
+        all_files = [ dict([ (k,v) for k,v in list(f.items()) if k in keys]) for f in all_files]
     return all_files
 
 def getDatasetFileFraction( dataset, files):
@@ -3273,8 +3273,8 @@ def getDatasetBlockFraction( dataset, blocks):
     try:
         all_blocks = dbsapi.listBlockSummaries( dataset = dataset, detail=True)
     except Exception as e:
-	print("dbsapi.listBlockSummaries failed on {}".format(dataset))
-	print(str(e))
+	print(("dbsapi.listBlockSummaries failed on {}".format(dataset)))
+	print((str(e)))
 	raise
     total=0
     in_block=0
@@ -3326,7 +3326,7 @@ def findLateFiles(url, datasetname, going_to=None):
                                 'retries' : flatency['attempts']
                                 })
                         if flatency['time_on_buffer']:
-                            print "\t is on buffer, but not on tape"
+                            print("\t is on buffer, but not on tape")
     return ret
 
 def findLostBlocks(url, datasetname):
@@ -3357,11 +3357,11 @@ def try_findLostBlocksFiles(url, datasetname):
             for loc in item['subscription']:
                 exist = max(exist, loc['percent_bytes'])
             if not exist:
-                print "We have lost:",item['name']
+                print("We have lost:",item['name'])
                 #print json.dumps( item, indent=2)
                 lost.append( item )
             elif exist !=100:
-                print "we have lost files on",item['name']
+                print("we have lost files on",item['name'])
                 ## go deeper then
                 r1=conn.request("GET",'/phedex/datasvc/json/prod/filereplicas?block=%s'%(item['name'].replace('#','%23')))
                 r2=conn.getresponse()
@@ -3382,7 +3382,7 @@ def checkTransferLag( url, xfer_id , datasets=None):
             time.sleep(1)
             v = try_checkTransferLag( url, xfer_id , datasets)
         except Exception as e:
-            print "fatal execption in checkTransferLag\n","%s\n%s\n%s"%(xfer_id,datasets,str(e))
+            print("fatal execption in checkTransferLag\n","%s\n%s\n%s"%(xfer_id,datasets,str(e)))
             #sendEmail('fatal execption in checkTransferLag',"%s\n%s\n%s"%(xfer_id,datasets,str(e)))
             sendLog('checkTransferLag','fatal execption in checkTransferLag for %s\n%s\n%s'%(xfer_id,datasets,str(e)), level='critical')
             v = {}
@@ -3410,7 +3410,7 @@ def try_checkTransferLag( url, xfer_id , datasets=None):
     #print result
     stuck = defaultdict(lambda : defaultdict(lambda : defaultdict(tuple)))
     if len(result['phedex']['dataset'])==0:
-        print "trying with an earlier date than",timecreate,"for",xfer_id
+        print("trying with an earlier date than",timecreate,"for",xfer_id)
         subs_url = '/phedex/datasvc/json/prod/subscriptions?request=%s&create_since=%d'%(str(xfer_id),0)
         subs_url+='&collapse=n'
         r1=conn.request("GET",subs_url)
@@ -3432,7 +3432,7 @@ def try_checkTransferLag( url, xfer_id , datasets=None):
                 time_then = sub['time_create']
                 delay = (now - time_then)/(60.*60.*24.)
                 delay_s = (now - time_then)
-                print "\n",item,"is not complete at",destination,"since", delay ,"[d]"
+                print("\n",item,"is not complete at",destination,"since", delay ,"[d]")
 
                 if '#' in item:
                     item_url = '/phedex/datasvc/json/prod/blockreplicas?block=%s'%( item.replace('#','%23') )
@@ -3454,13 +3454,13 @@ def try_checkTransferLag( url, xfer_id , datasets=None):
                     rate = destination_size_GB / delay_s
                     if destination in dones: continue
                     if not dones:
-                        print "\t\t",subitem['name'],"lost"
+                        print("\t\t",subitem['name'],"lost")
                         stuck[ds][subitem['name']][destination] = (block_size,destination_size,delay,rate,dones)
                         continue
                     if delay>0: # more than 7 days is way to much !!
-                        print subitem['name'],' of size',block_size_GB,'[GB] missing',block_size_GB-destination_size_GB,'[GB]'
-                        print '\tis complete at',dones
-                        print "\tincoming at",rate,"[GB/s]"
+                        print(subitem['name'],' of size',block_size_GB,'[GB] missing',block_size_GB-destination_size_GB,'[GB]')
+                        print('\tis complete at',dones)
+                        print("\tincoming at",rate,"[GB/s]")
                     if rate < 10.:
                         ds = item.split('#')[0]
                         stuck[ds][subitem['name']][destination] = (block_size,destination_size,delay,rate,dones)
@@ -3471,12 +3471,12 @@ def checkTransferStatus(url, xfer_id, nocollapse=False):
     try:
         v = try_checkTransferStatus(url, xfer_id, nocollapse)
     except Exception as e:
-        print str(e)
+        print(str(e))
         try:
             time.sleep(1)
             v = try_checkTransferStatus(url, xfer_id, nocollapse)
         except Exception as e:
-            print str(e)
+            print(str(e))
             #sendEmail('fatal exception in checkTransferStatus %s'%xfer_id, str(e))
             sendLog('checkTransferStatus','fatal exception in checkTransferStatus %s\n%s'%(xfer_id, str(e)), level='critical')
             v = {}
@@ -3515,14 +3515,14 @@ def try_checkTransferStatus(url, xfer_id, nocollapse=False):
     #print result
     completions={}
     if len(result['phedex']['dataset'])==0:
-        print "trying with an earlier date than",timecreate,"for",xfer_id
+        print("trying with an earlier date than",timecreate,"for",xfer_id)
         subs_url = '/phedex/datasvc/json/prod/subscriptions?request=%s&create_since=%d&%s'%(str(xfer_id),0, '&'.join(['node=%s'%n for n in my_nodes]))
         if nocollapse:
             subs_url+='&collapse=n'
         r1=conn.request("GET",subs_url)
         r2=conn.getresponse()
         result = json.loads(r2.read())
-        print result
+        print(result)
 
     #print json.dumps( result['phedex']['dataset'] , indent=2)
     for item in  result['phedex']['dataset']:
@@ -3582,7 +3582,7 @@ def findCustodialLocation(url, dataset, with_completion=False):
     r2=conn.getresponse()
     result = json.loads(r2.read())
     request=result['phedex']
-    if 'block' not in request.keys():
+    if 'block' not in list(request.keys()):
         return [],None
     if len(request['block'])==0:
         return [],None
@@ -3612,13 +3612,13 @@ def findCustodialLocation(url, dataset, with_completion=False):
         #print blocks
         #print cust_blocks
 
-        print "Missing",len(blocks - cust_blocks),"blocks out of",len(blocks)
+        print("Missing",len(blocks - cust_blocks),"blocks out of",len(blocks))
         more_information['nblocks'] = len(blocks)
         #more_information['blocks'] = list(blocks)
         more_information['nmissing'] = len(blocks - cust_blocks)
         more_information['missing'] = list(blocks - cust_blocks)
         if len(cust_blocks)!=0:
-            print json.dumps(list(blocks - cust_blocks), indent=2)
+            print(json.dumps(list(blocks - cust_blocks), indent=2))
         r1=conn.request("GET",'/phedex/datasvc/json/prod/requestlist?dataset=%s&node=T*MSS'%dataset)
         r2=conn.getresponse()
         result = json.loads(r2.read())
@@ -3628,13 +3628,13 @@ def findCustodialLocation(url, dataset, with_completion=False):
             created = nodes['time_create']
             for node in nodes['node']:
                 decided = node['time_decided']
-                print "request",nodes['id'],"to",node['name'],"is",node['decision'],
+                print("request",nodes['id'],"to",node['name'],"is",node['decision'], end=' ')
                 if decided:
-                    print "on",time.asctime( time.gmtime( decided))
+                    print("on",time.asctime( time.gmtime( decided)))
                 more_information['nodes'][node['name']] = { 'id': nodes['id'], 'created' : created, 'decided' : decided}
 
 
-                print ". Created since",time.asctime( time.gmtime( created ))
+                print(". Created since",time.asctime( time.gmtime( created )))
 
         return [],more_information
     else:
@@ -3719,15 +3719,15 @@ def _getDatasetBlocksFraction(url, dataset, complete='y', group=None, vetoes=Non
                 block_counts[ b ] +=1
 
     if not len(block_counts):
-        print "no blocks for",dataset
+        print("no blocks for",dataset)
         return 0
-    first_order = float(len(block_counts) - block_counts.values().count(0)) / float(len(block_counts))
+    first_order = float(len(block_counts) - list(block_counts.values()).count(0)) / float(len(block_counts))
     if first_order <1.:
-        print dataset,":not all",len(block_counts)," blocks are available, only",len(block_counts)-block_counts.values().count(0)
+        print(dataset,":not all",len(block_counts)," blocks are available, only",len(block_counts)-list(block_counts.values()).count(0))
         return first_order
     else:
         second_order = sum(block_counts.values())/ float(len(block_counts))
-        print dataset,":all",len(block_counts),"available",second_order,"times"
+        print(dataset,":all",len(block_counts),"available",second_order,"times")
         return second_order
 
 
@@ -3740,22 +3740,22 @@ def getBetterDatasetDestinations( url, dataset, only_blocks=None, group=None, ve
     try:
         all_blocks = dbsapi.listBlockSummaries( dataset = dataset, detail=True)
     except Exception as e:
-	print("dbsapi.listBlocksSummaries failed on {}".format(dataset))
-	print(str(e))
+	print(("dbsapi.listBlocksSummaries failed on {}".format(dataset)))
+	print((str(e)))
 	raise
     all_dbs_block_names=set([block['block_name'] for block in all_blocks])
     all_block_names=set([block['block_name'] for block in all_blocks])
     if only_blocks:
-        all_block_names = filter( lambda b : b in only_blocks, all_block_names)
+        all_block_names = [b for b in all_block_names if b in only_blocks]
         full_size = sum([block['file_size'] for block in all_blocks if (block['block_name'] in only_blocks)])
     else:
         full_size = sum([block['file_size'] for block in all_blocks])
 
     if not full_size:
-        print dataset,"is nowhere"
+        print(dataset,"is nowhere")
         return {}, all_block_names
 
-    print len(all_block_names),"blocks"
+    print(len(all_block_names),"blocks")
 
     conn = make_x509_conn(url)
     items = None
@@ -3769,8 +3769,8 @@ def getBetterDatasetDestinations( url, dataset, only_blocks=None, group=None, ve
 
             items=json.loads(r2.read())['phedex']['request']
         except Exception as e :
-            print "\twaiting a bit for retry"
-            print e
+            print("\twaiting a bit for retry")
+            print(e)
             time.sleep(1)
             conn = make_x509_conn(url)
 
@@ -3786,8 +3786,8 @@ def getBetterDatasetDestinations( url, dataset, only_blocks=None, group=None, ve
 
             d_items=json.loads(r2.read())['phedex']['request']
         except Exception as e :
-            print "\twaiting a bit for retry"
-            print e
+            print("\twaiting a bit for retry")
+            print(e)
             time.sleep(1)
             conn = make_x509_conn(url)
 
@@ -3833,7 +3833,7 @@ def getBetterDatasetDestinations( url, dataset, only_blocks=None, group=None, ve
                 r2=conn.getresponse()
                 r = r2.read()
             except Exception as e:
-                print str(e)
+                print(str(e))
                 raise Exception(e)
             result = json.loads(r)['phedex']['dataset']
             for ds in result:
@@ -3848,7 +3848,7 @@ def getBetterDatasetDestinations( url, dataset, only_blocks=None, group=None, ve
 
     else:
         ## check first by full dataset
-        print "getting all d-sub for dataset",dataset
+        print("getting all d-sub for dataset",dataset)
         r1=conn.request("GET",'/phedex/datasvc/json/prod/subscriptions?dataset=%s'%(dataset))
         r2=conn.getresponse()
         result = json.loads(r2.read())['phedex']['dataset']
@@ -3867,11 +3867,11 @@ def getBetterDatasetDestinations( url, dataset, only_blocks=None, group=None, ve
                 in_full.add( site )
 
         #print sorted(all_destinations)
-        print "in full at",sorted(in_full)
+        print("in full at",sorted(in_full))
         ## then check block by block at the site not already OK.
         for site in (all_destinations-in_full):
             if not site.startswith('T'): continue
-            print "getting all b-sub for dataset",dataset,'@',site
+            print("getting all b-sub for dataset",dataset,'@',site)
             try:
                 url='/phedex/datasvc/json/prod/subscriptions?block=%s%%23*&node=%s&collapse=n'%(dataset, site)
                 #print "querying all block at",site,dataset,url
@@ -3890,7 +3890,7 @@ def getBetterDatasetDestinations( url, dataset, only_blocks=None, group=None, ve
             for ds in result:
                 for block in ds['block']:
                     for sub in block['subscription']:
-                        print sub['percent_bytes']
+                        print(sub['percent_bytes'])
                         sub['percent_bytes'] = sub['percent_bytes'] if sub['percent_bytes']!=None else 0
                         destinations[site].add( (block['name'], sub['percent_bytes'], sub['request']))
 
@@ -3922,7 +3922,7 @@ def getOldDatasetDestinations( url, dataset, only_blocks=None, group=None, vetoe
     all_dbs_block_names=set([block['block_name'] for block in all_blocks])
     all_block_names=set([block['block_name'] for block in all_blocks])
     if only_blocks:
-        all_block_names = filter( lambda b : b in only_blocks, all_block_names)
+        all_block_names = [b for b in all_block_names if b in only_blocks]
         full_size = sum([block['file_size'] for block in all_blocks if (block['block_name'] in only_blocks)])
         #print all_block_names
         #print [block['block_name'] for block in all_blocks if block['block_name'] in only_blocks]
@@ -3930,18 +3930,18 @@ def getOldDatasetDestinations( url, dataset, only_blocks=None, group=None, vetoe
         full_size = sum([block['file_size'] for block in all_blocks])
 
     if not full_size:
-        print dataset,"is nowhere"
+        print(dataset,"is nowhere")
         return {}, all_block_names
 
 
-    print len(all_block_names),"blocks"
+    print(len(all_block_names),"blocks")
 
     conn = make_x509_conn(url)
     #conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
     #if len(all_block_names)<5000:
     items = []
     if not complement:
-        print "global sub query"
+        print("global sub query")
         r1=conn.request("GET",'/phedex/datasvc/json/prod/subscriptions?block=%s%%23*&collapse=n'%(dataset))
         r2=conn.getresponse()
         result = json.loads(r2.read())
@@ -3949,7 +3949,7 @@ def getOldDatasetDestinations( url, dataset, only_blocks=None, group=None, vetoe
             return destinations, all_block_names
 
         items=result['phedex']['dataset'][0]['block']
-        print "Got subscriptions for",dataset
+        print("Got subscriptions for",dataset)
         #print "failed once, let's go block by block: too lengthy"
         #for block in all_block_names:
         #    print "block sub query",block
@@ -3967,7 +3967,7 @@ def getOldDatasetDestinations( url, dataset, only_blocks=None, group=None, vetoe
     for item in items:
         if item['name'] not in all_block_names:
             if not only_blocks:
-                print item['name'],'not yet injected in dbs, counting anyways'
+                print(item['name'],'not yet injected in dbs, counting anyways')
                 all_block_names.add( item['name'] )
             else:
                 continue
@@ -3984,15 +3984,15 @@ def getOldDatasetDestinations( url, dataset, only_blocks=None, group=None, vetoe
     #complement with transfer request, approved, but without subscriptions yet
     if complement:
         time.sleep(1)
-        print "Complementing the destinations with request with no subscriptions"
-        print "we have",destinations.keys(),"for now"
+        print("Complementing the destinations with request with no subscriptions")
+        print("we have",list(destinations.keys()),"for now")
         try:
             conn = make_x509_conn(url)
             #conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
             r1=conn.request("GET",'/phedex/datasvc/json/prod/requestlist?dataset=%s'%dataset)
             r2=conn.getresponse()
         except:
-            print "\twaiting a bit for retry"
+            print("\twaiting a bit for retry")
             time.sleep(1)
             conn = make_x509_conn(url)
             #conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
@@ -4021,7 +4021,7 @@ def getOldDatasetDestinations( url, dataset, only_blocks=None, group=None, vetoe
         if item['type']=='delete': continue
         sites_destinations = []
         for req in item['node']:
-            if req['name']=='T2_CH_CERN': print "yes to cern"
+            if req['name']=='T2_CH_CERN': print("yes to cern")
 
             if within_sites and not req['name'] in within_sites: continue
             #if req['decision'] != 'approved' : continue
@@ -4035,17 +4035,17 @@ def getOldDatasetDestinations( url, dataset, only_blocks=None, group=None, vetoe
                 #if req['name']=='T2_CH_CERN': print times[req['name']]
                 if int(req['time_decided']) > times[req['name']]:
                     ## the node was already seen as a destination with an ealier time, and no delete in between
-                    if req['name']=='T2_CH_CERN': print "uhm",phedex_id
+                    if req['name']=='T2_CH_CERN': print("uhm",phedex_id)
                     continue
-            if req['name']=='T2_CH_CERN': print phedex_id,"is being registered for CERN destination"
+            if req['name']=='T2_CH_CERN': print(phedex_id,"is being registered for CERN destination")
             times[req['name']] = int(req['time_decided'])
 
 
             sites_destinations.append( req['name'] )
         sites_destinations = [site for site in sites_destinations if not any(site.endswith(v) for v in vetoes)]
         ## what are the sites for which we have missing information ?
-        sites_missing_information = [site for site in sites_destinations if site not in destinations.keys()]
-        print phedex_id,sites_destinations,"fetching for missing",sites_missing_information
+        sites_missing_information = [site for site in sites_destinations if site not in list(destinations.keys())]
+        print(phedex_id,sites_destinations,"fetching for missing",sites_missing_information)
 
         addhoc = (dataset == '/Neutrino_E-10_gun/RunIISpring15PrePremix-PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v2-v2/GEN-SIM-DIGI-RAW')
         if len(sites_missing_information)==0 and not addhoc: continue
@@ -4059,7 +4059,7 @@ def getOldDatasetDestinations( url, dataset, only_blocks=None, group=None, vetoe
             if group!=None and not req['group'].lower()==group.lower(): continue
             for requested_dataset in req['data']['dbs']['dataset']:
                 if requested_dataset['name'] != dataset:
-                    print requested_dataset,"not the same"
+                    print(requested_dataset,"not the same")
                     continue
                 for site in sites_missing_information:
                     for b in all_block_names:
@@ -4069,8 +4069,8 @@ def getOldDatasetDestinations( url, dataset, only_blocks=None, group=None, vetoe
                 if not b['name'] in all_block_names: continue
                 destinations[site].add((b['name'], 0, phedex_id) )
         #print "added?",(site in destinations.keys())
-        if not site in destinations.keys():
-            print json.dumps(sub_items, indent=2)
+        if not site in list(destinations.keys()):
+            print(json.dumps(sub_items, indent=2))
 
 
     for site in destinations:
@@ -4102,13 +4102,13 @@ def getDatasetDestinations( url, dataset, only_blocks=None, group=None, vetoes=N
     try:
         return getBetterDatasetDestinations(url, dataset, only_blocks, group, vetoes, within_sites, complement)
     except Exception as e:
-        print "failed once"
-        print str(e)
+        print("failed once")
+        print(str(e))
         sendLog('getDatasetDestinations','Failed the new implementation', level='critical')
         try:
             return getOldDatasetDestinations(url, dataset, only_blocks, group, vetoes, within_sites, complement)
         except:
-            print "failed twice, and crash"
+            print("failed twice, and crash")
             raise Exception("getDatasetDestinations crashed")
 
 def getDatasetOnGoingDeletion( url, dataset ):
@@ -4126,7 +4126,7 @@ def _getDatasetBlocks( dataset, runs=None, lumis=None):
     dbsapi = DbsApi(url=dbs_url)
     all_blocks = set()
     if lumis:
-        print "Entering a heavy check on block per lumi"
+        print("Entering a heavy check on block per lumi")
         for run in lumis:
             try:
                 ## to be fixed, if run==1, this call fails. one needs to provide the following
@@ -4134,9 +4134,9 @@ def _getDatasetBlocks( dataset, runs=None, lumis=None):
                 ### so get first the list of files, then make the call
                 all_files = dbsapi.listFileArray( dataset = dataset, lumi_list = lumis[run], run_num=int(run), detail=True)
             except Exception as e:
-                print "Exception in listFileArray",str(e)
+                print("Exception in listFileArray",str(e))
                 all_files = []
-            print len(all_files)
+            print(len(all_files))
             all_blocks.update( [f['block_name'] for f in all_files])
 
     elif runs:
@@ -4171,7 +4171,7 @@ def getUnsubscribedBlocks(url, site):
         collected.add( item['name'] )
 
     s = sum([i['bytes'] for i in items])
-    print s
+    print(s)
 
     return list(collected)
 
@@ -4226,8 +4226,8 @@ def try_getDatasetPresence( url, dataset, complete='y', only_blocks=None, group=
     try:
         all_blocks = dbsapi.listBlockSummaries( dataset = dataset, detail=True)
     except Exception as e:
-	print("dbsapi.listBlockSummaries failed on {}".format(dataset))
-	print(str(e))
+	print(("dbsapi.listBlockSummaries failed on {}".format(dataset)))
+	print((str(e)))
 	raise
     #print json.dumps( all_blocks, indent=2)
     all_block_names=set([block['block_name'] for block in all_blocks])
@@ -4256,7 +4256,7 @@ def try_getDatasetPresence( url, dataset, complete='y', only_blocks=None, group=
                 locations[replica['node']].add( item['name'] )
                 #print "\t",replica['node'],item['name']
                 if item['name'] not in all_block_names and not only_blocks:
-                    print item['name'],'not yet injected in dbs, counting anyways'
+                    print(item['name'],'not yet injected in dbs, counting anyways')
                     all_block_names.add( item['name'] )
                     size_in_phedex += item['bytes']
 
@@ -4272,30 +4272,30 @@ def try_getDatasetPresence( url, dataset, complete='y', only_blocks=None, group=
                     is_valid = True
                     break
             if is_valid:
-                print block,"is valid"
+                print(block,"is valid")
                 continue
             else:
                 all_block_names.remove( block )
-        print "Mismatch in phedex/DBS blocks"
+        print("Mismatch in phedex/DBS blocks")
         missing_in_phedex = sorted(set(all_block_names) - set(blocks_in_phedex))
         missing_in_dbs = sorted(set(blocks_in_phedex) - set(all_block_names))
-        if missing_in_phedex: print missing_in_phedex,"missing in phedex"
-        if missing_in_dbs: print missing_in_dbs,"missing in dbs"
+        if missing_in_phedex: print(missing_in_phedex,"missing in phedex")
+        if missing_in_dbs: print(missing_in_dbs,"missing in dbs")
 
     if only_blocks:
-        all_block_names = filter( lambda b : b in only_blocks, all_block_names)
+        all_block_names = [b for b in all_block_names if b in only_blocks]
         full_size = sum([block['file_size'] for block in all_blocks if (block['block_name'] in only_blocks)])
         #print all_block_name
         #print [block['block_name'] for block in all_blocks if block['block_name'] in only_blocks]
     else:
         full_size = sum([block['file_size'] for block in all_blocks if block['block_name'] in all_block_names])
     if not full_size:
-        print dataset,"is nowhere"
+        print(dataset,"is nowhere")
         return {}
     full_size = full_size+size_in_phedex
     #print locations.items()
     presence={}
-    for (site,blocks) in locations.items():
+    for (site,blocks) in list(locations.items()):
         site_size = sum([ block['file_size'] for block in all_blocks if (block['block_name'] in blocks and block['block_name'] in all_block_names)])
         ### print site,blocks,all_block_names
         #presence[site] = (set(blocks).issubset(set(all_block_names)), site_size/float(full_size)*100.)
@@ -4317,8 +4317,8 @@ def getDatasetBlocksFromFiles( dataset, files):
     try:
         all_files = dbsapi.listFiles( dataset = dataset , detail=True, validFileOnly=1)
     except Exception as e:
-	print("dbsapi.listFiles failed on {}".format(dataset))
-	print(str(e))
+	print(("dbsapi.listFiles failed on {}".format(dataset)))
+	print((str(e)))
 	raise
     collected_blocks = set()
     for fn in all_files:
@@ -4338,7 +4338,7 @@ def getDatasetBlockSize(dataset):
         try:
             return _getDatasetBlockSize(dataset)
         except Exception as e:
-            print "[%d] Failed on %s with \n%s"%(count,label,str(e))
+            print("[%d] Failed on %s with \n%s"%(count,label,str(e)))
             time.sleep(5)
     raise Exception("Failed on %s with \n%s"%( label,str(e)))
 
@@ -4378,9 +4378,9 @@ def getDatasetChops(dataset, chop_threshold =1000., talk=False, only_blocks=None
     items=[]
     sizes=[]
     if sum_all > chop_threshold:
-        items.extend( [[block['block_name']] for block in filter(lambda b : b['file_size'] > chop_threshold, blocks)] )
-        sizes.extend( [block['file_size'] for block in filter(lambda b : b['file_size'] > chop_threshold, blocks)] )
-        small_block = filter(lambda b : b['file_size'] <= chop_threshold, blocks)
+        items.extend( [[block['block_name']] for block in [b for b in blocks if b['file_size'] > chop_threshold]] )
+        sizes.extend( [block['file_size'] for block in [b for b in blocks if b['file_size'] > chop_threshold]] )
+        small_block = [b for b in blocks if b['file_size'] <= chop_threshold]
         small_block.sort( lambda b1,b2 : cmp(b1['file_size'],b2['file_size']), reverse=True)
 
         while len(small_block):
@@ -4395,22 +4395,22 @@ def getDatasetChops(dataset, chop_threshold =1000., talk=False, only_blocks=None
 
 
             if talk:
-                print len(items[-1]),"items below thresholds",size_chunk
-                print items[-1]
-                print len(sizes)
-                print len(items)
+                print(len(items[-1]),"items below thresholds",size_chunk)
+                print(items[-1])
+                print(len(sizes))
+                print(len(items))
     else:
         if talk:
-            print "one big",sum_all
+            print("one big",sum_all)
         if only_blocks:
             items = [[block['block_name'] for block in blocks]]
         else:
             items = [[dataset]]
         sizes = [sum_all]
         if talk:
-            print items
+            print(items)
     ## a list of list of blocks or dataset
-    print "Choped",dataset,"of size",sum_all,"GB (",chop_threshold,"GB) in",len(items),"pieces"
+    print("Choped",dataset,"of size",sum_all,"GB (",chop_threshold,"GB) in",len(items),"pieces")
     return items,sizes
 
 def distributeToSites( items, sites , n_copies, weights=None,sizes=None):
@@ -4447,9 +4447,9 @@ def distributeToSites( items, sites , n_copies, weights=None,sizes=None):
                             picked_site = SI.pick_CE( list(set(sites)-at))
                             picked_site_se = SI.CE_to_SE( picked_site )
                         if overflow<0:
-                            print "We have run out of options to distribute chunks of data because of lack of space"
+                            print("We have run out of options to distribute chunks of data because of lack of space")
                             ## should I crash ?
-                            print picked_site_se,"has",SI.disk[picked_site_se]*1024.,"GB free, while trying to put an item of size", chunk_size," that is",json.dumps( item, indent=2)
+                            print(picked_site_se,"has",SI.disk[picked_site_se]*1024.,"GB free, while trying to put an item of size", chunk_size," that is",json.dumps( item, indent=2))
                             sendEmail('possibly going over quota','We have a potential over quota usage while distributing \n%s check transferor logs'%(json.dumps( item, indent=2)))
                     at.add( picked_site )
                 #print list(at)
@@ -4465,7 +4465,7 @@ def getDatasetEventsAndLumis(dataset, blocks=None):
             time.sleep(2)
             r = try_getDatasetEventsAndLumis( dataset, blocks)
         except Exception as e:
-            print "fatal exception in getDatasetEventsAndLumis",dataset,blocks
+            print("fatal exception in getDatasetEventsAndLumis",dataset,blocks)
             #sendEmail("fatal exception in getDatasetEventsAndLumis",str(e)+dataset)
             sendLog('getDatasetEventsAndLumis','fatal execption in processing getDatasetEventsAndLumis for %s \n%s'%( dataset, str(e)), level='critical')
             r = 0,0
@@ -4556,7 +4556,7 @@ class duplicateAnalyzer:
         that is, there is at least one lumi present in two different
         files
         """
-        for v in graph.values():
+        for v in list(graph.values()):
             if v:
                 return True
         return False
@@ -4569,10 +4569,10 @@ class duplicateAnalyzer:
         red = set()
         green = set()
 
-        for f1, f2d in graph.items():
+        for f1, f2d in list(graph.items()):
             f1red = f1 in red
             f1green = f1 in green
-            for f2 in f2d.keys():
+            for f2 in list(f2d.keys()):
                 f2red = f2 in red
                 f2green = f2 in green
                 #both have no color
@@ -4581,11 +4581,11 @@ class duplicateAnalyzer:
                     green.add(f2)
                 #some has two colors:
                 elif (f1red and f1green) or (f2red and f2green):
-                    print "NOT BIPARTITE GRAPH"
+                    print("NOT BIPARTITE GRAPH")
                     raise Exception("Not a bipartite graph, cannot use this algorithm for removing")
                 #have same color
                 elif (f1red and f2red) or (f1green and f2green):
-                    print "NOT BIPARTITE GRAPH"
+                    print("NOT BIPARTITE GRAPH")
                     raise Exception("Not a bipartite graph, cannot use this algorithm for removing")
 
                 #both are colored but different
@@ -4616,9 +4616,9 @@ class duplicateAnalyzer:
         in two different files)
         """
         files = []
-        print "Initial files:", len(graph)
+        print("Initial files:", len(graph))
         #sort by number of events
-        ls = sorted(graph.keys(), key=lambda x: events[x])
+        ls = sorted(list(graph.keys()), key=lambda x: events[x])
         #quadratic first
         while self._hasEdges(graph):
         #get smallest vertex
@@ -4635,9 +4635,9 @@ class duplicateAnalyzer:
 
     def files_to_remove(self, files_per_lumis):
         lumi_count_per_file = defaultdict(int)
-        for rl,fns in files_per_lumis.items():
+        for rl,fns in list(files_per_lumis.items()):
             for fn in fns: lumi_count_per_file[fn]+=1
-        bad_lumis = dict([(rl,files) for rl,files in files_per_lumis.items() if len(files)>1])
+        bad_lumis = dict([(rl,files) for rl,files in list(files_per_lumis.items()) if len(files)>1])
         graph = self._buildGraph(bad_lumis)
         try:
             files = self._colorBipartiteGraph(graph, lumi_count_per_file)
@@ -4649,7 +4649,7 @@ class duplicateAnalyzer:
 
 def getDatasetLumisAndFiles(dataset, runs=None, lumilist=None, with_cache=False,force=False, check_with_invalid_files_too=False):
     if runs and lumilist:
-        print "should not be used that way"
+        print("should not be used that way")
         return {},{}
     lumis =set()
     if lumilist:
@@ -4668,7 +4668,7 @@ def getDatasetLumisAndFiles(dataset, runs=None, lumilist=None, with_cache=False,
     if not cached:
         ## do the full query
         
-        print "querying getDatasetLumisAndFiles", dataset
+        print("querying getDatasetLumisAndFiles", dataset)
         full_lumi_json = defaultdict(set)
         files_per_lumi = defaultdict(set) ## the revers dictionnary of files by r:l
 
@@ -4701,9 +4701,9 @@ def getDatasetLumisAndFiles(dataset, runs=None, lumilist=None, with_cache=False,
                 for lumi in f['lumi_section_num']:
                     #files_per_lumi[(f['run_num'], lumi)].add( f['logical_file_name'])
                     files_per_lumi['{}:{}'.format(f['run_num'], lumi)].add( f['logical_file_name'])
-        for k,v in full_lumi_json.items():
+        for k,v in list(full_lumi_json.items()):
             full_lumi_json[k] = list(v)
-        for k,v in files_per_lumi.items():
+        for k,v in list(files_per_lumi.items()):
             files_per_lumi[k] = list(v)
 
         cache.store( cache_key,
@@ -4717,15 +4717,15 @@ def getDatasetLumisAndFiles(dataset, runs=None, lumilist=None, with_cache=False,
 
 
     ## need to filter on the runs
-    lumi_json = dict([(int(k),v) for (k,v) in full_lumi_json.items()])
-    files_json = dict([(tuple(map(int,k.split(":"))),v) for (k,v) in files_per_lumi.items()])
+    lumi_json = dict([(int(k),v) for (k,v) in list(full_lumi_json.items())])
+    files_json = dict([(tuple(map(int,k.split(":"))),v) for (k,v) in list(files_per_lumi.items())])
     if runs:
-        lumi_json = dict([(int(k),v) for (k,v) in full_lumi_json.items() if int(k) in runs])
-        files_json = dict([(tuple(map(int,k.split(":"))),v) for (k,v) in files_per_lumi.items() if int(k.split(':')[0]) in runs])
+        lumi_json = dict([(int(k),v) for (k,v) in list(full_lumi_json.items()) if int(k) in runs])
+        files_json = dict([(tuple(map(int,k.split(":"))),v) for (k,v) in list(files_per_lumi.items()) if int(k.split(':')[0]) in runs])
     elif lumilist:
-        runs = map(int(lumilist.keys()))
-        lumi_json = dict([(int(k),v) for (k,v) in full_lumi_json.items() if int(k) in runs])
-        files_json = dict([(tuple(map(int,k.split(":"))),v) for (k,v) in files_per_lumi.items() if map(int,k.split(":")) in lumis])
+        runs = list(map(int(list(lumilist.keys()))))
+        lumi_json = dict([(int(k),v) for (k,v) in list(full_lumi_json.items()) if int(k) in runs])
+        files_json = dict([(tuple(map(int,k.split(":"))),v) for (k,v) in list(files_per_lumi.items()) if list(map(int,k.split(":"))) in lumis])
 
     return lumi_json,files_json
 
@@ -4801,7 +4801,7 @@ def _getDatasetEventsPerLumi(dataset):
 def invalidateFiles( files ):
     all_OK = True
     #conn = make_x509_conn('dynamo.mit.edu')
-    conn  =  httplib.HTTPSConnection('dynamo.mit.edu', cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+    conn  =  http.client.HTTPSConnection('dynamo.mit.edu', cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
     for fn in files:
         if not all_OK :break ## stop at the first file
         try:
@@ -4809,10 +4809,10 @@ def invalidateFiles( files ):
             r2 = conn.getresponse()
             res = json.loads(r2.read())
             all_OK = res['result'] == 'OK'
-            print fn,"set for invalidation"
+            print(fn,"set for invalidation")
         except Exception as e:
-            print str(e)
-            print "could not set to invalidate", fn
+            print(str(e))
+            print("could not set to invalidate", fn)
             all_OK = False
 
     return all_OK
@@ -4824,7 +4824,7 @@ def checkParent( dataset ):
     ## get the parent dataset
     parents = findParent(dataset)
     if len(parents)>1:
-        print "this is clearly a pb"
+        print("this is clearly a pb")
         return False
 
     parents = parents[:1]
@@ -4835,11 +4835,11 @@ def checkParent( dataset ):
     _,f = getDatasetLumisAndFiles(dataset)
     checked = {}
     file_parent_fixing = defaultdict(set)
-    print len(f),"lumis to check"
+    print(len(f),"lumis to check")
     icount=0
-    for rl,fns in f.items():
+    for rl,fns in list(f.items()):
         icount+=1
-        if icount%50==0: print icount,'/',len(f)
+        if icount%50==0: print(icount,'/',len(f))
         for fn in fns:
             ### get their parents
             file_parents = set()
@@ -4849,14 +4849,14 @@ def checkParent( dataset ):
 
             ## if none, make an alarm and fix it
             if not file_parents:
-                print "from DBS",fn,"has no parent"
+                print("from DBS",fn,"has no parent")
                 for parent in parents:
                     file_parents.update(p_f[parent].get(rl, []))
-                print "\t found",sorted(file_parents)
+                print("\t found",sorted(file_parents))
             if not file_parents:
                 ## this is really an issue and new lumisections were made
-                print rl,"is really problematic in",dataset
-                print "not present in",parents
+                print(rl,"is really problematic in",dataset)
+                print("not present in",parents)
             else:
                 ### dbs api to write the parent configuration
                 file_parent_fixing[fn].update(file_parents)
@@ -4891,7 +4891,7 @@ def setFileStatus(file_names, validate=True):
         status = fn['is_file_valid']
         if status != validate:
             ## then change the status
-            print "Turning",fn['logical_file_name'],"to",validate
+            print("Turning",fn['logical_file_name'],"to",validate)
             dbswrite.updateFileStatus( logical_file_name= fn['logical_file_name'], is_file_valid = int(validate) )
 
 
@@ -4903,7 +4903,7 @@ def _setDatasetStatus(dataset, status, withFiles=True):
     new_status = getDatasetStatus( dataset )
     if new_status == None:
         ## means the dataset does not exist in the first place
-        print "setting dataset status",status,"to inexistant dataset",dataset,"considered succeeding"
+        print("setting dataset status",status,"to inexistant dataset",dataset,"considered succeeding")
         return True
 
     file_status = -1
@@ -4942,7 +4942,7 @@ def getDatasets(dataset):
         try:
             return _getDatasets(dataset)
         except Exception as e:
-            print "[%d] Failed on %s with \n%s"%(count,label,str(e))
+            print("[%d] Failed on %s with \n%s"%(count,label,str(e)))
             time.sleep(5)
     raise Exception("Failed on %s with \n%s"%( label,str(e)))
     
@@ -4977,7 +4977,7 @@ def injectFile(url, info):
         #print x
         #print params
         r = phedexPost(url, '/phedex/datasvc/json/prod/inject', params)
-        print json.dumps( r , indent=2)
+        print(json.dumps( r , indent=2))
 
 def createBlockXML(dataset_blocks):
     impl=getDOMImplementation()
@@ -5022,7 +5022,7 @@ def createFileXML(dataset_block_file_locations):
             xdataset.appendChild(xblock)
             for file_o in dataset_block_file_locations[dataset][block]:
                 xfile = doc.createElement("file")
-                for k,v in file_o.items():
+                for k,v in list(file_o.items()):
                     ## should be name, bytes, checksum
                     xfile.setAttribute(k,str(v))
                     xblock.appendChild(xfile)
@@ -5054,17 +5054,17 @@ def createXML(datasets):
 def phedexPost(url, request, params):
     conn = make_x509_conn(url)
     #conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
-    encodedParams = urllib.urlencode(params, doseq=True)
+    encodedParams = urllib.parse.urlencode(params, doseq=True)
     r1 = conn.request("POST", request, encodedParams)
     r2 = conn.getresponse()
     res = r2.read()
     try:
         result = json.loads(res)
     except:
-        print "PHEDEX error. Response: ",res
-	print "\t- URL: {}".format(url)
-	print "\t- POST Request: {}".format(request)
-	print "\t- Params: {}".format(encodedParams)
+        print("PHEDEX error. Response: ",res)
+	print("\t- URL: {}".format(url))
+	print("\t- POST Request: {}".format(request))
+	print("\t- Params: {}".format(encodedParams))
         return None
     conn.close()
     return result
@@ -5151,7 +5151,7 @@ def makeDeleteRequest(url, site,datasets, comments):
                #"delete":"y",
                "comments":comments
                }
-    print site
+    print(site)
     response = phedexPost(url, "/phedex/datasvc/json/prod/delete", params)
     return response
 
@@ -5192,7 +5192,7 @@ def allCompleteToAnaOps(url, dataset):
     for dataset in subs['dataset']:
         for sub in dataset['subscription']:
             if sub['group'] == 'DataOps' and sub['percent_bytes']==100 and not any([v in sub['node'] for v in ['MSS','Export','Buffer']]):
-                print dataset['name'],"on",sub['node'],"changed to Anaops"
+                print(dataset['name'],"on",sub['node'],"changed to Anaops")
                 updateSubscription(reqmgr_url, sub['node'], dataset['name'], user_group='AnalysisOps')
 
 def getWorkLoad(url, wf ):
@@ -5203,7 +5203,7 @@ def getWorkLoad(url, wf ):
         try:
             return _getWorkLoad(url, wf )
         except:
-            print "failed twice to _getWorkLoad(url, wf )"
+            print("failed twice to _getWorkLoad(url, wf )")
             return None
 def getReqmgrInfo(url):
     conn = make_x509_conn(url)
@@ -5276,7 +5276,7 @@ def getWorkflowByCampaign(url, campaign, details=False):
         ## list of dict
         r = []
         for it in data:
-            r.extend( it.values())
+            r.extend( list(it.values()))
         return r
     else:
         return data
@@ -5336,7 +5336,7 @@ def getLatestMCPileup( url, statuses=None):
 
     reqs = []
     for status in statuses:
-        print status
+        print(status)
         conn = make_x509_conn(url)
         #conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
         r1=conn.request("GET",'/reqmgr2/data/request?mask=RequestDate&mask=MCPileup&status=%s'%status, headers={"Accept":"application/json"})
@@ -5347,15 +5347,15 @@ def getLatestMCPileup( url, statuses=None):
 
     those = defaultdict(set)
     for req in reqs:
-        for v in req.values():
+        for v in list(req.values()):
             t = v.get('MCPileup',None)
             d = v.get('RequestDate',[])
             if t and len(d)==6:
-                d =time.mktime(time.strptime("-".join(map(lambda n : "%02d"%int(n), d)), "%Y-%m-%d-%H-%M-%S"))
+                d =time.mktime(time.strptime("-".join(["%02d"%int(n) for n in d]), "%Y-%m-%d-%H-%M-%S"))
                 for tt in t:
                     those[tt].add( d )
     ret = {}
-    for dataset,ages in those.items():
+    for dataset,ages in list(those.items()):
         ret[dataset] = max(ages)
     return ret
 
@@ -5436,36 +5436,36 @@ def invalidate(url, wfi, only_resub=False, with_output=True):
     return check
 
 def _invalidate(url, wfi, only_resub=False, with_output=True):
-    import reqMgrClient
+    from . import reqMgrClient
     familly = wfi.getFamilly( and_self=True, only_resub=only_resub)
     outs = set()
     check = []
     for fwl in familly:
-        print "checking wf family:", fwl['RequestName'], fwl['RequestStatus'], fwl['OutputDatasets']
+        print("checking wf family:", fwl['RequestName'], fwl['RequestStatus'], fwl['OutputDatasets'])
         check.append(reqMgrClient.invalidateWorkflow(url, fwl['RequestName'], current_status=fwl['RequestStatus'], cascade=False))
         outs.update( fwl['OutputDatasets'] )
     if with_output:
         for dataset in outs:
-            print "printing datasets again", dataset
+            print("printing datasets again", dataset)
             check.append(setDatasetStatus(dataset, 'INVALID'))
     check = [r in ['None',None,True] for r in check]
     return check
 
 def forceComplete(url, wfi):
-    import reqMgrClient
+    from . import reqMgrClient
     familly = getWorkflowById( url, wfi.request['PrepID'] ,details=True)
     for member in familly:
-        print "considering",member['RequestName'],"as force complete"
+        print("considering",member['RequestName'],"as force complete")
         ### if member['RequestName'] == wl['RequestName']: continue ## set himself out
         if member['RequestDate'] < wfi.request['RequestDate']: continue
         if member['RequestStatus'] in ['None',None]: continue
         ## then set force complete all members
         if member['RequestStatus'] in ['running-open','running-closed']:
             #sendEmail("force completing","%s is worth force completing\n%s"%( member['RequestName'] , percent_completions))
-            print "setting",member['RequestName'],"force-complete"
+            print("setting",member['RequestName'],"force-complete")
             reqMgrClient.setWorkflowForceComplete(url, member['RequestName'])
         elif member['RequestStatus'] in ['acquired','assignment-approved']:
-            print "rejecting",member['RequestName']
+            print("rejecting",member['RequestName'])
             reqMgrClient.invalidateWorkflow(url, member['RequestName'], current_status=member['RequestStatus'])
 
 def agentInfoDB():
@@ -5498,9 +5498,9 @@ class agentInfo:
         self.m_release = defaultdict(set)
         self.ready = self.getStatus()
         if not self.ready:
-            print "AgentInfo could not initialize properly"
+            print("AgentInfo could not initialize properly")
         #print json.dumps(self.buckets, indent=2)
-        print json.dumps(self.content(), indent=2)
+        print(json.dumps(self.content(), indent=2))
 
     def content(self):
         ## same as 
@@ -5538,7 +5538,7 @@ class agentInfo:
         #return 'N/A'
 
     def checkTrello(self, sync_trello=None, sync_agents=None, acting=False):
-        from TrelloClient import TrelloClient
+        from .TrelloClient import TrelloClient
         if not hasattr(self, 'tc'):
             self.tc = TrelloClient()
         tc = self.tc
@@ -5554,15 +5554,15 @@ class agentInfo:
             lid_name = tc.getList(ln=lid).get('name')
             clid = ti.get('idList',None)
             if lid and clid and lid!=clid:
-                print "there is a mismatch for agent",agent
-                print "sync_trello",sync_trello,"sync_agents",sync_agents
+                print("there is a mismatch for agent",agent)
+                print("sync_trello",sync_trello,"sync_agents",sync_agents)
                 if sync_trello==True or (sync_trello and agent in sync_trello):
-                    print "changing",agent,"into list",lid,lid_name
+                    print("changing",agent,"into list",lid,lid_name)
                     if acting:
                         tc.changeList( cn = agent, ln = lid )
                 if sync_agents==True or (sync_agents and agent in sync_agents):
                     ## make the operation locally
-                    print "Should operate on the agent",agent
+                    print("Should operate on the agent",agent)
                     do_drain = False
                     new_status = None
                     if clid == tc.lists.get('draining'):
@@ -5584,11 +5584,11 @@ class agentInfo:
                         do_drain = True
                         new_status = 'offline'
                     else:
-                        print "trello status",clid,"not recognized"
+                        print("trello status",clid,"not recognized")
                         continue
 
                     ## operate the agent
-                    print "wish to operate",agent,do_drain,new_status
+                    print("wish to operate",agent,do_drain,new_status)
                     if acting:
                         setAgentDrain(self.url, agent, drain=do_drain)
                         ## change the local information
@@ -5605,13 +5605,13 @@ class agentInfo:
         all_agents_prod = getAllAgents(self.url).get('production',None)
         if not all_agents_prod:
             ## we cannot go on like that. there is something disruptive here
-            print "cannot get production agent information"
+            print("cannot get production agent information")
             return False
         prod_info = dict([(a['agent_url'].split(':')[0], a) for a in all_agents_prod])
-        all_agents_name = sorted(set(self.all_agents + prod_info.keys()))
+        all_agents_name = sorted(set(self.all_agents + list(prod_info.keys())))
         ## do you want to use this to make an alarm on agent in error for too long ?
         self.in_error = [a['agent_url'].split(':')[0] for a in all_agents_prod if a.get('down_components',[])]
-        print "agents with errors",self.in_error
+        print("agents with errors",self.in_error)
 
         now,nows = self.getNow()
         def drained( stats ):
@@ -5631,10 +5631,10 @@ class agentInfo:
             is_drained = False
                 
             if self.verbose:
-                print agent
-                print linfo
-                print pinfo
-                print "drained",is_drained
+                print(agent)
+                print(linfo)
+                print(pinfo)
+                print("drained",is_drained)
 
             if release:
                 self.release[ release ].add( str(agent) )
@@ -5665,7 +5665,7 @@ class agentInfo:
                     st = 'standby'
                     ## for the first time
                     #st = 'draining'
-                    print "A new agent in the pool",agent,"setting",st
+                    print("A new agent in the pool",agent,"setting",st)
 
                 ## add it
                 self._update(agent, {'status' : st,
@@ -5673,7 +5673,7 @@ class agentInfo:
                                      'date' : nows }
                          )
                 if self.verbose:
-                    print self._getA(agent)
+                    print(self._getA(agent))
 
             if release:
                 self._update(agent, {'version': release})
@@ -5687,7 +5687,7 @@ class agentInfo:
             #sendEmail('agentInfo', msg)
 
         if self.verbose:
-            print json.dumps( self.buckets, indent=2)
+            print(json.dumps( self.buckets, indent=2))
 
         return True
 
@@ -5707,14 +5707,14 @@ class agentInfo:
     def flag_standby(self, agent):
         if self._getA(agent).get('status',None) == 'draining':
             if self.verbose:
-                print "Able to set",agent,"in standby"
+                print("Able to set",agent,"in standby")
             self.change_status( agent, 'standby')
         else:
-            print "not changing status from",self._getA(agent).get('status',None)
+            print("not changing status from",self._getA(agent).get('status',None))
 
     def poll(self, wake_up_draining=False, acting=False, verbose=False):
         if not self.ready:
-            print "cannot poll the agents without fresh information about them"
+            print("cannot poll the agents without fresh information about them")
             return False
 
         verbose = verbose or self.verbose
@@ -5799,9 +5799,9 @@ class agentInfo:
                 m_r = '.'.join( r.split('.')[:3]) ## limit to major three numbers
                 self.m_release[m_r].add( ra )
 
-        rel_num = [(r, map(lambda frag : int(frag.replace('patch','')), r.split('.'))) for r in self.release.keys()]
+        rel_num = [(r, [int(frag.replace('patch','')) for frag in r.split('.')]) for r in list(self.release.keys())]
         rel_num = sorted( rel_num, key = lambda o: o[1], reverse=True)
-        m_rel_num = [(r, map(lambda frag : int(frag.replace('patch','')), r.split('.'))) for r in self.m_release.keys()]
+        m_rel_num = [(r, [int(frag.replace('patch','')) for frag in r.split('.')]) for r in list(self.m_release.keys())]
         m_rel_num = sorted( m_rel_num , key = lambda o: o[1], reverse=True)
         #print rel_num
         sorted_release = [r[0] for r in rel_num]
@@ -5821,7 +5821,7 @@ class agentInfo:
         speed_draining = set()
         open_draining = set()
         wake_up_metric = []
-        for agent,ainfo in all_agents.items():
+        for agent,ainfo in list(all_agents.items()):
             if not 'Name' in ainfo: continue
             agent_name = ainfo['Name']
             if not agent_name in self.all_agents: continue
@@ -5839,7 +5839,7 @@ class agentInfo:
         runnings = self.buckets.get('running',[])
         drainings = self.buckets.get('draining',[])
         standbies = self.buckets.get('standby',[])
-        for agent,ainfo in all_agents.items():
+        for agent,ainfo in list(all_agents.items()):
             if not 'Name' in ainfo: continue
             agent_name = ainfo['Name']
             if not agent_name in self.all_agents: continue
@@ -5852,7 +5852,7 @@ class agentInfo:
             light = (r <= t*self.idle_fraction)
 
             if verbose:
-                print json.dumps(ainfo, indent=2)
+                print(json.dumps(ainfo, indent=2))
             if agent_name in drainings:
                 if not agent_name in self.release[oldest_release]:
                     ## you can candidate those not running the oldest release, and in drain
@@ -5883,9 +5883,9 @@ class agentInfo:
 
                 capacity += t
                 if verbose:
-                    print agent
-                    print "is Stuffed?",stuffed
-                    print "is underused?",light
+                    print(agent)
+                    print("is Stuffed?",stuffed)
+                    print("is underused?",light)
                 over_threshold &= stuffed
 
                 light = False ## prevent this for now
@@ -5901,24 +5901,24 @@ class agentInfo:
 
 
         if verbose or verbose or True:
-            print "agent releases",sorted_release
-            print "agent major releases",sorted_m_release
-            print "latest release",top_release
-            print "latest major release",top_m_release
-            print "oldest release",oldest_release
-            print "oldest major release",oldest_m_release
-            print "Capacity",capacity
-            print "Running jobs", running
-            print "Running cpus", cpu_running
-            print "Pending jobs", pending
-            print "Pending cpus",cpu_pending
-            print "Running lastest release",running_top_release
-            print "Standby in latest release",standby_top_release
-            print "Running with old release",running_old_release
-            print "These are candidates for draining",sorted(candidates_to_drain)
-            print "These are good for speed drainig",sorted(speed_draining)
-            print "These are good for open draining",sorted(open_draining)
-            print "These are fully empty",sorted(fully_empty)
+            print("agent releases",sorted_release)
+            print("agent major releases",sorted_m_release)
+            print("latest release",top_release)
+            print("latest major release",top_m_release)
+            print("oldest release",oldest_release)
+            print("oldest major release",oldest_m_release)
+            print("Capacity",capacity)
+            print("Running jobs", running)
+            print("Running cpus", cpu_running)
+            print("Pending jobs", pending)
+            print("Pending cpus",cpu_pending)
+            print("Running lastest release",running_top_release)
+            print("Standby in latest release",standby_top_release)
+            print("Running with old release",running_old_release)
+            print("These are candidates for draining",sorted(candidates_to_drain))
+            print("These are good for speed drainig",sorted(speed_draining))
+            print("These are good for open draining",sorted(open_draining))
+            print("These are fully empty",sorted(fully_empty))
         if not acting:
             speed_draining = set()
             open_draining = set()
@@ -5954,28 +5954,28 @@ class agentInfo:
                 if release_deploy:
                     drain_agent = True
         else:
-            print "An agent was recently put in running/draining/standby. Cannot do any further acting for another %s last running or %s last standby"% (display_time(timeout_action),
-                                                                                                                                        display_time(timeout_last_standby))
+            print("An agent was recently put in running/draining/standby. Cannot do any further acting for another %s last running or %s last standby"% (display_time(timeout_action),
+                                                                                                                                        display_time(timeout_last_standby)))
             candidates_to_wakeup = candidates_to_wakeup - fully_empty
         if need_one:
             pick_from = self.buckets.get('standby',[])
             if not pick_from:
                 if wake_up_draining:
-                    print "wake up an agent that was already draining"
+                    print("wake up an agent that was already draining")
                     if candidates_to_wakeup:
-                        print "picking up from candidated agents"
+                        print("picking up from candidated agents")
                         pick_from = candidates_to_wakeup
                     else:
-                        print "picking up from draining agents"
+                        print("picking up from draining agents")
                         pick_from = self.buckets.get('draining',[])
 
                     ## order by the metric
                     pick_from = [o[0] for o in sorted([(a,m) for (a,m) in wake_up_metric if a in pick_from ], key = lambda o:o[1], reverse=True)]
-                    print wake_up_metric
-                    print pick_from
+                    print(wake_up_metric)
+                    print(pick_from)
                     pick_from = pick_from[:1]
             if not pick_from:
-                print "need to wake an agent up, but there are none available"
+                print("need to wake an agent up, but there are none available")
                 ## this is a major issue!!!
                 msg = 'We urgently need a new agent in the pool, but none seem to be available'
                 sendEmail('agentInfo', msg)
@@ -5983,7 +5983,7 @@ class agentInfo:
             else:
                 # pick one at random in the one idling
                 wake_up = random.choice( pick_from )
-                print "waking up", wake_up
+                print("waking up", wake_up)
                 if wake_up in speed_draining: speed_draining.remove( wake_up )
                 if wake_up in open_draining: open_draining.remove( wake_up )
                 if setAgentOn(self.url, wake_up):
@@ -6003,15 +6003,15 @@ class agentInfo:
                     manipulated_agents.add( sleep_up )
                     self.change_status(sleep_up, 'draining')
             else:
-                print "Agents need to be set in drain, but nothing is there to be drained"
+                print("Agents need to be set in drain, but nothing is there to be drained")
 
         elif retire_agent:
             # pick one with most running jobs
             if candidates_to_standby:
-                print "picking up from the candidated agents for standby"
+                print("picking up from the candidated agents for standby")
                 sleep_up = random.choice( list( candidates_to_standby ))
             else:
-                print "picking up from the running agents"
+                print("picking up from the running agents")
                 pick_from = self.buckets.get('running',[])
                 sleep_up = random.choice( pick_from )
             if setAgentDrain(self.url, sleep_up):
@@ -6021,9 +6021,9 @@ class agentInfo:
                 self.change_status(sleep_up, 'standby')
         else:
             if not acting:
-                print "The polling is not proactive"
+                print("The polling is not proactive")
             else:
-                print "Everything is fine. No need to retire or add an agent"
+                print("Everything is fine. No need to retire or add an agent")
 
         for agent in open_draining:
             ## set the config tweaks to enable retry=0 and thresold=0
@@ -6033,7 +6033,7 @@ class agentInfo:
         all_in_priority_drain = set()
         if (already_speed_drain & speed_draining):
             ## lets keep that agent in speed drainig
-            print sorted(already_speed_drain),"already in speed draining. not changing this"
+            print(sorted(already_speed_drain),"already in speed draining. not changing this")
             all_in_priority_drain = already_speed_drain & speed_draining
         else:
             speed_draining = list(speed_draining)
@@ -6086,7 +6086,7 @@ def sendAgentConfig(url, agent, config_dict):
 def addAgentNoRetry(url, agent, error_codes):
     info = getAgentConfig(url, agent)
     already = info['NoRetryExitCodes']
-    print "Already in noretry",sorted( already )
+    print("Already in noretry",sorted( already ))
     already.extend( error_codes )
     info['NoRetryExitCodes'] = list(set(already))
     return sendAgentConfig(url, agent, info)
@@ -6094,7 +6094,7 @@ def addAgentNoRetry(url, agent, error_codes):
 def setAgentDrain(url, agent, drain=True):
     #the agent name has to have .cern.ch and all
     info = getAgentConfig(url, agent)
-    print agent,"is draining?",info['UserDrainMode']
+    print(agent,"is draining?",info['UserDrainMode'])
 
     info['UserDrainMode'] = drain
     r = sendAgentConfig(url, agent, info)
@@ -6130,7 +6130,7 @@ def _getWorkflowsByName(url, names, details=False):
     conn = make_x509_conn(url)
 
     go_to = '/reqmgr2/data/request?'
-    if isinstance(names, basestring):
+    if isinstance(names, str):
         names = [names]
     for wfName in names:
         go_to += '&name=%s' % wfName
@@ -6142,11 +6142,11 @@ def _getWorkflowsByName(url, names, details=False):
     items = data['result']
 
     if details and items:
-        workflows = items[0].values()
+        workflows = list(items[0].values())
     else:
         workflows = items
 
-    print "%d retrieved for %d workflow names with details: %s" % (len(workflows), len(names), details)
+    print("%d retrieved for %d workflow names with details: %s" % (len(workflows), len(names), details))
     return workflows
 
 def getWorkflows(url,status,user=None,details=False,rtype=None, priority=None):
@@ -6165,7 +6165,7 @@ def try_getWorkflows(url,status,user=None,details=False,rtype=None, priority=Non
         for u in user.split(','):
             go_to+='&requestor=%s'%u
     if priority!=None:
-        print priority,"is requested"
+        print(priority,"is requested")
         go_to+='&initialpriority=%d'%priority ### does not work...
 
     go_to+='&detail=%s'%('true' if details else 'false')
@@ -6174,12 +6174,12 @@ def try_getWorkflows(url,status,user=None,details=False,rtype=None, priority=Non
     data = json.loads(r2.read())
     items = data['result']
 
-    print len(items),"retrieved",status,user,details,rtype
+    print(len(items),"retrieved",status,user,details,rtype)
     workflows = []
 
     for item in items:
         if details:
-            those = item.keys()
+            those = list(item.keys())
         else:
             those = [item]
 
@@ -6271,9 +6271,9 @@ def getListOfBlocks(inputdset,runwhitelist):
         blocks=dbsApi.listBlocks(dataset = inputdset, run_num = runwhitelist)
     except Exception as e:
 	print("Problem with listBlocks query from DBSAPI")
-	print("dataset = {}".format(inputdset))
- 	print("run_num = {}".format(runwhiteist))
-	print(str(e))
+	print(("dataset = {}".format(inputdset)))
+ 	print(("run_num = {}".format(runwhiteist)))
+	print((str(e)))
 	raise
 
     block_list = []
@@ -6358,21 +6358,21 @@ def closeAllBlocks(url, dataset, blocks=None):
         for sub in block.get('replica',[]):
             sites.append(sub.get('node'))
         if not sites: 
-            print "ERROR cannot close",bname,"without a location"
+            print("ERROR cannot close",bname,"without a location")
             continue ##a block with no location : how silly
         random.shuffle(sites)
         xml = createBlockXML({dataset: [ bname ]})
         params = { "node" : sites[0],
                    "data" : xml}
         r = phedexPost(url, '/phedex/datasvc/json/prod/inject', params)
-        print json.dumps( r , indent=2)
+        print(json.dumps( r , indent=2))
         ## close the block in dbs
 	try:
             dbswrite.updateBlockStatus( block_name = bname, open_for_writing = 0)
         except Exception as e:
 	    print("Problem with query updateBlockStatus from DBSAPI")
-	    print("block_name = {}".format(bname))
-	    print(str(e))
+	    print(("block_name = {}".format(bname)))
+	    print((str(e)))
 	    raise
 	
 def checkIfBlockIsAtASite(url,block,site):
@@ -6400,7 +6400,7 @@ class wtcInfo:
     def add(self, action, keyword, user=None):
         ##add an item for the action (hold, bypass, force) for the keyword
         if not keyword:
-            print "blank keyword is not allowed"
+            print("blank keyword is not allowed")
             return
         n = time.gmtime()
         now = time.mktime( n )
@@ -6436,14 +6436,14 @@ class wtcInfo:
         for item in self.db.find():
             key = item['keyword']
             if any([key in wfn for wfn in wfns]):
-                print item.get('keyword'),"can go"
+                print(item.get('keyword'),"can go")
                 self.db.delete_one({'_id' : item.get('_id',None)})
             
     def remove(self, keyword):
         ## will remove from the db anything that the item matches on
         for item in self.db.find():
             if item.get('keyword',None) in keyword:
-                print item,"goes away"
+                print(item,"goes away")
                 self.db.delete_one({'_id' : item.get('_id',None)})
 
 class workflowInfo:
@@ -6460,8 +6460,8 @@ class workflowInfo:
                 ret = ret['result'][0][workflow] ##new
                 self.request = ret
             except Exception as e:
-                print "failed to get workload"
-                print str(e)
+                print("failed to get workload")
+                print(str(e))
                 try:
                     r1=self.conn.request("GET",'/couchdb/reqmgr_workload_cache/'+workflow)
                     #r1=self.conn.request("GET",'/reqmgr2/data/request/'+workflow, headers={"Accept":"*/*"}) ## new
@@ -6470,8 +6470,8 @@ class workflowInfo:
                     #ret = ret['result'][0][workflow]## new
                     self.request = ret
                 except Exception as e:
-                    print "Failed to get workload cache for",workflow
-                    print str(e)
+                    print("Failed to get workload cache for",workflow)
+                    print(str(e))
                     raise Exception("Failed to get workload cache for %s"%workflow)
         else:
             self.request = copy.deepcopy( request )
@@ -6565,31 +6565,31 @@ class workflowInfo:
         ## efficiency 
         try:
             time_info = self.getTimeInfoForChain()
-            if debug: print time_info
+            if debug: print(time_info)
             totalTimePerEvent = 0
             efficiency = 0
             max_ncores = 1
-            for i,info in time_info.items():
+            for i,info in list(time_info.items()):
                 totalTimePerEvent += info['tpe']
                 efficiency += info['tpe']*info['cores']
                 if info['cores']>max_ncores: max_ncores = info['cores']
-            if debug: print "Total time per event for TaskChain: %0.1f" % totalTimePerEvent
+            if debug: print("Total time per event for TaskChain: %0.1f" % totalTimePerEvent)
             if totalTimePerEvent > 0:
                 efficiency /= totalTimePerEvent*max_ncores
-                if debug: print "CPU efficiency of StepChain with %u cores: %0.1f%%" % (max_ncores,efficiency*100)
+                if debug: print("CPU efficiency of StepChain with %u cores: %0.1f%%" % (max_ncores,efficiency*100))
                 acceptable_efficiency = efficiency > self.UC.get("efficiency_threshold_for_stepchain")
             else:
                 acceptable_efficiency = False
         except TypeError:
             acceptable_efficiency = False
             if debug:
-                print "Caught TypeError"
+                print("Caught TypeError")
 
         ## only one value throughout the chain
         all_same_cores = len(set(self.getMulticores()))==1
 	#all_same_cores = True
         ##make sure not tow same data tier is produced
-        all_tiers = map(lambda o : o.split('/')[-1], self.request['OutputDatasets'])
+        all_tiers = [o.split('/')[-1] for o in self.request['OutputDatasets']]
         single_tiers = (len(all_tiers) == len(set(all_tiers)))
         #single_tiers = True
         ## more than one task with output until https://github.com/dmwm/WMCore/issues/8269 gets solved
@@ -6611,7 +6611,7 @@ class workflowInfo:
             
         pss = self.processingString()
 	if type(pss)==dict:
-	    pssString = ''.join('{}{}'.format(key, val) for key, val in pss.items())
+	    pssString = ''.join('{}{}'.format(key, val) for key, val in list(pss.items()))
 	else:
 	    pssString = pss
         wf = pssString+self.request['RequestName']
@@ -6623,8 +6623,8 @@ class workflowInfo:
             #print more_than_one_task
             #print found_in_transform_keywords
             #print "single_tiers
-            print "cores",all_same_cores
-            print "parentage",output_from_single_task
+            print("cores",all_same_cores)
+            print("parentage",output_from_single_task)
         return good
 
 
@@ -6633,7 +6633,7 @@ class workflowInfo:
         try:
 
             if mcm == None:
-                from McMClient import McMClient
+                from .McMClient import McMClient
                 mcm = McMClient(dev=False)
             pids = self.getPrepIDs()
             wf_name = self.request['RequestName']
@@ -6644,33 +6644,33 @@ class workflowInfo:
                                 }
                 dedicated_message = message
                 add_batch ="This message concerns PREPID WORKFLOW"
-                for src,dest in replacements.items():
+                for src,dest in list(replacements.items()):
                     dedicated_message = dedicated_message.replace(src, dest)
                     add_batch = add_batch.replace(src, dest)
 
                 batches = mcm.getA('batches',query='contains=%s'%wf_name)
-                batches = filter(lambda b : b['status'] in ['announced','done','reset'], batches)
+                batches = [b for b in batches if b['status'] in ['announced','done','reset']]
                 if not batches:
                     batches = mcm.getA('batches',query='contains=%s'%pid)
-                    batches = filter(lambda b : b['status'] in ['announced','done','reset'], batches)
+                    batches = [b for b in batches if b['status'] in ['announced','done','reset']]
                 if batches:
                     bid = batches[0]['prepid']
-                    print "batch nofication to",bid
+                    print("batch nofication to",bid)
                     if not bid in items_notified:
                         mcm.put('/restapi/batches/notify', { "notes" : dedicated_message+"\n"+add_batch, "prepid" : bid})
                         items_notified.add( bid )
                 if not pid in items_notified:
-                    print "request notification to",pid
+                    print("request notification to",pid)
                     mcm.put('/restapi/requests/notify',{ "message" : dedicated_message, "prepids" : [pid] })
                     items_notified.add( pid )
         except Exception as e:
-            print "could not notify back to requestor\n%s"%str(e)
+            print("could not notify back to requestor\n%s"%str(e))
             self.sendLog('notifyRequestor','could not notify back to requestor\n%s'%str(e))
 
 
     def sendLog( self, subject, text, show=True):
         if show:
-            print text ## to avoid having to duplicate it
+            print(text) ## to avoid having to duplicate it
         self.logs[subject] += '\n'+text
 
     def __del__(self):
@@ -6678,7 +6678,7 @@ class workflowInfo:
 
     def flushLog(self):
         ## flush the logs
-        for sub,text in self.logs.items():
+        for sub,text in list(self.logs.items()):
             sendLog(sub, text, wfi = self, show=False, level='workflow')
 
     def get_spec(self):
@@ -6689,7 +6689,7 @@ class workflowInfo:
             try:
                 return self._get_spec()
             except Exception as e:
-                print "cannot get spec for",self.request['RequestName']
+                print("cannot get spec for",self.request['RequestName'])
                 return None
 
     def _get_spec(self):
@@ -6709,7 +6709,7 @@ class workflowInfo:
                     now = time.mktime(time.gmtime())
                     stamp = d_cache['timestamp']
                     if (now-stamp) < cache:
-                        print "wmerrors taken from cache",f_cache
+                        print("wmerrors taken from cache",f_cache)
                         self.errors = d_cache['data']
                         return self.errors
 
@@ -6722,11 +6722,11 @@ class workflowInfo:
                 open(f_cache,'w').write( json.dumps({'timestamp': time.mktime(time.gmtime()),
                                                      'data' : self.errors}))
             except Exception as e:
-                print "failed getting getWMErrors"
-                print str(e)
+                print("failed getting getWMErrors")
+                print(str(e))
             return self.errors
         except:
-            print "Could not get wmstats errors for",self.request['RequestName']
+            print("Could not get wmstats errors for",self.request['RequestName'])
             self.conn = make_x509_conn(self.url)
             #self.conn  =  httplib.HTTPSConnection(self.url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
             return {}
@@ -6735,7 +6735,7 @@ class workflowInfo:
         by_site = self.getDashboard(since, sortby='site')
         picture = {}
         for site in by_site:
-            print "dashboard for",site
+            print("dashboard for",site)
             picture[site] = self.getDashboard(since, cache=cache, sortby='appexitcode', site=site)
         return picture
 
@@ -6750,12 +6750,12 @@ class workflowInfo:
                 stamp = d_cache['timestamp']
                 c_since = d_cache.get('since',0)
                 c_arg = d_cache.get('args',{})
-                if (now-stamp) < cache and since == c_since and all([ c_arg.get(k,None) == args[k] for k in args.keys() ]):
-                    print "dashb taken from cache",f_cache
+                if (now-stamp) < cache and since == c_since and all([ c_arg.get(k,None) == args[k] for k in list(args.keys()) ]):
+                    print("dashb taken from cache",f_cache)
                     self.dashb = d_cache['data']
                     return self.dashb
 
-        dconn = httplib.HTTPConnection('dashb-cms-job.cern.ch')
+        dconn = http.client.HTTPConnection('dashb-cms-job.cern.ch')
 
         dargs={
             'task' : 'wmagent_%s'%self.request['RequestName'],
@@ -6790,7 +6790,7 @@ class workflowInfo:
             if key in dargs:
                 dargs[key] = args[key]
 
-        url = '/dashboard/request.py/jobsummary-plot-or-table2?'+'&'.join( [ '%s=%s'%(k,v) for k,v in dargs.items()] )
+        url = '/dashboard/request.py/jobsummary-plot-or-table2?'+'&'.join( [ '%s=%s'%(k,v) for k,v in list(dargs.items())] )
         r1 = dconn.request('GET',url)
         r2 = dconn.getresponse()
         r = json.loads( r2.read())['summaries']
@@ -6802,8 +6802,8 @@ class workflowInfo:
                                                  'args' : args,
                                                  'data' : self.dashb}))
         except Exception as e:
-            print "failed get dashboard"
-            print str(e)
+            print("failed get dashboard")
+            print(str(e))
             pass
         return self.dashb
 
@@ -6813,9 +6813,9 @@ class workflowInfo:
             try:
                 return self._getWMStats(cache=cache)
             except Exception as e:
-                print "Failed",trials,"at reading getWMStats"
-                print str(e)
-                print self.request['RequestName']
+                print("Failed",trials,"at reading getWMStats")
+                print(str(e))
+                print(self.request['RequestName'])
                 self.conn = make_x509_conn(self.url)
 
             trials-=1
@@ -6830,7 +6830,7 @@ class workflowInfo:
                 now = time.mktime(time.gmtime())
                 stamp = d_cache['timestamp']
                 if (now-stamp) < cache:
-                    print "wmstats taken from cache",f_cache
+                    print("wmstats taken from cache",f_cache)
                     self.wmstats = d_cache['data']
                     return self.wmstats
         r1=self.conn.request("GET",'/wmstatsserver/data/request/%s'%self.request['RequestName'], headers={"Accept":"application/json"})
@@ -6840,8 +6840,8 @@ class workflowInfo:
             open(f_cache,'w').write( json.dumps({'timestamp': time.mktime(time.gmtime()),
                                                  'data' : self.wmstats}) )
         except Exception as e:
-            print "failed getWMStats"
-            print str(e)
+            print("failed getWMStats")
+            print(str(e))
 
         return self.wmstats
 
@@ -6852,11 +6852,11 @@ class workflowInfo:
         for d in doc:
             task = d.get('fileset_name',"")
             if for_task and not task.endswith(for_task):continue
-            all_files.update( d['files'].keys())
+            all_files.update( list(d['files'].keys()))
             for fn in d['files']:
                 files_and_loc[ fn ].update( d['files'][fn]['locations'] )
 
-        print len(all_files),"file in recovery"
+        print(len(all_files),"file in recovery")
         dbsapi = DbsApi(url=dbs_url)
         all_blocks = set()
         all_blocks_loc = defaultdict(set)
@@ -6883,13 +6883,13 @@ class workflowInfo:
 
         file_block_doc = defaultdict( lambda : defaultdict( set ))
         dataset_blocks = set()
-        for _f,_b in file_block_cache.iteritems():
+        for _f,_b in file_block_cache.items():
             file_block_doc[ _b.split('#')[0]][_b].add( _f )
             dataset_blocks.add( _b )
 
         ## skim out the files
-        files_and_loc_noblock = dict([(k,list(v)) for (k,v) in files_and_loc.items() if k in files_no_block])
-        files_and_loc = dict([(k,list(v)) for (k,v) in files_and_loc.items() if k in files_in_block])
+        files_and_loc_noblock = dict([(k,list(v)) for (k,v) in list(files_and_loc.items()) if k in files_no_block])
+        files_and_loc = dict([(k,list(v)) for (k,v) in list(files_and_loc.items()) if k in files_in_block])
         return dataset_blocks,all_blocks_loc,files_in_block,files_and_loc,files_and_loc_noblock
 
     def getRecoveryDoc(self, collection_name=None):
@@ -6899,13 +6899,13 @@ class workflowInfo:
         if 'CollectionName' in self.request and self.request['CollectionName']:
             if collection_name == True:
                 collection_name = self.request['CollectionName']
-                print "using collection name from schema"
+                print("using collection name from schema")
 
         if self.recovery_doc != None:
-            print "returning cached self.recovery_doc"
+            print("returning cached self.recovery_doc")
             return self.recovery_doc
         try:
-            print "using",collection_name
+            print("using",collection_name)
             r1=self.conn.request("GET",'/couchdb/acdcserver/_design/ACDC/_view/byCollectionName?key="%s"&include_docs=true&reduce=false'% collection_name)
             r2=self.conn.getresponse()
             rows = json.loads(r2.read())['rows']
@@ -6913,14 +6913,14 @@ class workflowInfo:
         except:
             self.conn = make_x509_conn(self.url)
             #self.conn  =  httplib.HTTPSConnection(self.url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
-            print "failed to get the acdc document for",self.request['RequestName']
+            print("failed to get the acdc document for",self.request['RequestName'])
             self.recovery_doc = None
         return self.recovery_doc
 
     def getRecoveryInfo(self):
         self.getRecoveryDoc()
         if not self.recovery_doc:
-            print "nothing retrieved"
+            print("nothing retrieved")
             return {},{},{}
         where_to_run = defaultdict(list)
         missing_to_run = defaultdict(int)
@@ -6929,7 +6929,7 @@ class workflowInfo:
         for doc in self.recovery_doc:
             task = doc['fileset_name']
             #print task,doc['files'].keys()
-            for f,info in doc['files'].iteritems():
+            for f,info in doc['files'].items():
                 missing_to_run[task] += info['events']
                 if f.startswith('MCFakeFile'):
                     locations = original_whitelist
@@ -6944,7 +6944,7 @@ class workflowInfo:
     def getPileUpJSON(self, task):
         res = {}
         agents = self.getActiveAgents()
-        agents = map(lambda s : s.split('/')[-1].split(':')[0], agents)
+        agents = [s.split('/')[-1].split(':')[0] for s in agents]
         wf = self.request['RequestName']
         inagent=None
         for agent in agents:
@@ -6955,7 +6955,7 @@ class workflowInfo:
                 inagent=agent
                 res = json.loads(open( dest ).read())
                 break
-            print agent
+            print(agent)
             com = 'scp %s %s'%( src, dest)
             os.system( com )
             if os.path.isfile( dest ):
@@ -6963,9 +6963,9 @@ class workflowInfo:
                 res = json.loads(open( dest ).read())
                 break
         if inagent:
-            print "found PU json in:",inagent
+            print("found PU json in:",inagent)
         else:
-            print "PU json not found"
+            print("PU json not found")
                 
         return res
 
@@ -6988,7 +6988,7 @@ class workflowInfo:
 
         max_blocks = max( count_blocks.values())
         #print json.dumps(count_blocks, indent=2)
-        site_with_enough = [ site for site,count in count_blocks.items() if count > 0.90*max_blocks]
+        site_with_enough = [ site for site,count in list(count_blocks.items()) if count > 0.90*max_blocks]
         SI = global_SI()
         ret = sorted(set([ SI.SE_to_CE(s) for s in ret if not 'Buffer' in s] ))
         inter = sorted(set([ SI.SE_to_CE(s) for s in intersection if not ('Buffer' in s or 'MSS' in s)]))
@@ -7012,35 +7012,35 @@ class workflowInfo:
                 except Exception as e:
                     self.conn = make_x509_conn(self.url)
                     time.sleep(1) ## time-out
-                    print "Failed to get workqueue"
-                    print str(e)
+                    print("Failed to get workqueue")
+                    print(str(e))
                     self.workqueue = []
         return self.workqueue
 
 
     def getJobs(self):
         agents = self.getActiveAgents()
-        agents = map(lambda s : s.split('/')[-1].split(':')[0], agents)
+        agents = [s.split('/')[-1].split(':')[0] for s in agents]
 
         class agentCom:
             def __init__(self, a):
                 self.a = a
             def get(self, wfn):
-                print "connecing to",self.a
+                print("connecing to",self.a)
                 data = os.popen('ssh %s python %s/WmAgentScripts/local.py -w %s'%( self.a, base_dir, wfn)).read()
                 return json.loads( data )['rows']
-        print "Participating",','.join( agents )
+        print("Participating",','.join( agents ))
         collect={}
         n=0
         for agent in agents:
-            print agent
+            print(agent)
             ac = agentCom(agent)
             d= ac.get( self.request['RequestName'] )
             collect[agent] = [i['value'] for i in d]
             an = len( collect[agent] )
             n += an
-            print an,"job(s) found in ",agent
-        print n,"job(s) found in ",len(agents),"agents"
+            print(an,"job(s) found in ",agent)
+        print(n,"job(s) found in ",len(agents),"agents")
         return collect
 
     def getActiveBlocks(self, select=['Running','Acquired']):
@@ -7049,7 +7049,7 @@ class workflowInfo:
         blocks = defaultdict(set)
         selected = set()
         for wqe in wqes:
-            blocks[wqe['Status']].update( wqe['Inputs'].keys() )
+            blocks[wqe['Status']].update( list(wqe['Inputs'].keys()) )
         for s in select:
             selected.update( blocks[s] )
         return blocks,selected
@@ -7099,21 +7099,21 @@ class workflowInfo:
         summary = self.getSummary()
         if summary and 'errors' in summary:
             all_errors = summary['errors']
-            for task,errors in all_errors.items():
-                print "\tTask",task
+            for task,errors in list(all_errors.items()):
+                print("\tTask",task)
                 ## filtering of tasks we do not care about
                 if 'Clean' in task: continue
                 all_codes = []
-                for name, codes in errors.items():
+                for name, codes in list(errors.items()):
                     if type(codes)==int: continue
-                    all_codes.extend( [(int(code),info['jobs'],name,list(set([e['type'] for e in info['errors']])),list(set([e['details'] for e in info['errors']])) ) for code,info in codes.items()] )
+                    all_codes.extend( [(int(code),info['jobs'],name,list(set([e['type'] for e in info['errors']])),list(set([e['details'] for e in info['errors']])) ) for code,info in list(codes.items())] )
 
                 all_codes.sort(key=lambda i:i[1], reverse=True)
                 sum_failed = sum([l[1] for l in all_codes])
                 for errorCode,njobs,name,types,details in all_codes:
                     rate = 100*njobs/float(sum_failed)
                     #print ("\t\t %10d (%6s%%) failures with error code %10d (%"+str(max_legend)+"s) at stage %s")%(njobs, "%4.2f"%rate, errorCode, legend, name)
-                    print ("\t\t %10d (%6s%%) failures with error code %10d (%30s) at stage %s")%(njobs, "%4.2f"%rate, errorCode, ','.join(types), name)
+                    print(("\t\t %10d (%6s%%) failures with error code %10d (%30s) at stage %s")%(njobs, "%4.2f"%rate, errorCode, ','.join(types), name))
 
                     added_in_recover=False
                     if errorCode in error_codes_to_recover:
@@ -7125,19 +7125,19 @@ class workflowInfo:
                                 matched=False
                                 for detail in details:
                                     if match in detail:
-                                        print "[recover] Could find keyword",match,"in"
-                                        print 50*"#"
-                                        print detail
-                                        print 50*"#"
+                                        print("[recover] Could find keyword",match,"in")
+                                        print(50*"#")
+                                        print(detail)
+                                        print(50*"#")
                                         matched = True
                                         break
                             if matched and rate > case['rate']:
-                                print "\t\t => we should be able to recover that", case['legend']
+                                print("\t\t => we should be able to recover that", case['legend'])
                                 task_to_recover[task].append( (code,case) )
                                 added_in_recover=True
                                 message_to_user = ""
                             else:
-                                print "\t\t recoverable but not frequent enough, needs",case['rate']
+                                print("\t\t recoverable but not frequent enough, needs",case['rate'])
 
                     if errorCode in error_codes_to_block:
                         for case in error_codes_to_block[errorCode]:
@@ -7147,21 +7147,21 @@ class workflowInfo:
                                 matched=False
                                 for detail in details:
                                     if match in detail:
-                                        print "[block] Could find keyword",match,"in"
-                                        print 50*"#"
-                                        print detail
-                                        print 50*"#"
+                                        print("[block] Could find keyword",match,"in")
+                                        print(50*"#")
+                                        print(detail)
+                                        print(50*"#")
                                         matched = True
                                         break
                             if matched and rate > case['rate']:
-                                print "\t\t => that error means no ACDC on that workflow", case['legend']
+                                print("\t\t => that error means no ACDC on that workflow", case['legend'])
                                 if not options.go:
                                     message_to_ops += "%s has an error %s blocking an ACDC.\n%s\n "%( wfo.name, errorCode, '#'*50 )
                                     recover = False
                                     added_in_recover=False
 
                     if errorCode in error_codes_to_notify and not added_in_recover:
-                        print "\t\t => we should notify people on this"
+                        print("\t\t => we should notify people on this")
                         message_to_user += "%s has an error %s in processing.\n%s\n" %( wfo.name, errorCode, '#'*50 )
 
 
@@ -7174,7 +7174,7 @@ class workflowInfo:
             gmon = json.loads(os.popen('curl -s http://cms-gwmsmon.cern.ch/prodview/json/%s/summary'%self.request['RequestName']).read())
             return gmon
         except:
-            print "cannot get glidemon info",self.request['RequestName']
+            print("cannot get glidemon info",self.request['RequestName'])
             return None
 
     def _tasks(self):
@@ -7222,7 +7222,7 @@ class workflowInfo:
                     elif 'RequestNumEvents' in task:
                         ne = float(task['RequestNumEvents'])
                     else:
-                        print "this is not supported, making it zero cput"
+                        print("this is not supported, making it zero cput")
                         ne = 0
                     tpe =task.get('TimePerEvent',1) ## harsh
                     carry_on[task['%sName'%base]] = ne
@@ -7278,7 +7278,7 @@ class workflowInfo:
         if resource:
             return ct / resource
         else:
-            print "cannot compute system time for",self.request['RequestName']
+            print("cannot compute system time for",self.request['RequestName'])
             return 0
 
     def getBlowupFactors(self):
@@ -7294,7 +7294,7 @@ class workflowInfo:
                 t=task['splittingTask']
                 for k in ['events_per_job','avg_events_per_job']:
                     if k in task: c_size = task[k]
-                parents = filter(lambda o : t.startswith(o['splittingTask']) and t!=o['splittingTask'], splits)
+                parents = [o for o in splits if t.startswith(o['splittingTask']) and t!=o['splittingTask']]
                 if parents:
                     for parent in parents:
                         for k in ['events_per_job','avg_events_per_job']:
@@ -7350,7 +7350,7 @@ class workflowInfo:
         if pickone:
             sites_allowed = sorted([SI.pick_CE( sites_allowed )])
 
-        print("Initially allow {}".format(sites_allowed))
+        print(("Initially allow {}".format(sites_allowed)))
 
         # do further restrictions based on memory
         # do further restrictions based on blow-up factor
@@ -7362,9 +7362,9 @@ class workflowInfo:
             new_sites_allowed = list(set(sites_allowed) & set([site for site in sites_allowed if SI.cpu_pledges[site] > needed_cores]))
             if new_sites_allowed :
                 sites_allowed = new_sites_allowed
-                print "swaping",verbose
+                print("swaping",verbose)
                 if verbose:
-                    print "restricting site white list because of blow-up factor",min_child_job_per_event, root_job_per_event, max_blow_up
+                    print("restricting site white list because of blow-up factor",min_child_job_per_event, root_job_per_event, max_blow_up)
 
         CI = campaignInfo()
         for campaign in self.getCampaigns():
@@ -7372,7 +7372,7 @@ class workflowInfo:
             c_sites_allowed.extend(CI.parameters(campaign).get('SiteWhitelist',[]))
             if c_sites_allowed:
                 if verbose:
-                    print "Using site whitelist restriction by campaign,",campaign,"configuration",sorted(c_sites_allowed)
+                    print("Using site whitelist restriction by campaign,",campaign,"configuration",sorted(c_sites_allowed))
                 sites_allowed = list(set(sites_allowed) & set(c_sites_allowed))
                 if not sites_allowed:
                     sites_allowed = list(c_sites_allowed)
@@ -7381,8 +7381,8 @@ class workflowInfo:
             c_black_list.extend( CI.parameters(campaign).get('SiteBlacklist', []))
             if c_black_list:
                 if verbose:
-                    print "Reducing the whitelist due to black list in campaign configuration"
-                    print "Removing",sorted(c_black_list)
+                    print("Reducing the whitelist due to black list in campaign configuration")
+                    print("Removing",sorted(c_black_list))
                 sites_allowed = list(set(sites_allowed) - set(c_black_list))
 
         #ncores = self.request.get('Multicore',1)
@@ -7392,14 +7392,14 @@ class workflowInfo:
         if memory_allowed!=None:
             ## mask to sites ready for mcore
             if verbose:
-                print ("[INFO] Sites allowing {} MB and {} core are".format(mem, ncores, sorted(memory_allowed)))
+                print(("[INFO] Sites allowing {} MB and {} core are".format(mem, ncores, sorted(memory_allowed))))
             if  ncores>1:
                 memory_allowed = list(set(memory_allowed) & set(SI.sites_mcore_ready))
             if verbose:
-                print ("[INFO] Sites ready for multicore: {}".format(sorted(list(set(SI.sites_mcore_ready)))))
+                print(("[INFO] Sites ready for multicore: {}".format(sorted(list(set(SI.sites_mcore_ready))))))
             sites_removed = list(set(sites_allowed) - set(memory_allowed))
             sites_allowed = list(set(sites_allowed) & set(memory_allowed))
-        print("Removing sites due to {} MB and {} core(s) requirements: {}".format(mem, ncores, sorted(sorted(sites_removed))))
+        print(("Removing sites due to {} MB and {} core(s) requirements: {}".format(mem, ncores, sorted(sorted(sites_removed)))))
 
         ## check on CC7 compatibility
         archs = self.getArchs()
@@ -7407,9 +7407,9 @@ class workflowInfo:
         if not arch_allowed is None:
             sites_removed = list(set(sites_allowed) - set(arch_allowed))
             sites_allowed = list(set(arch_allowed) & set(sites_allowed))
-            print("[INFO] Sites allowing {}: {}".format(archs, sorted(list(arch_allowed))))
-            print "Reducing the whitelist to sites allowing",archs,". Removing ",sorted(sites_removed)
-        print("After all of these, allowing: {}".format(sorted(sites_allowed)))
+            print(("[INFO] Sites allowing {}: {}".format(archs, sorted(list(arch_allowed)))))
+            print("Reducing the whitelist to sites allowing",archs,". Removing ",sorted(sites_removed))
+        print(("After all of these, allowing: {}".format(sorted(sites_allowed))))
         return (lheinput,primary,parent,secondary,sites_allowed)
 
     def checkSplitting(self):
@@ -7433,10 +7433,10 @@ class workflowInfo:
                 tname = spl['taskName'].split('/')[-1]
                 avg_events_per_job = task.get('events_per_job',None)
                 if avg_events_per_job and sizeperevent and (avg_events_per_job * sizeperevent ) > (GB_space_limit*1024.**2):
-                    print "The output size of task %s is expected to be large : %d x %.2f kB = %.2f GB > %f GB "% ( tname ,
+                    print("The output size of task %s is expected to be large : %d x %.2f kB = %.2f GB > %f GB "% ( tname ,
                                                                                                                     avg_events_per_job, sizeperevent,
                                                                                                                     avg_events_per_job * sizeperevent / (1024.**2 ),
-                                                                                                                    GB_space_limit)
+                                                                                                                    GB_space_limit))
                     avg_events_per_job_for_task = int( (GB_space_limit*1024.**2) / sizeperevent)
                     modified_split_for_task = spl
                     modified_split_for_task['splitParams']['events_per_job'] = avg_events_per_job_for_task
@@ -7477,10 +7477,10 @@ class workflowInfo:
                 if t.get('KeepOutput',True) == False:
                     ## we can shoot the limit up, as we don't care too much.
                     #GB_space_limit = 10000 * ncores
-                    print "the output is not kept, but keeping the output size to",GB_space_limit
+                    print("the output is not kept, but keeping the output size to",GB_space_limit)
 
                 sizeperevent = t.get('SizePerEvent',None)
-                for keyword,factor in output_size_correction.items():
+                for keyword,factor in list(output_size_correction.items()):
                     if keyword in spl['taskName']:
                         sizeperevent *= factor
                         break
@@ -7604,7 +7604,7 @@ class workflowInfo:
                         hold = True
                     else:
                         #hold = True #to be removed
-                        print "The smallest value of %s is ok compared to %s evt/lumi in the input"%(max_events_per_lumi, events_per_lumi_inputs)
+                        print("The smallest value of %s is ok compared to %s evt/lumi in the input"%(max_events_per_lumi, events_per_lumi_inputs))
                 else:
                     root_split = splits[0]
                     current_split = root_split.get('splitParams',{}).get('events_per_lumi',None)
@@ -7646,7 +7646,7 @@ class workflowInfo:
 
         ## put in the era accordingly ## although this could be done in re-assignment
         ## take care of the splitting specifications ## although this could be done in re-assignment
-        for (k,v) in new_schema.items():
+        for (k,v) in list(new_schema.items()):
             if v in [None,'None']:
                 new_schema.pop(k)
         return new_schema
@@ -7656,7 +7656,7 @@ class workflowInfo:
         if (not select):# or (select and node.taskType == select):
             all_tasks.append( node )
         else:
-            for (key,value) in select.items():
+            for (key,value) in list(select.items()):
                 if (type(value)==list and getattr(node,key) in value) or (type(value)!=list and getattr(node, key) == value):
                     all_tasks.append( node )
                     break
@@ -7675,7 +7675,7 @@ class workflowInfo:
     def getCompletionFraction(self, caller='getCompletionFraction', with_event=True):
         output_per_task = self.getOutputPerTask()
         task_outputs = {}
-        for task,outs in output_per_task.items():
+        for task,outs in list(output_per_task.items()):
             for out in outs:
                 task_outputs[out] = task
 
@@ -7738,7 +7738,7 @@ class workflowInfo:
         all_outputs = self.request['OutputDatasets']
         output_per_task = defaultdict(list)
         if 'ChainParentageMap' in self.request:
-            for t,info in self.request['ChainParentageMap'].items():
+            for t,info in list(self.request['ChainParentageMap'].items()):
                 for dsname in info.get('ChildDsets'):
                     output_per_task[t].append( dsname)
             return dict(output_per_task)
@@ -7754,7 +7754,7 @@ class workflowInfo:
                         #print t._internal_name
                         output_per_task[t._internal_name].append( dsname )
             else:
-                print "no output subscriptions..."
+                print("no output subscriptions...")
                 
         return dict(output_per_task)
 
@@ -7802,7 +7802,7 @@ class workflowInfo:
                 'LumiBased' : { 'halt_job_on_file_boundaries' : 'True'}
                 }
             if ts.algorithm in include:
-                for k,v in include[ts.algorithm].items():
+                for k,v in list(include[ts.algorithm].items()):
                     spl[-1][k] = v
 
             for get in get_those:
@@ -7855,7 +7855,7 @@ class workflowInfo:
         mems_d = {}
         if 'Chain' in self.request['RequestType']:
             mems_d = self._collectinchain('Memory',default=None)
-        mems = filter(None, mems_d.values()) if mems_d else mems
+        mems = [_f for _f in list(mems_d.values()) if _f] if mems_d else mems
         return mems
 
     def getMulticores(self):
@@ -7863,7 +7863,7 @@ class workflowInfo:
         mcores_d = {}
         if 'Chain' in self.request['RequestType']:
             mcores_d = self._collectinchain('Multicore',default=1)
-        return mcores_d.values() if mcores_d else [mcores]
+        return list(mcores_d.values()) if mcores_d else [mcores]
 
     def getCorePerTask(self, task):
         mcores = self.request.get('Multicore',1)
@@ -7884,7 +7884,7 @@ class workflowInfo:
         mcores = [int(self.request.get('Multicore',1))]
         if 'Chain' in self.request['RequestType']:
             mcores_d = self._collectinchain('Multicore',default=1)
-            mcores.extend( map(int, mcores_d.values() ))
+            mcores.extend( list(map(int, list(mcores_d.values()) )))
         return max(mcores)
 
     def getBlockWhiteList(self):
@@ -7944,13 +7944,13 @@ class workflowInfo:
             parent=set()
             secondary=set()
             if 'InputDataset' in blob:
-                primary = set(filter(None,[blob['InputDataset']]))
+                primary = set([_f for _f in [blob['InputDataset']] if _f])
             #elif 'InputDatasets' in blob: primary = set(filter(None,blob['InputDatasets']))
             if primary and 'IncludeParents' in blob and blob['IncludeParents']:
                 for p in primary:
                     parent.update(findParent( p ))
             if 'MCPileup' in blob:
-                secondary = set(filter(None,[blob['MCPileup']]))
+                secondary = set([_f for _f in [blob['MCPileup']] if _f])
             if 'LheInputFiles' in blob and blob['LheInputFiles'] in ['True',True]:
                 lhe=True
 
@@ -7996,7 +7996,7 @@ class workflowInfo:
 
     def getPrimaryDSN(self):
         if 'Chain' in self.request['RequestType']:
-            return self._collectinchain('PrimaryDataset').values()
+            return list(self._collectinchain('PrimaryDataset').values())
         else:
             return [self.request['PrimaryDataset']]
 
@@ -8036,7 +8036,7 @@ class workflowInfo:
                     insert_at=isolated.index(True)+1
                     st = st[:insert_at]+number+st[insert_at:]
                     return st
-                print "not yet implemented",st
+                print("not yet implemented",st)
                 sys.exit(34)
             return st
 
@@ -8092,7 +8092,7 @@ class workflowInfo:
                 if log:
                     self.sendLog('go',"no go due to %s %s"%(campaign,label))
                 else:
-                    print "no go due to",campaign,label
+                    print("no go due to",campaign,label)
                 return False
         return True
 
@@ -8120,7 +8120,7 @@ class workflowInfo:
                     aps='*'
                 pattern = '/'.join(['',dsn,'-'.join([aera,aps,'v*']),tier])
                 wilds = getDatasets( pattern )
-                print pattern,"->",len(wilds),"match(es)"
+                print(pattern,"->",len(wilds),"match(es)")
                 for wild in [wildd['dataset'] for wildd in wilds]:
                     (_,_,mid,_) = wild.split('/')
                     v = int(mid.split('-')[-1].replace('v',''))
@@ -8133,16 +8133,16 @@ class workflowInfo:
                 elif ps.count('-')==3:
                     (aera,fn,aps,_) = ps.split('-')
                 else:
-                    print "Cannot check output in reqmgr"
-                    print output,"is what is in the request workload"
+                    print("Cannot check output in reqmgr")
+                    print(output,"is what is in the request workload")
                     continue
                 while True:
                     predicted = '/'.join(['',dsn,'-'.join([aera,aps,'v%d'%(version+1)]),tier])
-                    print "checking against",predicted
+                    print("checking against",predicted)
                     conflicts = getWorkflowByOutput( self.url, predicted )
-                    conflicts = filter(lambda wfn : wfn!=self.request['RequestName'], conflicts)
+                    conflicts = [wfn for wfn in conflicts if wfn!=self.request['RequestName']]
                     if len(conflicts):
-                        print "There is an output conflict for",self.request['RequestName'],"with",conflicts
+                        print("There is an output conflict for",self.request['RequestName'],"with",conflicts)
                         #return None
                         ## since we are not planned for pure extension and ever writing in the same dataset, go +1
                         version += 1
@@ -8151,7 +8151,7 @@ class workflowInfo:
 
         else:
             for output in  outputs:
-                print output
+                print(output)
                 (_,dsn,ps,tier) = output.split('/')
                 if ps.count("-") == 2:
                     (aera,aps,_) = ps.split('-')
@@ -8159,47 +8159,47 @@ class workflowInfo:
                     (aera,fn,aps,_) = ps.split('-')
                 else:
                     ## cannot so anything
-                    print "the processing string is mal-formated",ps
+                    print("the processing string is mal-formated",ps)
                     return None
 
                 if aera == 'None' or aera == 'FAKE':
-                    print "no era, using ",era
+                    print("no era, using ",era)
                     aera=era
                 if aps == 'None':
-                    print "no process string, using wild char"
+                    print("no process string, using wild char")
                     aps='*'
                 pattern = '/'.join(['',dsn,'-'.join([aera,aps,'v*']),tier])
-                print "looking for",pattern
+                print("looking for",pattern)
                 wilds = getDatasets( pattern )
-                print pattern,"->",len(wilds),"match(es)"
+                print(pattern,"->",len(wilds),"match(es)")
                 for wild in [wildd['dataset'] for wildd in wilds]:
                     (_,_,mid,_) = wild.split('/')
                     v = int(mid.split('-')[-1].replace('v',''))
                     version = max(v,version)
             #print "version found so far",version
             for output in  outputs:
-                print output
+                print(output)
                 (_,dsn,ps,tier) = output.split('/')
                 if ps.count("-") == 2:
                     (aera,aps,_) = ps.split('-')
                 elif ps.count("-") == 3:
                     (aera,fn,aps,_) = ps.split('-')
                 else:
-                    print "the processing string is mal-formated",ps
+                    print("the processing string is mal-formated",ps)
                     return None
 
                 if aera == 'None' or aera == 'FAKE':
-                    print "no era, using ",era
+                    print("no era, using ",era)
                     aera=era
                 if aps == 'None':
-                    print "no process string, cannot parse"
+                    print("no process string, cannot parse")
                     continue
                 while True:
                     predicted = '/'.join(['',dsn,'-'.join([aera,aps,'v%d'%(version+1)]),tier])
                     conflicts = getWorkflowByOutput( self.url, predicted )
-                    conflicts = filter(lambda wfn : wfn!=self.request['RequestName'], conflicts)
+                    conflicts = [wfn for wfn in conflicts if wfn!=self.request['RequestName']]
                     if len(conflicts):
-                        print "There is an output conflict for",self.request['RequestName'],"with",conflicts
+                        print("There is an output conflict for",self.request['RequestName'],"with",conflicts)
                         #return None
                         ## since we are not planned for pure extension and ever writing in the same dataset, go +1
                         version += 1
@@ -8210,7 +8210,7 @@ class workflowInfo:
 
 def getFailedJobs(taskname, caller='getFailedJobs'):
     wfname=taskname.split('/')[1]
-    print 'wfname=',wfname
+    print('wfname=',wfname)
     conn = make_x509_conn(reqmgr_url)
     try:
         r1=conn.request("GET",'/wmstatsserver/data/filtered_requests?RequestName=%s&mask=PrepID&mask=AgentJobInfo'%(wfname),headers={"Accept":"application/json"})
@@ -8218,7 +8218,7 @@ def getFailedJobs(taskname, caller='getFailedJobs'):
         reading = json.loads(r2.read())
     except Exception as e:
         sendLog('componentInfo','not able to connect to wmstats server', level='critical')
-        print str(e)
+        print(str(e))
         return 0
 
     failed_jobs = 0
@@ -8229,7 +8229,7 @@ def getFailedJobs(taskname, caller='getFailedJobs'):
                 if taskname in info['AgentJobInfo'][agentName].get("tasks", {}):
                     taskInfo = info['AgentJobInfo'][agentName]["tasks"][taskname]
                     if "failure" in taskInfo.get("status", {}):
-                        for failureType, numFailures in taskInfo["status"]["failure"].items():
+                        for failureType, numFailures in list(taskInfo["status"]["failure"].items()):
                             failed_jobs += numFailures
     
     return failed_jobs

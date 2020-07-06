@@ -8,9 +8,9 @@
 # Usage: python getInputLocation.py [WFNAME | -f FILE | -d DATASET]
 #
 
-import reqMgrClient
-import phedexClient
-import dbs3Client as dbsClient
+from . import reqMgrClient
+from . import phedexClient
+from . import dbs3Client as dbsClient
 import optparse
 url = 'cmsweb.cern.ch'
 
@@ -36,18 +36,18 @@ def printDsLocation(ds, clean=False, anyb=False):
     """
     onlycomplete = not anyb
     sites = sorted(phedexClient.getBlockReplicaSites(ds, onlycomplete))
-    print ds
+    print(ds)
     if onlycomplete:
-        print "block replicas (only complete):"
+        print("block replicas (only complete):")
     else:
-        print "All block replicas"
-    print ','.join(sites)
+        print("All block replicas")
+    print(','.join(sites))
 
     # print subscriptions only when asked for full block
     if onlycomplete:
         sites = sorted(phedexClient.getSubscriptionSites(ds))
-        print "subscriptions:"
-        print ','.join(sites)
+        print("subscriptions:")
+        print(','.join(sites))
 
     # print in the clean ready-to-use format
     if clean:
@@ -57,11 +57,11 @@ def printDsLocation(ds, clean=False, anyb=False):
                 continue
             s = s.replace('_Disk', '')
             sites2.append(s)
-        print ','.join(sites2)
+        print(','.join(sites2))
 
     # and the size
     size = dbsClient.getDatasetSize(ds)
-    print formatSize(size)
+    print(formatSize(size))
 
 def getInputDataset(workflow):
     if 'InputDataset' in workflow.info:
@@ -100,19 +100,19 @@ def main():
         if options.dataset:
             printDsLocation(x, options.clean, options.anyb)
         else:
-            print x
+            print(x)
             workflow = reqMgrClient.Workflow(x)
              
             ds = getInputDataset(workflow)
             if not ds:
-                print x, "Has no input dataset"
+                print(x, "Has no input dataset")
                 continue
             
             printDsLocation(ds, options.clean, options.anyb)
             # pile ups
             if options.dataset and 'MCPileup' in workflow.info:
                 pu = workflow.info['MCPileup']
-                print "Pile up:"
+                print("Pile up:")
                 printDsLocation(pu, options.clean, options.anyb)
 
 if __name__ == '__main__':

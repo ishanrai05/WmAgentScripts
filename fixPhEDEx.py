@@ -17,8 +17,8 @@ try:
     from WMCore.Database.DBFormatter import DBFormatter
     from WMCore.Services.PhEDEx.PhEDEx import PhEDEx
 except ImportError:
-    print "You do not have a proper environment, please source the following:"
-    print "source /data/srv/wmagent/current/apps/wmagent/etc/profile.d/init.sh"
+    print("You do not have a proper environment, please source the following:")
+    print("source /data/srv/wmagent/current/apps/wmagent/etc/profile.d/init.sh")
     sys.exit(1)
 
 query = """
@@ -45,7 +45,7 @@ def main():
     connectToDB()
     myPhEDEx = PhEDEx()
     myThread = threading.currentThread()
-    print "Please remember to shutdown the PhEDExInjector first, you have 10 seconds before the script starts."
+    print("Please remember to shutdown the PhEDExInjector first, you have 10 seconds before the script starts.")
     time.sleep(10)
 
     # Get the files that the PhEDExInjector would look for
@@ -68,10 +68,10 @@ def main():
                         if fileInfo['lfn'] in sortedBlocks[block]:
                             foundFiles.add(fileInfo['lfn'])
     if not foundFiles:
-        print "I didn't find an abnormal file, feel free to panic!. Please contact a developer."
+        print("I didn't find an abnormal file, feel free to panic!. Please contact a developer.")
         return 0
-    print "Found %d files that are already registered in PhEDEx but the buffer doesn't know" % len(foundFiles)
-    print "Fixing them now..."
+    print("Found %d files that are already registered in PhEDEx but the buffer doesn't know" % len(foundFiles))
+    print("Fixing them now...")
     # Fix it!
     binds = []
     for lfn in foundFiles:
@@ -80,8 +80,8 @@ def main():
                                         conn = None,
                                         transaction = False,
                                         returnCursor = False)
-    print "Fixed them! :)"
-    print "You can restart the PhEDExInjector now, have a nice day!"
+    print("Fixed them! :)")
+    print("You can restart the PhEDExInjector now, have a nice day!")
     return 0
 
 if __name__ == '__main__':

@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-from assignSession import *
+from .assignSession import *
 import os
 import json
 #import numpy as np
-from utils import siteInfo, getWorkflowByInput, getWorkflowByOutput, getWorkflowByMCPileup, monitor_dir, monitor_pub_dir, eosRead, eosFile, remainingDatasetInfo, moduleLock, allCompleteToAnaOps, getDatasetStatus, setDatasetStatus, unifiedConfiguration, ThreadHandler
+from .utils import siteInfo, getWorkflowByInput, getWorkflowByOutput, getWorkflowByMCPileup, monitor_dir, monitor_pub_dir, eosRead, eosFile, remainingDatasetInfo, moduleLock, allCompleteToAnaOps, getDatasetStatus, setDatasetStatus, unifiedConfiguration, ThreadHandler
 import sys
 import time
 import random 
@@ -16,7 +16,7 @@ class DatasetCheckBuster(threading.Thread):
     def __init__(self, **args):
         threading.Thread.__init__(self)
         self.daemon = True
-        for k,v in args.items():
+        for k,v in list(args.items()):
             setattr(self,k,v)
 
     def run(self):
@@ -48,12 +48,12 @@ class SiteBuster(threading.Thread):
     def __init__(self, **args):
         threading.Thread.__init__(self)
         self.daemon = True
-        for k,v in args.items():
+        for k,v in list(args.items()):
             setattr(self,k,v)
         
     def run(self):
         site = self.site
-        print "checking on site",site
+        print("checking on site",site)
         si = self.SI
         UC = self.UC
         RDI = self.RDI
@@ -115,19 +115,19 @@ class SiteBuster(threading.Thread):
         for t in run_threads.threads:
             remainings[t.dataset]["reasons"].extend( t.reasons )
             remainings[t.dataset]["reasons"].sort()
-            print t.dataset,remainings[t.dataset]["reasons"]
+            print(t.dataset,remainings[t.dataset]["reasons"])
 
         #print "\t",sum_waiting,"[GB] could be freed by custodial"
-        print "\t",sum_unlocked,"[GB] is not locked by unified"
+        print("\t",sum_unlocked,"[GB] is not locked by unified")
 
-        print "updating database with remaining datasets"
+        print("updating database with remaining datasets")
         RDI.set(site, remainings)
         try:
             eosFile('%s/remaining_%s.json'%(monitor_dir,site),'w').write( json.dumps( remainings , indent=2)).close()
         except:
             pass
 
-        ld = remainings.items()
+        ld = list(remainings.items())
         ld.sort( key = lambda i:i[1]['size'], reverse=True)
         table = "<html>Updated %s GMT, <a href=remaining_%s.json>json data</a><br>"%(time.asctime(time.gmtime()),site)
 
@@ -141,7 +141,7 @@ class SiteBuster(threading.Thread):
         for reason in accumulate:
             s=0
             table += "<tr><td>%s</td><td><ul>"% reason
-            subitems = accumulate[reason].items()
+            subitems = list(accumulate[reason].items())
             subitems.sort(key = lambda i:i[1], reverse=True)
 
             for tier,ss in subitems:
@@ -170,7 +170,7 @@ class SiteBuster(threading.Thread):
         table+="</table></html>"
         eosFile('%s/remaining_%s.html'%(monitor_dir,site),'w').write( table ).close()
 
-        print "checking on unlock only datasets"
+        print("checking on unlock only datasets")
         to_ddm = UC.get('tiers_to_DDM')
         #look_at = list(only_unlock)
         look_at = list(only_unlock)[:20]
@@ -178,23 +178,23 @@ class SiteBuster(threading.Thread):
         for item in look_at:
             tier = item.split('/')[-1]
             ds_status = getDatasetStatus(item)
-            print item,ds_status
+            print(item,ds_status)
             if ds_status == 'PRODUCTION':
-                print item,"is found",ds_status,"and unklocked on",site
+                print(item,"is found",ds_status,"and unklocked on",site)
                 if options.invalidate_anything_left_production_once_unlocked:
-                    print "Setting status to invalid for",item
+                    print("Setting status to invalid for",item)
                     setDatasetStatus(item, 'INVALID')
             if tier in to_ddm:
-                print item,"looks like analysis and still dataops on",site
+                print(item,"looks like analysis and still dataops on",site)
                 if options.change_dataops_subs_to_anaops_once_unlocked:
-                    print "Sending",item,"to anaops"
+                    print("Sending",item,"to anaops")
                     allCompleteToAnaOps(url, item)
 
 def parse( options ):
     RDI = remainingDatasetInfo()
     UC = unifiedConfiguration()
 
-    spec_site = filter(None,options.site.split(','))
+    spec_site = [_f for _f in options.site.split(',') if _f]
 
     ## fetching global information
     locks = [l.item.split('#')[0] for l in session.query(Lock).filter(Lock.lock == True).all()]
@@ -202,7 +202,7 @@ def parse( options ):
     stuck = {}
     missing = {} 
     si = siteInfo()
-    sis = si.disk.keys()
+    sis = list(si.disk.keys())
     random.shuffle( sis )
     n_site = options.nsites
     i_site = 0
@@ -217,7 +217,7 @@ def parse( options ):
             break
         i_site += 1
         
-        print site,"has",space,"[TB] left out of",si.quota[site]
+        print(site,"has",space,"[TB] left out of",si.quota[site])
         threads.append( SiteBuster( site = site,
                                     UC = UC,
                                     RDI = RDI,
@@ -249,13 +249,13 @@ def summary():
     for site in RDI.sites():
         load = RDI.get(site)
         if si.disk[site] : continue
-        print site,si.disk[site],"[TB] free",si.quota[site],"[TB] quota"
+        print(site,si.disk[site],"[TB] free",si.quota[site],"[TB] quota")
 
         if not load: continue
         tags = ['pilup','input','output','lock','unlock','tape','stuck-tape','missing-tape']
         for tag in tags:
-            v = sum([ info['size'] for ds,info in load.items() if tag in info['reasons']]) / 1024.
-            print "\t %10f [TB] remaining because of %s"%(v,tag)
+            v = sum([ info['size'] for ds,info in list(load.items()) if tag in info['reasons']]) / 1024.
+            print("\t %10f [TB] remaining because of %s"%(v,tag))
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-from assignSession import *
-from utils import workflowInfo, getWorkflows, global_SI, sendEmail, componentInfo, getDatasetPresence, monitor_dir, monitor_pub_dir, reqmgr_url, campaignInfo, unifiedConfiguration, sendLog, do_html_in_each_module, base_eos_dir, eosRead, eosFile, agent_speed_draining, cacheInfo
-import reqMgrClient
+from .assignSession import *
+from .utils import workflowInfo, getWorkflows, global_SI, sendEmail, componentInfo, getDatasetPresence, monitor_dir, monitor_pub_dir, reqmgr_url, campaignInfo, unifiedConfiguration, sendLog, do_html_in_each_module, base_eos_dir, eosRead, eosFile, agent_speed_draining, cacheInfo
+from . import reqMgrClient
 import json
 import os, sys
 import time
@@ -11,7 +11,7 @@ from collections import defaultdict
 import random
 import copy 
 import itertools
-from htmlor import htmlor
+from .htmlor import htmlor
 import math
 
 def equalizor(url , specific = None, options=None):
@@ -67,7 +67,7 @@ def equalizor(url , specific = None, options=None):
             go = True
         else:
             go = False
-        print("[INFO]: Task {} has {} running, {} idle. Action needed: {}".format(task_name, running, idled, go))
+        print(("[INFO]: Task {} has {} running, {} idle. Action needed: {}".format(task_name, running, idled, go)))
         return go, task_name, running, idled
     needs_action.pressure = UC.get('overflow_pressure')
 
@@ -91,15 +91,15 @@ def equalizor(url , specific = None, options=None):
     def getPerf( task , stats_to_go, original_ncore=1):
         task = task.split('/')[1]+'/'+task.split('/')[-1]
 
-        print "#"*10,"input read performance","#"*10
+        print("#"*10,"input read performance","#"*10)
         failed_out = (None,None,None,None)
         try:
             u = 'http://cms-gwmsmon.cern.ch/prodview/json/historynew/highio720/%s'%task
-            print u
+            print(u)
             io_data = json.loads(os.popen('curl -s --retry 5 %s'%u).read())
         except Exception as e:
-            print "No good io data"
-            print str(e)
+            print("No good io data")
+            print(str(e))
             io_data = None
             #return failed_out
 
@@ -117,34 +117,34 @@ def equalizor(url , specific = None, options=None):
                 ch = bucket.get('CoreHr',{}).get('value',0)
                 ## do the math
                 d = bucket.get(denom,{}).get('value',0)
-                print ncore,"read",igb,"spend",rth,"reading",ch,"running"
+                print(ncore,"read",igb,"spend",rth,"reading",ch,"running")
                 if d:
                     binned_io[ncore] = (igb *1024.*1024.) / (d*60*60) ## MB/s
 
         if binned_io:
             if denom == 'CoreHr':
-                per_core_io = [ v for k,v in binned_io.items()]
+                per_core_io = [ v for k,v in list(binned_io.items())]
             else:
-                per_core_io = [ v/k for k,v in binned_io.items()]                
+                per_core_io = [ v/k for k,v in list(binned_io.items())]                
             per_core_io = max( per_core_io )
             #per_core_io = sum( per_core_io ) / float(len(per_core_io))
-            print "binned I/O",dict(binned_io)
+            print("binned I/O",dict(binned_io))
             read_need = int(per_core_io)
 
-        print "#"*10,"memory usage performance","#"*10
+        print("#"*10,"memory usage performance","#"*10)
         inflate_memory = 1.2
         try:
             #u = 'http://cms-gwmsmon.cern.ch/prodview/json/historynew/memorycpu720/%s/success'%task
             u = 'http://cms-gwmsmon.cern.ch/prodview/json/historynew/memorycpu720/%s/success'%task
-            print u
+            print(u)
             perf_data = json.loads(os.popen('curl -s --retry 5 %s'%u).read())
         except Exception as e:
-            print str(e)
+            print(str(e))
             return failed_out
         binned_memory = defaultdict( lambda : defaultdict(float))
-        buckets = filter(lambda i:i['key']!=0,perf_data['aggregations']["2"]["buckets"]) if 'aggregations' in perf_data else [] ## fail safe on ES missing data
+        buckets = [i for i in perf_data['aggregations']["2"]["buckets"] if i['key']!=0] if 'aggregations' in perf_data else [] ## fail safe on ES missing data
         for bucket in buckets:
-            sub_buckets = filter(lambda i:i['key']!=0, bucket["3"]["buckets"])
+            sub_buckets = [i for i in bucket["3"]["buckets"] if i['key']!=0]
             for sub_bucket in sub_buckets:
                 memory = int(float(bucket["key"])*inflate_memory)
                 ncore = int(sub_bucket["key"])
@@ -181,14 +181,14 @@ def equalizor(url , specific = None, options=None):
             bins = sorted(binned_memory[core_count].keys())
             values = [binned_memory[core_count][k] for k in bins]
             if sum(values) < stats_to_go: 
-                print "not enough stats to go for core-binned mem usage",sum(values),"<",stats_to_go,"at cores=",core_count
+                print("not enough stats to go for core-binned mem usage",sum(values),"<",stats_to_go,"at cores=",core_count)
                 continue
             avg = 'N/A'
             if sum(values):
                 avg = sum([(a*w) for (a,w) in zip(bins,values)]) / sum( values )
-            print "Getting information at",core_count, avg
-            print bins
-            print values
+            print("Getting information at",core_count, avg)
+            print(bins)
+            print(values)
             if values:
                 percentiles[core_count] = weighted_percentile( values, bins, memory_percentil)
 
@@ -201,7 +201,7 @@ def equalizor(url , specific = None, options=None):
         #print percentiles
         baseline = percentiles[original_ncore] if original_ncore in percentiles else None
         if baseline:
-            for ncore,v in percentiles.items():
+            for ncore,v in list(percentiles.items()):
                 if ncore == original_ncore: continue
                 s = (v-baseline) / float((ncore - original_ncore))
                 slopes.append( s )
@@ -209,25 +209,25 @@ def equalizor(url , specific = None, options=None):
             baseline = int(baseline)
         #slope = max(0,int(sum(slopes) / len(slopes))) if slopes else None
         slope = max(0,int(sum([l*v for (l,v) in zip(lever,slopes)])/sum(lever))) if slopes else None
-        print "From multiple memory points",baseline,"MB baseline at",original_ncore,"cores, and",slope,"per thread"
-        print slopes
-        print lever
+        print("From multiple memory points",baseline,"MB baseline at",original_ncore,"cores, and",slope,"per thread")
+        print(slopes)
+        print(lever)
         
         b_m = None
         if baseline: 
             b_m = baseline*1.1 ## put 10% on top for safety
 
-        print "#"*10,"total core-hour performance","#"*10
+        print("#"*10,"total core-hour performance","#"*10)
 
         time_percentil = 95
         backup_time_percentil = 99
         try:
             ## the returned value is the commitedcorehours ~ walltime * 4
             u = 'http://cms-gwmsmon.cern.ch/prodview/json/historynew/percentileruntime720/%s'%task
-            print u
+            print(u)
             percentile_data = json.loads(os.popen('curl -s --retry 5 %s'%u).read())
         except Exception as e:
-            print str(e)
+            print(str(e))
             return failed_out
         
         p_t = percentile_data['aggregations']["2"]["values"].get("%.1f"%time_percentil,None) if 'aggregations' in percentile_data else None
@@ -245,18 +245,18 @@ def equalizor(url , specific = None, options=None):
         used_percentil = time_percentil
         if w_t > stats_to_go and p_t:
             if bck_p_t and bck_p_t > 2*p_t:
-                print backup_time_percentil,"percentil is giving much better job runtime measurements"
+                print(backup_time_percentil,"percentil is giving much better job runtime measurements")
                 used_percentil = backup_time_percentil
                 b_t = int(bck_p_t)
             else:
                 b_t = int(p_t)
         else:
-            print "not enough stats for time",w_t,"<",stats_to_go,"value is",p_t
+            print("not enough stats for time",w_t,"<",stats_to_go,"value is",p_t)
 
-        print "%s%% of the jobs are running for a total core-min under %s [min]"%( used_percentil, b_t)
+        print("%s%% of the jobs are running for a total core-min under %s [min]"%( used_percentil, b_t))
 
 
-        print "#"*30
+        print("#"*30)
         return (b_m,slope,b_t, read_need)
         
     def getcampaign( task , req=None):
@@ -273,8 +273,8 @@ def equalizor(url , specific = None, options=None):
             else:
                 return None
         except Exception as e :
-            print "Inconsistent prepid very likely"
-            print str(e)
+            print("Inconsistent prepid very likely")
+            print(str(e))
             return None
     def close( interface ):
         eosFile('%s/equalizor.json.new'%monitor_pub_dir,'w').write( json.dumps( interface, indent=2)).close()
@@ -316,7 +316,7 @@ def equalizor(url , specific = None, options=None):
         
     if options.remove:
         if specific in interface['modifications']:
-            print "poping",specific
+            print("poping",specific)
             interface['modifications'].pop(specific)
             close( interface )
         return 
@@ -354,7 +354,7 @@ def equalizor(url , specific = None, options=None):
         }
 
     perf_per_config = defaultdict(dict)
-    for k,v in json.loads(eosRead('%s/perf_per_config.json' % base_eos_dir)).items(): perf_per_config[k] = v
+    for k,v in list(json.loads(eosRead('%s/perf_per_config.json' % base_eos_dir)).items()): perf_per_config[k] = v
 
     stay_within_site_whitelist = False
     specific_task=None
@@ -389,7 +389,7 @@ def equalizor(url , specific = None, options=None):
         if specific:
             wfi = workflowInfo(url, wfo.name)
         else:
-            cached = filter(lambda d : d['RequestName']==wfo.name, workflows)
+            cached = [d for d in workflows if d['RequestName']==wfo.name]
             if not cached : continue
             wfi = workflowInfo(url, wfo.name, request = cached[0])
 
@@ -414,7 +414,7 @@ def equalizor(url , specific = None, options=None):
         if not lhe and not prim and not wfi.isRelval():
 	    if (sec and wfi.request['TrustPUSitelists']) or (not sec):
                 ## no local read input: go for HPC!!!
-                print ("Adding {} adhoc for HPC as no task of the workflow requires any input".format(wfo.name))
+                print(("Adding {} adhoc for HPC as no task of the workflow requires any input".format(wfo.name)))
                 add_to[wfo.name] = ['T3_US_OSG']
                 add_to[wfo.name] = ['T3_US_Colorado']
                 add_to[wfo.name] = ['T3_US_NERSC']
@@ -434,8 +434,8 @@ def equalizor(url , specific = None, options=None):
             agents = wfi.getAgents()
 
             wqss = ['Running','Acquired']
-            if any([agent in agents.get(wqs,{}).keys() for wqs,agent in itertools.product( wqss, bad_agents)]):
-                print "overriding the need for bad agent"
+            if any([agent in list(agents.get(wqs,{}).keys()) for wqs,agent in itertools.product( wqss, bad_agents)]):
+                print("overriding the need for bad agent")
                 needs_overide = True
             return needs_overide
 
@@ -447,16 +447,16 @@ def equalizor(url , specific = None, options=None):
         ## now parse this for action
         for i_task,(task,campaign) in enumerate(tasks_and_campaigns):
             taskname = task.pathName.split('/')[-1]
-            print taskname,campaign
+            print(taskname,campaign)
             if options.augment:
-                print task.pathName
-                print campaign
+                print(task.pathName)
+                print(campaign)
 
             resize = CI.get(campaign,'resize',{})
 
 
             if resize and type(resize)==dict:# and not is_chain:
-                print "adding",task.pathName,"in resizing"
+                print("adding",task.pathName,"in resizing")
                 resizing[task.pathName] = copy.deepcopy(resize)
             elif resize and resize=='auto':
                 ## can we add this tuning add-hoc by assuming Memory = a + Ncore*b, where a is a fraction of Memory ?
@@ -465,7 +465,7 @@ def equalizor(url , specific = None, options=None):
                     mem = wfi.getMemoryPerTask( taskname )
                     fraction_constant = 0.4
                     min_mem_per_core = 10 ## essentially no min
-                    print "task param", mem,mcore
+                    print("task param", mem,mcore)
                     max_mem_per_core = int(mem/float(mcore))
                     mem_per_core_c = int((1-fraction_constant) * mem / float(mcore))
                     mem_per_core = max(mem_per_core_c, min_mem_per_core)
@@ -482,7 +482,7 @@ def equalizor(url , specific = None, options=None):
 
                     resizing[task.pathName] = { "minCores":min_core, "maxCores": max_core, "memoryPerThread": quantize(mem_per_core, slope_quanta)}
                 else:
-                    print "do not start resizing a task that was set <",UC.get('min_core_for_resize')
+                    print("do not start resizing a task that was set <",UC.get('min_core_for_resize'))
 
             if task.pathName in resizing:
                 addhoc_resize = ['HIG-RunIIFall17GS-00004']
@@ -499,30 +499,30 @@ def equalizor(url , specific = None, options=None):
             if overflow:
                 if "PRIM" in overflow and not campaign in PRIM_overflow:
                     PRIM_overflow[campaign] = copy.deepcopy(overflow['PRIM'])
-                    print "adding",campaign,"to PRIM overflow"
+                    print("adding",campaign,"to PRIM overflow")
                 if "PREMIX" in overflow and not campaign in PREMIX_overflow:
                     PREMIX_overflow[campaign] = copy.deepcopy(overflow['PREMIX'])
-                    print "adding",campaign,"to PREMIX overflow"
+                    print("adding",campaign,"to PREMIX overflow")
                 if "PU" in overflow and not campaign in PU_overflow:
                     PU_overflow[campaign] = copy.deepcopy(overflow['PU'])
-                    print "adding",campaign,"to PU overflow rules"
+                    print("adding",campaign,"to PU overflow rules")
                 if "LHE" in overflow and not campaign in LHE_overflow:
                     site_list = overflow['LHE'].get('site_list',"")
                     if site_list:
                         if type(site_list)==list:
                             LHE_overflow[campaign] = site_list
                         else:
-                            print site_list
+                            print(site_list)
                             if hasattr(SI,site_list):
                                 LHE_overflow[campaign] = copy.deepcopy( getattr(SI,site_list) )
                             else:
                                 LHE_overflow[campaign] = site_list.split(',')
-                    print "adding",campaign,"to light input overflow rules",sorted(LHE_overflow[campaign])
+                    print("adding",campaign,"to light input overflow rules",sorted(LHE_overflow[campaign]))
 
 
             ### get the task performance, for further massaging.
             if campaign in tune_performance or options.tune:
-                print "performance",task.taskType,task.pathName
+                print("performance",task.taskType,task.pathName)
                 if task.taskType in ['Processing','Production']:
                     mcore = wfi.getCorePerTask( taskname )
                     set_memory,set_slope,set_time,set_io = getPerf( task.pathName , stats_to_go, original_ncore = mcore)
@@ -540,22 +540,22 @@ def equalizor(url , specific = None, options=None):
                             resizing[task.pathName]["memoryPerThread"] = quantize(set_slope, slope_quanta)
                         perf_per_config[configcache.get( taskname , 'N/A')]['slope'] = set_slope
                     mem = wfi.getMemoryPerTask( taskname )
-                    print taskname,mem
-                    for key,add_hoc_mem in memory_correction.items():
+                    print(taskname,mem)
+                    for key,add_hoc_mem in list(memory_correction.items()):
                         if key in taskname and mem > add_hoc_mem and (set_memory==None or set_memory > add_hoc_mem):
-                            print "overiding",set_memory,"to",add_hoc_mem,"by virtue of add-hoc memory_correction",key
+                            print("overiding",set_memory,"to",add_hoc_mem,"by virtue of add-hoc memory_correction",key)
                             set_memory = min( add_hoc_mem, set_memory) if set_memory else add_hoc_mem
 
                     if set_memory:
                         set_memory =  min(set_memory, 20000) ## no bigger than 20G
                         set_memory =  max(set_memory, mcore*1000) ## do not go too low. not less than 1G/core.
-                        print "trully setting memory to",set_memory
+                        print("trully setting memory to",set_memory)
                         performance[task.pathName]['memory']= set_memory
                         perf_per_config[configcache.get( taskname , 'N/A')]['memory'] = set_memory
 
                     if set_time:
                         if set_time > warning_long_time*mcore:
-                            print "WHAT IS THIS TASK",task.pathName,"WITH",set_time/mcore,"large runtime"
+                            print("WHAT IS THIS TASK",task.pathName,"WITH",set_time/mcore,"large runtime")
                             wfi.sendLog('equalizor','WARNING the task %s was found to run long jobs  of %d [h] %d [mins] at original %d cores setting'%( taskname, divmod(set_time / mcore, 60)[0], divmod(set_time / mcore,60)[1] , mcore))
                             long_tasks.add( (task.pathName, set_time / mcore, mcore) )
                             
@@ -569,17 +569,17 @@ def equalizor(url , specific = None, options=None):
 
                     ##make up some warnings
                     if set_time and (set_time / mcore) < warning_short_time: ## looks like short jobs all around
-                        print "WHAT IS THIS TASK",task.pathName,"WITH",set_time/mcore,"small runtime"
+                        print("WHAT IS THIS TASK",task.pathName,"WITH",set_time/mcore,"small runtime")
                         wfi.sendLog('equalizor','The task %s was found to run short jobs of %.2f [mins] at original %d cores setting'%( taskname, set_time / mcore , mcore))
                         short_tasks.add( (task.pathName, set_time / mcore, mcore) )
 
                     if mem and ((mem > warning_mem*mcore) if wfi.request['RequestType'] != 'StepChain' else (mem > warning_mem*wfi.getMulticore())):
-                        print "WHAT IS THIS TASK",task.pathName,"WITH",mem,"memory requirement at",mcore,"cores"
+                        print("WHAT IS THIS TASK",task.pathName,"WITH",mem,"memory requirement at",mcore,"cores")
                         wfi.sendLog('equalizor','The task %s was found to be confiugred with %d MB over %d MB/core at %d cores'%( taskname, mem, warning_mem, mcore))
                         bad_hungry_tasks.add( (task.pathName, mem, mcore ) )
 
                     if set_memory and (set_memory > warning_mem*mcore):
-                        print "WHAT IS THIS TASK",task.pathName,"WITH",set_memory,"memory requirement at",mcore,"cores"
+                        print("WHAT IS THIS TASK",task.pathName,"WITH",set_memory,"memory requirement at",mcore,"cores")
                         wfi.sendLog('equalizor','The task %s was found to run jobs using %d MB over %d MB/core at %d cores'%( taskname, set_memory, warning_mem, mcore))
 
                         hungry_tasks.add( (task.pathName, set_memory, mcore) )
@@ -609,9 +609,9 @@ def equalizor(url , specific = None, options=None):
                 restrict_to_allowed = not ((campaign in tune_performance) or (CI.get(campaign,'resize',False)) )
 
                 if options.augment:
-                    print "\t",task.pathName
+                    print("\t",task.pathName)
                 if False and is_chain and task.pathName.endswith('_1') and not options.augment:
-                    print i_task,"in chain prevents overflowing"
+                    print(i_task,"in chain prevents overflowing")
                     needs = False
                     
 
@@ -620,32 +620,32 @@ def equalizor(url , specific = None, options=None):
                     for s in sec:
                         if not s in PU_locations:
                             presence = getDatasetPresence( url, s)
-                            one_secondary_locations = [site for (site,(there,frac)) in presence.items() if frac>98.]
+                            one_secondary_locations = [site for (site,(there,frac)) in list(presence.items()) if frac>98.]
                             PU_locations[s] = one_secondary_locations
-                        print "secondary is at",sorted(PU_locations[s])
+                        print("secondary is at",sorted(PU_locations[s]))
                         secondary_locations = set([SI.SE_to_CE(site) for site in PU_locations[s]]) & secondary_locations
                     aaa_sec_grid = set(secondary_locations)
                     for site in sorted(aaa_sec_grid):
                         aaa_sec_grid.update( mapping.get(site, []) )
                     
-                    print len(prim)
+                    print(len(prim))
                     if len(prim):    
                         dataset = list(prim)[0]
                         all_blocks,blocks = wfi.getActiveBlocks()
-                        count_all = sum([len(v) for k,v in all_blocks.items()])
+                        count_all = sum([len(v) for k,v in list(all_blocks.items())])
                         presence = getDatasetPresence(url, dataset, only_blocks=blocks )
-                        aaa_prim_grid = set([SI.SE_to_CE(site) for site in presence.keys()])
+                        aaa_prim_grid = set([SI.SE_to_CE(site) for site in list(presence.keys())])
                         for site in sorted(aaa_prim_grid):
                             aaa_prim_grid.update( mapping.get(site, []) )
 
-                        print sorted(aaa_prim_grid),"around primary location",sorted(presence.keys())
-                        print sorted(aaa_sec_grid),"aroudn secondary location",sorted(secondary_locations)
+                        print(sorted(aaa_prim_grid),"around primary location",sorted(presence.keys()))
+                        print(sorted(aaa_sec_grid),"aroudn secondary location",sorted(secondary_locations))
                         ## intersect
                         aaa_grid = aaa_sec_grid & aaa_prim_grid
                         if restrict_to_allowed:
                             aaa_grid = aaa_grid & set(memory_allowed)
                     else:
-                        print "premix overflow from a taskchain"
+                        print("premix overflow from a taskchain")
                         if restrict_to_allowed:
                             aaa_grid = set(memory_allowed) & aaa_sec_grid
                         else:
@@ -653,10 +653,10 @@ def equalizor(url , specific = None, options=None):
 
                     #banned_until_you_find_a_way_to_do_this = ['T3_US_OSG']
                     banned_until_you_find_a_way_to_do_this = []
-                    aaa_grid  = filter(lambda s : not s in banned_until_you_find_a_way_to_do_this, aaa_grid)
-                    print sorted(aaa_grid),"for premix"
+                    aaa_grid  = [s for s in aaa_grid if not s in banned_until_you_find_a_way_to_do_this]
+                    print(sorted(aaa_grid),"for premix")
                     aaa_grid = list(set(aaa_grid)  & set(SI.sites_ready))
-                    print sorted(aaa_grid),"that are ready"
+                    print(sorted(aaa_grid),"that are ready")
                     if aaa_grid:
                         wfi.sendLog('equalizor','Extending site whitelist for %s to %s due to PREMIX_overflow'%(task.pathName,sorted(aaa_grid)))
                         modifications[wfo.name][task.pathName]= {"AddWhitelist" : sorted(aaa_grid)}
@@ -677,15 +677,15 @@ def equalizor(url , specific = None, options=None):
                         ###xrootd is OFF
                         dataset = list(prim)[0]
                         all_blocks,blocks = wfi.getActiveBlocks()
-                        count_all = sum([len(v) for k,v in all_blocks.items()])
+                        count_all = sum([len(v) for k,v in list(all_blocks.items())])
                         
                         presence = getDatasetPresence(url, dataset, only_blocks=blocks )
-                        in_full = [SI.SE_to_CE(site) for site,(there,_) in presence.items() if there]
+                        in_full = [SI.SE_to_CE(site) for site,(there,_) in list(presence.items()) if there]
                         aaa_grid= set()
                         aaa_grid_in_full = set(in_full)
                         for site in sorted(aaa_grid_in_full):
                             if site == 'T1_US_FNAL':
-                                print  site,mapping.get(site, [])
+                                print(site,mapping.get(site, []))
                             aaa_grid_in_full.update( mapping.get(site, []) )
                         ## just add the neighbors to the existing whitelist. we could do more with block classAd
                         for site in wfi.request['SiteWhitelist']:
@@ -700,21 +700,21 @@ def equalizor(url , specific = None, options=None):
                         
                         gmon = wfi.getGlideMon()
                         needs, task_name, running, idled = needs_action(wfi, task)
-                        print needs,running,idled
+                        print(needs,running,idled)
                         site_in_use = set(gmon[task_name]['Sites']) if gmon and task_name in gmon and 'Sites' in gmon[task_name] else set()
-                        print dataset,"at",sorted(in_full),len(blocks),"/",count_all
-                        print "running at",sorted(site_in_use)
-                        print "set for",sorted(wfi.request['SiteWhitelist'])
-                        print "around current whitelist" ,sorted(aaa_grid)
-                        print "around where the data is now in full", sorted(aaa_grid_in_full)
+                        print(dataset,"at",sorted(in_full),len(blocks),"/",count_all)
+                        print("running at",sorted(site_in_use))
+                        print("set for",sorted(wfi.request['SiteWhitelist']))
+                        print("around current whitelist" ,sorted(aaa_grid))
+                        print("around where the data is now in full", sorted(aaa_grid_in_full))
 
                         if needs and not (site_in_use & set(in_full)) and aaa_grid_in_full:
-                            print "we could be going for replace at that point"
+                            print("we could be going for replace at that point")
                             wfi.sendLog('equalizor','Replaceing site whitelie to %s dynamically'% sorted(aaa_grid_in_full))
                             modifications[wfo.name][task.pathName] = { "ReplaceSiteWhitelist" : sorted( aaa_grid_in_full) }
                         else:
                             if needs and aaa_grid:
-                                print wfo.name
+                                print(wfo.name)
                                 wfi.sendLog('equalizor','Adding in site white list %s dynamically'% sorted(aaa_grid) )
                                 if wfo.name in modifications and task.pathName in modifications[wfo.name] and 'AddWhitelist' in modifications[wfo.name][task.pathName]:
                                     modifications[wfo.name][task.pathName]["AddWhitelist"].extend(sorted(aaa_grid))
@@ -724,16 +724,16 @@ def equalizor(url , specific = None, options=None):
                         ## the request is already is in xrootd mode (either too generous, or just about right with neighbors of full data)
                         dataset = list(prim)[0]
                         all_blocks,blocks = wfi.getActiveBlocks()
-                        count_all = sum([len(v) for k,v in all_blocks.items()])
+                        count_all = sum([len(v) for k,v in list(all_blocks.items())])
                         # fraction_left = float(len(blocks))/ count_all
                         #if fraction_left< 0.5:                            print '\n'.join( blocks )
                         presence = getDatasetPresence(url, dataset, only_blocks=blocks )
                         ## in full is really the only place we can go to safely, since we have no job-data matching
-                        in_full = [SI.SE_to_CE(site) for site,(there,_) in presence.items() if there]
+                        in_full = [SI.SE_to_CE(site) for site,(there,_) in list(presence.items()) if there]
                         gmon = wfi.getGlideMon()
                         needs, task_name, running, idled = needs_action(wfi, task)
                         site_in_use = set(gmon[task_name]['Sites']) if gmon and task_name in gmon and 'Sites' in gmon[task_name] else set()
-                        print needs,running,idled
+                        print(needs,running,idled)
 
                         aaa_grid = set(in_full)
                         for site in list(aaa_grid):
@@ -747,12 +747,12 @@ def equalizor(url , specific = None, options=None):
 			aaa_grid_.extend([x for x in add_on if x in aaa_grid])
 			aaa_grid = set(aaa_grid_)
                         new_grid = aaa_grid - set(wfi.request['SiteWhitelist'])
-                        print dataset,"is in full ",len(blocks),"/",count_all," at",in_full
-                        print '\n'.join( sorted(blocks) )
-                        print "running at",site_in_use
-                        print "in common of the site whitelist",sorted(common)
-                        print "site now also hosting the data",sorted(new_ones)
-                        print "site in whitelist with no data",sorted(extra_shit) # with no data and not within aaa reach
+                        print(dataset,"is in full ",len(blocks),"/",count_all," at",in_full)
+                        print('\n'.join( sorted(blocks) ))
+                        print("running at",site_in_use)
+                        print("in common of the site whitelist",sorted(common))
+                        print("site now also hosting the data",sorted(new_ones))
+                        print("site in whitelist with no data",sorted(extra_shit)) # with no data and not within aaa reach
                         ##if new_ones: 
                         # [Thong] With the current situation in Oct 2019 where only type of workflows needs primary xrootd 
                         # is UL SIM that also needs primary overflow, this condition `if new_ones` does not seem to be appropriate anymore.
@@ -761,21 +761,21 @@ def equalizor(url , specific = None, options=None):
 
 		        ## we will be add sites 
 		        if needs and aaa_grid:
-			    print wfo.name,"would replace for",sorted(aaa_grid)
+			    print(wfo.name,"would replace for",sorted(aaa_grid))
                             #print "but no thanks"
                             wfi.sendLog('equalizor','Changing the site whitelist to %s dynamically'%(sorted(aaa_grid)))
                             modifications[wfo.name][task.pathName] = { "ReplaceSiteWhitelist" : sorted(aaa_grid) }
                         elif new_grid:
-                            print wfo.name,"would complement up to",sorted(aaa_grid)
+                            print(wfo.name,"would complement up to",sorted(aaa_grid))
                             wfi.sendLog('equalizor','Adding site white list to %s dynamically'% sorted(new_grid) )
                             modifications[wfo.name][task.pathName] = { "AddWhitelist" : sorted(new_grid) }
                         elif len(extra_shit)>5:
                             if aaa_grid:
-                                print wfo.name,"would be restricting down to",sorted(aaa_grid),"because of",sorted(extra_shit)
+                                print(wfo.name,"would be restricting down to",sorted(aaa_grid),"because of",sorted(extra_shit))
                                 wfi.sendLog('equalizor','Restricting the white list to %s dynamically'% sorted(aaa_grid) )
                                 modifications[wfo.name][task.pathName] = { "ReplaceSiteWhitelist" : sorted(aaa_grid) }    
                         else:
-                            print wfo.name,"don't do anything"                            
+                            print(wfo.name,"don't do anything")                            
 
 
 
@@ -784,14 +784,14 @@ def equalizor(url , specific = None, options=None):
                 restrict_to = set(wfi.request['SiteWhitelist'])
                 intersection= set(remove)&set(restrict_to)
                 if intersection:
-                    print intersection,"is indeed in the original whitelist"
+                    print(intersection,"is indeed in the original whitelist")
                     restrict_to = restrict_to - set(remove)
                     modifications[wfo.name][task.pathName] = { "ReplaceSiteWhitelist" : sorted(restrict_to) }
 
             if wfo.name in add_to:
                 if task.taskType in ['Production','Processing']:
                     augment_to = add_to[wfo.name]
-                    print "adding",sorted(augment_to),"to",wfo.name
+                    print("adding",sorted(augment_to),"to",wfo.name)
                     if wfo.name in modifications and task.pathName in modifications[wfo.name] and 'AddWhitelist' in modifications[wfo.name][task.pathName]:
                         modifications[wfo.name][task.pathName]['AddWhitelist'].extend( augment_to )
                     else:
@@ -874,10 +874,10 @@ def equalizor(url , specific = None, options=None):
                     for s in sec:
                         if not s in PU_locations:
                             presence = getDatasetPresence( url, s)
-                            print json.dumps( presence, indent=2)
-                            one_secondary_locations = [site for (site,(there,frac)) in presence.items() if frac>98.]
+                            print(json.dumps( presence, indent=2))
+                            one_secondary_locations = [site for (site,(there,frac)) in list(presence.items()) if frac>98.]
                             PU_locations[s] = one_secondary_locations
-                        print "secondary is at",sorted(PU_locations[s])
+                        print("secondary is at",sorted(PU_locations[s]))
                         secondary_locations = set([SI.SE_to_CE(site) for site in PU_locations[s]]) & secondary_locations
                     
                     ## we should add all sites that hold the secondary input if any
@@ -887,10 +887,10 @@ def equalizor(url , specific = None, options=None):
 
                     secondary_locations = secondary_locations & set(sites_allowed)
                 else:
-                    print "Agents know that the secondary is at",better_secondary_locations
+                    print("Agents know that the secondary is at",better_secondary_locations)
                     secondary_locations = set(better_secondary_locations) & set(memory_allowed)
 
-                print "Using good locations allowed",secondary_locations
+                print("Using good locations allowed",secondary_locations)
 
                 ends = ['_0','StepOneProc','Production', 
                         #'_1' ## overflow the reco too ...
@@ -908,7 +908,7 @@ def equalizor(url , specific = None, options=None):
 
                     mode = 'AddWhitelist'
                     if not prim and i_task==0:
-                        print "because there isn't any input, one should be able to just replace the sitewhitelist instead of adding, with the restriction of not reaching every possible sites"
+                        print("because there isn't any input, one should be able to just replace the sitewhitelist instead of adding, with the restriction of not reaching every possible sites")
                         mode='ReplaceSiteWhitelist'
 
                     ## remove the sites that have already running jobs
@@ -916,19 +916,19 @@ def equalizor(url , specific = None, options=None):
                     if gmon and task_name in gmon and 'Sites' in gmon[task_name] and mode=='AddWhitelist':
                         site_in_use = set(gmon[task_name]['Sites'])
                         site_in_use = set([]) ## at this time I cannot find a reason to apply such limitation
-                        print "removing",sorted(site_in_use)
+                        print("removing",sorted(site_in_use))
                         ## that determines where you want to run in addition
                         augment_by = list((set(secondary_locations)- site_in_use) & original_site_in_use)
                     else:
-                        print "no existing running site"
+                        print("no existing running site")
                         augment_by = list(original_site_in_use)
 
-                    if not augment_by: print "Nowhere to extend to"
+                    if not augment_by: print("Nowhere to extend to")
 
                     needs_overide = overide_from_agent( wfi, needs_overide)
                     if augment_by and (needs or needs_overide or force) and PU_overflow[campaign]['pending'] < PU_overflow[campaign]['max']:
                         PU_overflow[campaign]['pending'] += idled
-                        print "raising overflow to",PU_overflow[campaign]['pending'],"for",PU_overflow[campaign]['max']
+                        print("raising overflow to",PU_overflow[campaign]['pending'],"for",PU_overflow[campaign]['max'])
                         ## the step with an input ought to be the digi part : make this one go anywhere
                         modifications[wfo.name][task.pathName] = { mode : augment_by , "Running" : running, "Pending" : idled, "Priority" : wfi.request['RequestPriority']}
                         altered_tasks.add( task.pathName )
@@ -937,7 +937,7 @@ def equalizor(url , specific = None, options=None):
                                                                                                                     mode,
                                                                                                                     json.dumps( sorted(augment_by), indent=2 )))
                     else:
-                        print task_name,"of",wfo.name,"running",running,"and pending",idled
+                        print(task_name,"of",wfo.name,"running",running,"and pending",idled)
 
             ### overflow the skims back to multi-core 
             if campaign in ['Run2015D','Run2015C_25ns'] and task.taskType =='Skim':
@@ -972,8 +972,8 @@ def equalizor(url , specific = None, options=None):
                 #set_for = set(wfi.request['SiteWhitelist']) - t1s - ust2s
                 #set_for = set(wfi.request['SiteWhitelist']) - allmcores
                 set_for = set(wfi.request['SiteWhitelist']) & t1s
-                print wfo.name,"going for",set_for
-                print task.pathName
+                print(wfo.name,"going for",set_for)
+                print(task.pathName)
                 if set_for:
                     modifications[wfo.name][task.pathName] = { "ReplaceSiteWhitelist" : sorted(set_for) }
                 
@@ -996,7 +996,7 @@ def equalizor(url , specific = None, options=None):
                     elif task.pathName in modifications[wfo.name] and 'ReplaceSiteWhitelist' in modifications[wfo.name][task.pathName]:
                         #modifications[wfo.name][task.pathName]["ReplaceSiteWhitelist"].append( "T2_CH_CERN_HLT" )
                         #print "\t",wfo.name,"adding replace HLT up to",pending_HLT,"for",max_HLT
-                        print "already having a site replacement, not adding the HLT for now"
+                        print("already having a site replacement, not adding the HLT for now")
                         pass
                     else:
                         modifications[wfo.name][task.pathName] = { "AddWhitelist" : ["T2_CH_CERN_HLT"],
@@ -1037,13 +1037,13 @@ def equalizor(url , specific = None, options=None):
                 if manual_task == taskname:
 
                     if a_sites:
-                        print "adding manually",a_sites,"for",task.pathName
+                        print("adding manually",a_sites,"for",task.pathName)
                         if task.pathName in modifications[wfo.name] and 'AddWhitelist' in modifications[wfo.name][task.pathName]:
                             modifications[wfo.name][task.pathName]['AddWhitelist'] = list(set(modifications[wfo.name][task.pathName]['AddWhitelist'] +a_sites.split(',')))
                         else:
                             modifications[wfo.name][task.pathName] = {'AddWhitelist' : list(set(a_sites.split(',')))}
                     elif r_sites:
-                        print "replacing manually",r_sites,"for",task.pathName
+                        print("replacing manually",r_sites,"for",task.pathName)
                         if task.pathName in modifications[wfo.name] and 'ReplaceSiteWhitelist' in modifications[wfo.name][task.pathName]:
                             modifications[wfo.name][task.pathName]['ReplaceSiteWhitelist'] = list(set(modifications[wfo.name][task.pathName]['ReplaceSiteWhitelist'] +r_sites.split(',')))
                         else:
@@ -1090,7 +1090,7 @@ def equalizor(url , specific = None, options=None):
     new_reads = defaultdict(list)
 
 
-    for t,o in performance.items():
+    for t,o in list(performance.items()):
         if 'time' in o:
             new_times[s_quantize(o['time'], time_quanta)].append( t )
         if 'memory' in o:
@@ -1116,8 +1116,8 @@ def equalizor(url , specific = None, options=None):
 
     ## catch wf to be held/release
     hold_wf = []
-    already_holding = interface['hold'].keys()
-    release_wf = list(set(already_holding)-set(hold_wf))+interface['release'].keys() 
+    already_holding = list(interface['hold'].keys())
+    release_wf = list(set(already_holding)-set(hold_wf))+list(interface['release'].keys()) 
     hold_wf = list(set(hold_wf)-set(release_wf))
     for wf in hold_wf:
         interface['hold'].setdefault(wf,"Everywhere")

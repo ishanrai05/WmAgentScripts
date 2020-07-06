@@ -2,8 +2,8 @@
 
 import os
 import sys
-import urllib
-import httplib
+import urllib.request, urllib.parse, urllib.error
+import http.client
 import re
 
 from WMCore.WMSpec.WMWorkload import WMWorkloadHelper
@@ -21,11 +21,11 @@ def makeNewBlockBlacklist(url, workflow):
                  blockBlacklist = blockBlacklist + ", "
               blockBlacklist = blockBlacklist + "'" + block + "'"
               i=i+1
-        print 'Blacklist = ',blockBlacklist
+        print('Blacklist = ',blockBlacklist)
         return blockBlacklist
 
 def getInputDataset(url, workflow):
-        conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+        conn  =  http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
         r1=conn.request("GET",'/reqmgr/view/showWorkload?requestName='+workflow)
         r2=conn.getresponse()
         workload=r2.read()
@@ -42,26 +42,26 @@ def approveRequest(url,workflow):
     params = {"requestName": workflow,
               "status": "assignment-approved"}
 
-    encodedParams = urllib.urlencode(params)
+    encodedParams = urllib.parse.urlencode(params)
     headers  =  {"Content-type": "application/x-www-form-urlencoded",
                  "Accept": "text/plain"}
 
-    conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+    conn  =  http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
     conn.request("PUT",  "/reqmgr/reqMgr/request", encodedParams, headers)
     response = conn.getresponse()
     if response.status != 200:
-        print 'could not approve request with following parameters:'
-        for item in params.keys():
-            print item + ": " + str(params[item])
-        print 'Response from http call:'
-        print 'Status:',response.status,'Reason:',response.reason
-        print 'Explanation:'
+        print('could not approve request with following parameters:')
+        for item in list(params.keys()):
+            print(item + ": " + str(params[item]))
+        print('Response from http call:')
+        print('Status:',response.status,'Reason:',response.reason)
+        print('Explanation:')
         data = response.read()
-        print data
-        print "Exiting!"
+        print(data)
+        print("Exiting!")
         sys.exit(1)
     conn.close()
-    print 'Cloned workflow:',workflow
+    print('Cloned workflow:',workflow)
     return
 
 
@@ -71,7 +71,7 @@ def retrieveSchema(workflowName,newBlockBlacklist):
     helper = WMWorkloadHelper()
     helper.load(specURL)
     schema = {}
-    for (key, value) in helper.data.request.schema.dictionary_().iteritems():
+    for (key, value) in helper.data.request.schema.dictionary_().items():
         #print key
         if key == 'ProdConfigCacheID':
             schema['ProdConfigCacheID'] = value
@@ -85,14 +85,14 @@ def retrieveSchema(workflowName,newBlockBlacklist):
 def submitWorkflow(schema):
     for schemaListItem in ["RunWhitelist", "RunBlacklist", "BlockWhitelist",
                            "BlockBlacklist"]:
-        if schemaListItem in schema.keys():
+        if schemaListItem in list(schema.keys()):
             schema[schemaListItem] = str(schema[schemaListItem])
             
-    encodedParams = urllib.urlencode(schema, True)
+    encodedParams = urllib.parse.urlencode(schema, True)
     headers  =  {"Content-type": "application/x-www-form-urlencoded",
                  "Accept": "text/plain"}
 
-    conn  =  httplib.HTTPSConnection("cmsweb.cern.ch", cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+    conn  =  http.client.HTTPSConnection("cmsweb.cern.ch", cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
     conn.request("POST",  "/reqmgr/create/makeSchema", encodedParams, headers)
     response = conn.getresponse()
     data = response.read()
@@ -101,14 +101,14 @@ def submitWorkflow(schema):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print "Usage:"
-        print "  ./resubmitWithBlockBlacklist.py WORKFLOW_NAME"
+        print("Usage:")
+        print("  ./resubmitWithBlockBlacklist.py WORKFLOW_NAME")
         sys.exit(0)
 
     url='cmsweb.cern.ch'
     newBlockBlackList = makeNewBlockBlacklist(url, sys.argv[1])
 
-    print "Going to attempt to resubmit %s..." % sys.argv[1]
+    print("Going to attempt to resubmit %s..." % sys.argv[1])
     schema = retrieveSchema(sys.argv[1], newBlockBlackList)
     newWorkflow=submitWorkflow(schema)
     approveRequest('cmsweb.cern.ch',newWorkflow)

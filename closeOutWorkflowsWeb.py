@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import time, shutil
-from closeOutWorkflows import *
+from .closeOutWorkflows import *
 
 """
     Runs Closeout script generating the output to a Web Page.
@@ -51,14 +51,14 @@ def closeOutReRecoWorkflowsWeb(url, workflows, output):
             #    reqMgrClient.closeOutWorkflowCascade(url, workflow.name)
             #populate the list without subs
             missingSubs = True
-            for (ds,info) in result['datasets'].items():
+            for (ds,info) in list(result['datasets'].items()):
                 missingSubs &= info['missingSubs']
             #if all missing subscriptions, subscribe all
             if missingSubs:
                 noSiteWorkflows.append(workflow)
         except Exception as e:
-            print wf, e
-    print '-'*180
+            print(wf, e)
+    print('-'*180)
     return noSiteWorkflows
 
 def closeOutRedigiWorkflowsWeb(url, workflows, output):
@@ -85,13 +85,13 @@ def closeOutRedigiWorkflowsWeb(url, workflows, output):
             reqMgrClient.closeOutWorkflowCascade(url, workflow.name)
         #populate the list without subs
         missingSubs = True
-        for (ds,info) in result['datasets'].items():
+        for (ds,info) in list(result['datasets'].items()):
             missingSubs &= info['missingSubs']
         #if all missing subscriptions, subscribe all
         if missingSubs:
             noSiteWorkflows.append(workflow)
 
-    print '-'*180
+    print('-'*180)
     return noSiteWorkflows
 
 def closeOutMonterCarloRequestsWeb(url, workflows, output, fromGen):
@@ -126,13 +126,13 @@ def closeOutMonterCarloRequestsWeb(url, workflows, output, fromGen):
             reqMgrClient.closeOutWorkflowCascade(url, workflow.name)
         #populate the list without subs
         missingSubs = True
-        for (ds,info) in result['datasets'].items():
+        for (ds,info) in list(result['datasets'].items()):
             missingSubs &= info['missingSubs']
         #if all missing subscriptions, subscribe all
         if missingSubs:
             noSiteWorkflows.append(workflow)
     #separation line
-    print '-'*180
+    print('-'*180)
     return noSiteWorkflows
 
 def closeOutStep0RequestsWeb(url, workflows, output):
@@ -158,12 +158,12 @@ def closeOutStep0RequestsWeb(url, workflows, output):
             reqMgrClient.closeOutWorkflowCascade(url, workflow.name)
         #populate the list without subs
         missingSubs = True
-        for (ds,info) in result['datasets'].items():
+        for (ds,info) in list(result['datasets'].items()):
             missingSubs &= info['missingSubs']
         #if all missing subscriptions, subscribe all
         if missingSubs:
             noSiteWorkflows.append(workflow)
-    print '-'*180
+    print('-'*180)
     return noSiteWorkflows
 
 def closeOutStoreResultsWorkflowsWeb(url, workflows, output):
@@ -187,12 +187,12 @@ def closeOutStoreResultsWorkflowsWeb(url, workflows, output):
             reqMgrClient.closeOutWorkflowCascade(url, workflow.name)
         #populate the list without subs
         missingSubs = True
-        for (ds,info) in result['datasets'].items():
+        for (ds,info) in list(result['datasets'].items()):
             missingSubs &= info['missingSubs']
         #if all missing subscriptions, subscribe all
         if missingSubs:
             noSiteWorkflows.append(workflow)
-    print '-'*180
+    print('-'*180)
     return noSiteWorkflows
 
 
@@ -214,19 +214,19 @@ def closeOutTaskChainWeb(url, workflows, output):
             reqMgrClient.closeOutWorkflowCascade(url, workflow.name)
         #populate the list without subs
         missingSubs = True
-        for (ds,info) in result['datasets'].items():
+        for (ds,info) in list(result['datasets'].items()):
             missingSubs &= info['missingSubs']
         #if all missing subscriptions, subscribe all
         if missingSubs:
             noSiteWorkflows.append(workflow)
-    print '-'*180
+    print('-'*180)
     return noSiteWorkflows
 
 def printResultWeb(result, output):
     """
     Prints the result of analysing a workflow in web output
     """
-    for dsname, ds in result['datasets'].items():
+    for dsname, ds in list(result['datasets'].items()):
         row = '<tr><td><a name="%s">%s</a></td>'+('<td>%s</td>'*9)+'</tr>\n'
         output.write( row % (result["name"], result["name"], dsname,
             "%.3f"%(ds["percentage"]*100),
@@ -281,16 +281,16 @@ def listSubscriptionsWeb(subs, output):
 def main():
     output = open(tempfile,'w')
     url = 'cmsweb.cern.ch'
-    print "Gathering Requests"
+    print("Gathering Requests")
     requests = getOverviewRequestsWMStats(url)
-    print "Classifying Requests"
+    print("Classifying Requests")
     workflowsCompleted = classifyCompletedRequests(url, requests)
     #header
     output.write(head)
     #print header
-    print '-'*220
-    print '| Request'+(' '*74)+'| OutputDataSet'+(' '*86)+'|%Compl|Dupl|Tran|Subscr|ClosOu|'
-    print '-'*220
+    print('-'*220)
+    print('| Request'+(' '*74)+'| OutputDataSet'+(' '*86)+'|%Compl|Dupl|Tran|Subscr|ClosOu|')
+    print('-'*220)
     
     printTableHeaderWeb('ReReco', output)
     noSiteWorkflows = closeOutReRecoWorkflowsWeb(url, workflowsCompleted['ReReco'], output)
@@ -329,7 +329,7 @@ def main():
     printTableFooterWeb('StoreResults', output)
     """
     
-    print "MC Workflows for which couldn't find Custodial Tier1 Site"
+    print("MC Workflows for which couldn't find Custodial Tier1 Site")
 
     
     output.write("<hr></hr>"

@@ -57,7 +57,7 @@ response = br.open(savannah_page)
 
 # Check to see if login was successful, if not exit
 if not re.search('Logged in as ' + username, response.read()):
-    print 'login unsuccessful, please check your username and password'
+    print('login unsuccessful, please check your username and password')
     exit(1) # exit the program
 
 cmssw2rank = {}
@@ -72,7 +72,7 @@ for release in release_list:
 for links in br.links(text_regex="CMSSW_*_*"): 
     if links.text not in release_list:
         br.follow_link(links)
-        print "Hide deprecated version %s" % links.text
+        print("Hide deprecated version %s" % links.text)
         br.select_form(nr=1)
         control = br.find_control("status")
         control.value = ['H']
@@ -85,7 +85,7 @@ for release in release_list:
         #First, look if this CMSSW release is already there
         br.follow_link(text=release, nr=0)
         rank = cmssw2rank[release]
-        print("Release %s already exists. Changing rank to %s" %(release,rank))
+        print(("Release %s already exists. Changing rank to %s" %(release,rank)))
         br.select_form(nr=1)
         br['order_id']= str(rank)
         br['status']=['A']
@@ -98,6 +98,6 @@ for release in release_list:
         br['title']=release
         br['order_id']= str(rank)
         br['description']='Created by StoreResults robot'
-	print "Entry created for %s with rank %s" %(release,rank)
+	print("Entry created for %s with rank %s" %(release,rank))
 	br.submit()
 	br.open(savannah_page)

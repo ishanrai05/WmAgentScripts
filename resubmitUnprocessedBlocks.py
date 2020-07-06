@@ -2,14 +2,14 @@
 
 import os
 import sys
-import urllib
-import httplib
-import unprocessedBlocks
-import changeSplittingWorkflow
+import urllib.request, urllib.parse, urllib.error
+import http.client
+from . import unprocessedBlocks
+from . import changeSplittingWorkflow
 
 from WMCore.WMSpec.WMWorkload import WMWorkloadHelper
 from assignWorkflow import assignRequest
-from reqMgrClient import retrieveSchema, submitWorkflow, Workflow
+from .reqMgrClient import retrieveSchema, submitWorkflow, Workflow
 
 reqmgrCouchURL = "https://cmsweb.cern.ch/couchdb/reqmgr_workload_cache"
 #reqmgrHostname = "vocms144"
@@ -19,31 +19,31 @@ def approveRequest(url,workflow):
     params = {"requestName": workflow,
               "status": "assignment-approved"}
 
-    encodedParams = urllib.urlencode(params)
+    encodedParams = urllib.parse.urlencode(params)
     headers  =  {"Content-type": "application/x-www-form-urlencoded",
                  "Accept": "text/plain"}
 
-    conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+    conn  =  http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
     #conn  =  httplib.HTTPConnection(url)
     conn.request("PUT",  "/reqmgr/reqMgr/request", encodedParams, headers)
     response = conn.getresponse()
     if response.status != 200:
-        print 'could not approve request with following parameters:'
-        for item in params.keys():
-            print item + ": " + str(params[item])
-        print 'Response from http call:'
-        print 'Status:',response.status,'Reason:',response.reason
-        print 'Explanation:'
+        print('could not approve request with following parameters:')
+        for item in list(params.keys()):
+            print(item + ": " + str(params[item]))
+        print('Response from http call:')
+        print('Status:',response.status,'Reason:',response.reason)
+        print('Explanation:')
         data = response.read()
-        print data
-        print "Exiting!"
+        print(data)
+        print("Exiting!")
         sys.exit(1)
     conn.close()
     return
 
 def modifySchema(helper, user, group, oldworkflow):
     #for (key, value) in helper.data.request.schema.dictionary_whole_tree_().iteritems():
-    for (key, value) in helper.data.request.schema.dictionary_().iteritems():
+    for (key, value) in helper.data.request.schema.dictionary_().items():
         #print key, value
         if key == 'ProcConfigCacheID':
             schema['ConfigCacheID'] = value
@@ -62,8 +62,8 @@ def modifySchema(helper, user, group, oldworkflow):
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print "Usage:"
-        print "  ./resubmit WORKFLOW_NAME USER GROUP"
+        print("Usage:")
+        print("  ./resubmit WORKFLOW_NAME USER GROUP")
         sys.exit(0)
     oldworkflow=sys.argv[1]
     user=sys.argv[2]
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     #print schema
     newWorkflow = submitWorkflow(url, schema)
     approveRequest(url,newWorkflow)
-    print 'Cloned workflow:',newWorkflow
+    print('Cloned workflow:',newWorkflow)
     
     team = wfInfo.info["team"]
     if 'teams' in wfInfo.info:

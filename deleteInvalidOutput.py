@@ -1,7 +1,7 @@
 import sys
-import reqMgrClient as rqmgr
-import phedexClient as phd
-import dbs3Client as dbs
+from . import reqMgrClient as rqmgr
+from . import phedexClient as phd
+from . import dbs3Client as dbs
 from optparse import OptionParser
 """
     Basic script for deleting output from old workflows
@@ -27,7 +27,7 @@ def makeDeletionRequests(url, allDatasets, verbose=False, test=False):
         try:
             t = dbs.getDatasetStatus(ds)
             if verbose:
-                print ds, 'is', t
+                print(ds, 'is', t)
             #filter by status
             if t != 'INVALID' and t != 'DEPRECATED':
                 continue
@@ -40,18 +40,18 @@ def makeDeletionRequests(url, allDatasets, verbose=False, test=False):
                     requests[s] = []
                 requests[s].append(ds)
             if verbose:
-                print "available in", sites
+                print("available in", sites)
         except Exception as e:
-            print ds,e
+            print(ds,e)
     
 
     deletionRequests = []
     #for each site
     for s in sorted(requests.keys()):
         datasets = requests[s]
-        print "site", s
-        print "datasets to delete"
-        print '\n'.join(datasets)
+        print("site", s)
+        print("datasets to delete")
+        print('\n'.join(datasets))
         if not test:
             r = phd.makeDeletionRequest(url, [s], datasets, "Invalid data, can be deleted")
             if ("phedex" in r and 
@@ -59,9 +59,9 @@ def makeDeletionRequests(url, allDatasets, verbose=False, test=False):
                 reqid = r["phedex"]["request_created"][0]["id"]
                 deletionRequests.append(reqid)
                 if verbose:
-                    print "Request created:", reqid
+                    print("Request created:", reqid)
             else:
-                print r
+                print(r)
     return deletionRequests
 
 def main():
@@ -85,18 +85,18 @@ def main():
     
     datasets = []
 
-    print "Getting output from workflows"
+    print("Getting output from workflows")
     for wf in workflows:
         if options.verbose:
-            print wf
+            print(wf)
         try:
             ds = rqmgr.outputdatasetsWorkflow(url, wf)
             datasets += ds
         except:
-            print wf, "skipped"
+            print(wf, "skipped")
     reqs = makeDeletionRequests(url, datasets, options.verbose, options.test)
-    print "Deletion request made:"
-    print '\n'.join(reqs)
+    print("Deletion request made:")
+    print('\n'.join(reqs))
 
 if __name__ == "__main__":
     main()

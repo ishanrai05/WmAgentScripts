@@ -3,7 +3,7 @@ use the vocms0275 machine with the x509_USER_PROXY and export PYTHONPATH=$PYTHON
 """
 
 #!/usr/bin/env python
-from utils import wtcInfo
+from .utils import wtcInfo
 import optparse
 import os
 user = os.environ.get('USER')

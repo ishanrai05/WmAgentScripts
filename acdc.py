@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
 import os
-from utils import getWorkflowById, reqmgr_url, workflowInfo
+from .utils import getWorkflowById, reqmgr_url, workflowInfo
 import optparse
 
 parser = optparse.OptionParser()
@@ -21,25 +21,24 @@ for wf in wfs:
     if options.nocreation:
         wfi = workflowInfo( reqmgr_url, wf)
         pid = wfi.request['PrepID']
-        familly = filter(lambda r : r['RequestStatus'] == 'assignment-approved' and 'ACDC' in r['RequestName'],
-                         getWorkflowById( reqmgr_url, pid, details=True))
+        familly = [r for r in getWorkflowById( reqmgr_url, pid, details=True) if r['RequestStatus'] == 'assignment-approved' and 'ACDC' in r['RequestName']]
         acdcs = [r['RequestName'] for r in familly]
     else:
         com = './makeACDC.py --all -w %s'% wf
-        print com 
-        y = (raw_input('go ?') if not options.dry else 'dry') if not options.go else 'y'
+        print(com) 
+        y = (input('go ?') if not options.dry else 'dry') if not options.go else 'y'
         if y.lower() in ['y','yes','go','ok']:
             makeall = os.popen('./makeACDC.py --all -w %s'% wf).read()
             for s in [l.split() for l in makeall.split('\n')]:
                 if len(s)!=3: continue
                 if s[1]!='for' : continue
                 acdcs.append( s[0] )
-    print acdcs
+    print(acdcs)
     #sec='--secondary_x' if 'RunIISummer16DR80Premix' in wf else ''
     sec=''
     for acdc in acdcs:
         com = './assign.py %s -w %s %s'%(options.assignoptions, acdc, sec)
-        y = (raw_input('go ?') if not options.dry else 'dry') if not options.go else 'y'
+        y = (input('go ?') if not options.dry else 'dry') if not options.go else 'y'
         if y.lower() in ['y','yes','go','ok']:        
             os.system('./assign.py %s -w %s %s'%(options.assignoptions, acdc, sec))
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env python
-from utils import getWorkflows, findCustodialCompletion, workflowInfo, getDatasetStatus, getWorkflowByOutput, unifiedConfiguration, getDatasetSize, sendEmail, sendLog, campaignInfo, componentInfo, reqmgr_url, monitor_dir, monitor_pub_dir, getWorkflowByMCPileup, getDatasetPresence, lockInfo, getLatestMCPileup, base_eos_dir, eosFile, eosRead
-from assignSession import *
+from .utils import getWorkflows, findCustodialCompletion, workflowInfo, getDatasetStatus, getWorkflowByOutput, unifiedConfiguration, getDatasetSize, sendEmail, sendLog, campaignInfo, componentInfo, reqmgr_url, monitor_dir, monitor_pub_dir, getWorkflowByMCPileup, getDatasetPresence, lockInfo, getLatestMCPileup, base_eos_dir, eosFile, eosRead
+from .assignSession import *
 import json
 import os
 from collections import defaultdict
 import sys
-from McMClient import McMClient
+from .McMClient import McMClient
 import time
-from utils import lockInfo, moduleLock
+from .utils import lockInfo, moduleLock
 
 
 
@@ -16,15 +16,15 @@ def time_point(label="",sub_lap=False, percent=None):
     now = time.mktime(time.gmtime())
     nows = time.asctime(time.gmtime())
     
-    print "[lockor] Time check (%s) point at : %s"%(label, nows)
+    print("[lockor] Time check (%s) point at : %s"%(label, nows))
     if percent:
-        print "[lockor] finishing in about %.2f [s]" %( (now - time_point.start) / percent )
-        print "[lockor] Since start: %s [s]"% ( now - time_point.start)
+        print("[lockor] finishing in about %.2f [s]" %( (now - time_point.start) / percent ))
+        print("[lockor] Since start: %s [s]"% ( now - time_point.start))
     if sub_lap:
-        print "[lockor] Sub Lap : %s [s]"% ( now - time_point.sub_lap ) 
+        print("[lockor] Sub Lap : %s [s]"% ( now - time_point.sub_lap )) 
         time_point.sub_lap = now
     else:
-        print "[lockor] Lap : %s [s]"% ( now - time_point.lap ) 
+        print("[lockor] Lap : %s [s]"% ( now - time_point.lap )) 
         time_point.lap = now            
         time_point.sub_lap = now
 
@@ -45,7 +45,7 @@ if not up.check(): sys.exit(0)
 use_mcm = up.status['mcm']
 mcm=None
 if use_mcm:
-    print "mcm interface is up"
+    print("mcm interface is up")
     mcm = McMClient(dev=False)
 
 statuses = ['assignment-approved','assigned','failed','staging','staged','acquired','running-open','running-closed','force-complete','completed','closed-out']
@@ -86,10 +86,10 @@ for item in addHocLocks:
 time_point("Starting reversed statuses check")
 
 for status in statuses:
-    print time.asctime(time.gmtime()),"CEST, fetching",status
+    print(time.asctime(time.gmtime()),"CEST, fetching",status)
     time_point("checking %s" % status, sub_lap=True)
     wfls = getWorkflows(url , status = status,details=True)
-    print len(wfls),"in",status
+    print(len(wfls),"in",status)
     for wl in wfls:
         wfi = workflowInfo( url,  wl['RequestName'], request = wl ,spec=False)
         (_,primaries,_,secondaries) = wfi.getIO()
@@ -97,9 +97,9 @@ for status in statuses:
         ## unknonw to the system
         known = session.query(Workflow).filter(Workflow.name==wl['RequestName']).all()
         if not known: 
-            print wl['RequestName'],"is unknown to unified, relocking all I/O"
+            print(wl['RequestName'],"is unknown to unified, relocking all I/O")
             for dataset in list(primaries)+list(secondaries)+outputs:
-                print "\t", dataset
+                print("\t", dataset)
                 if dataset:
                     also_locking_from_reqmgr.add( dataset )
             continue
@@ -109,22 +109,22 @@ for status in statuses:
                 ## skip those only assignment-approved / considered
                 continue
 
-        print "Locking all I/O for",wl['RequestName']
+        print("Locking all I/O for",wl['RequestName'])
         for dataset in list(primaries)+list(secondaries)+outputs:
             if 'FAKE' in dataset: continue
             if 'None' in dataset: continue
             if dataset:
                 newly_locking.add(dataset)
-            print "\t", dataset
-    print len(newly_locking),"locks so far"
+            print("\t", dataset)
+    print(len(newly_locking),"locks so far")
 
 
 ## avoid duplicates
 also_locking_from_reqmgr = also_locking_from_reqmgr - newly_locking
-print "additional lock for workflows not knonw to unified",len(also_locking_from_reqmgr)
+print("additional lock for workflows not knonw to unified",len(also_locking_from_reqmgr))
 
 already_locked = set( LI.items() )
-print len(already_locked),"already locked items"
+print(len(already_locked),"already locked items")
 
 time_point("Starting to check for unlockability")
 
@@ -159,18 +159,18 @@ for dataset in already_locked-newly_locking-also_locking_from_reqmgr:
             ## now check with mcm if possible to relock the dataset
             if use_mcm:
                 requests_using = mcm.getA('requests',query='input_dataset=%s'%dataset)
-                pending_requests_using = filter(lambda req: req['status'] not in ['submitted','done'], requests_using)
+                pending_requests_using = [req for req in requests_using if req['status'] not in ['submitted','done']]
                 if len(pending_requests_using):
-                    print "relocking",dataset,"because of",len(requests_using),"using it",",".join( [req['prepid'] for req in pending_requests_using] )
+                    print("relocking",dataset,"because of",len(requests_using),"using it",",".join( [req['prepid'] for req in pending_requests_using] ))
                     unlock=False
                 elif len(requests_using):
-                    print "unlocking",dataset,"because no pending request is using it in mcm"
+                    print("unlocking",dataset,"because no pending request is using it in mcm")
                     ## no one is using it
                     unlock=True
                 else:
                     #print "cannot unlock",dataset,"because no request seems to be using it"
                     #unlock=False                    
-                    print "Unlocking",dataset,"because no request is using it in input"
+                    print("Unlocking",dataset,"because no request is using it in input")
                     unlock=True
                 time_point("Checked with mcm for useful input", sub_lap=True)
             else:
@@ -182,17 +182,17 @@ for dataset in already_locked-newly_locking-also_locking_from_reqmgr:
                     odb = outs[0]
                     if (now-odb.date) > delay: #all([(now-odb.date) > delay for odb in outs]):
                         unlock = True
-                        print "unlocking",dataset,"after",(now-odb.date)/24*60*60,"[days] since announcement, limit is",delay_days,"[days]"
+                        print("unlocking",dataset,"after",(now-odb.date)/24*60*60,"[days] since announcement, limit is",delay_days,"[days]")
                     else:
                         unlock = False
-                        print "re-locking",dataset,"because ",delay_days,"[days] expiration date is not passed, now:",now,"announced",odb.date,":",(now-odb.date)/24*60*60,"[days]"
+                        print("re-locking",dataset,"because ",delay_days,"[days] expiration date is not passed, now:",now,"announced",odb.date,":",(now-odb.date)/24*60*60,"[days]")
                 else:
-                    print "re-Locking",dataset,"because of special tier needing double check"
+                    print("re-Locking",dataset,"because of special tier needing double check")
                     unlock=False
                 time_point("Checked to keep on disk for 30 days", sub_lap=True)
 
         if unlock:
-            print "\tunlocking",dataset
+            print("\tunlocking",dataset)
             LI.release( dataset )
             ##would like to pass to *-unlock, or even destroy from local db
             creators = getWorkflowByOutput( url, dataset , details=True)
@@ -200,16 +200,16 @@ for dataset in already_locked-newly_locking-also_locking_from_reqmgr:
                 for wfo in  session.query(Workflow).filter(Workflow.name==creator['RequestName']).all():
                     if not 'unlock' in wfo.status and any([wfo.status.startswith(key) for key in ['done','forget']]):
                         wfo.status +='-unlock'
-                        print "setting",wfo.name,"to",wfo.status
+                        print("setting",wfo.name,"to",wfo.status)
             session.commit()
         else:
-            print "\nrelocking",dataset
+            print("\nrelocking",dataset)
             newly_locking.add(dataset) 
            
         time_point("Checked all")
     except Exception as e:
-        print "Error in checking unlockability. relocking",dataset
-        print str(e)
+        print("Error in checking unlockability. relocking",dataset)
+        print(str(e))
         newly_locking.add(dataset)
 
 
@@ -228,7 +228,7 @@ for wfo in session.query(Workflow).filter(Workflow.status=='forget').all():
     wfi = workflowInfo(url, wfo.name)
     if all([o not in newly_locking for o in wfi.request['OutputDatasets']]) and not 'unlock' in wfo.status:
         wfo.status +='-unlock'
-        print "then setting",wfo.name,"to",wfo.status
+        print("then setting",wfo.name,"to",wfo.status)
     session.commit()
 
 time_point("verified those in forget")

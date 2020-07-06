@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-import urllib2,urllib, httplib, sys, re, os, json, time
+import urllib.request, urllib.error, urllib.parse,urllib.request,urllib.parse,urllib.error, http.client, sys, re, os, json, time
 
 def BlockPresentatSite(url, block, node):
-	print block
-	conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+	print(block)
+	conn  =  http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
 	r1=conn.request("GET",'/phedex/datasvc/json/prod/blockreplicas?block='+block+'&node='+node)
 	r2=conn.getresponse()
 	result = json.loads(r2.read())
@@ -15,7 +15,7 @@ def BlockPresentatSite(url, block, node):
 		return False
 
 def dataSetPresentatSite(url, dataset, node):
-	conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+	conn  =  http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
 	r1=conn.request("GET",'/phedex/datasvc/json/prod/blockreplicas?dataset='+dataset+'&node='+node)
 	r2=conn.getresponse()
 	result = json.loads(r2.read())
@@ -32,8 +32,8 @@ def blockSetCustodiallyandCompletedSomewherElse(url, block, node):
 		PresentSite=node[:-5]#to take the '_Disk' out of the name
 	if 'Buffer' in node:
 		PresentSite=node[:-7]#to take the '_Buffer' out of the name
-	conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
-	conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+	conn  =  http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+	conn  =  http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
 	r1=conn.request("GET",'/phedex/datasvc/json/prod/subscriptions?percent_min=100&block='+block+'&node=T1_*_MSS&custodial=y')
 	r2=conn.getresponse()
 	result = json.loads(r2.read())
@@ -55,7 +55,7 @@ def dataSetCustodialiySubscribedSomewhereElse(url, dataset, node):
 		PresentSite=node[:-5]#to take the '_Disk' out of the name
 	if 'Buffer' in node:
 		PresentSite=node[:-7]#to take the '_Buffer' out of the name
-	conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+	conn  =  http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
 	r1=conn.request("GET",'/phedex/datasvc/json/prod/subscriptions?percent_min=100&dataset='+dataset+'&node=T1_*&custodial=y')
 	r2=conn.getresponse()
 	result = json.loads(r2.read())
@@ -78,7 +78,7 @@ def dataSetCustodialiySubscribedSomewhereElse(url, dataset, node):
 def getBlocksProducedLastWeek(url):
 	BlocksWeek=[]
 	oneWeekTime=time.time()-2*7*24*60*60
-	conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+	conn  =  http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
 	r1=conn.request("GET",'/phedex/datasvc/json/prod/data?create_since='+str(oneWeekTime)+'&dataset=/*/*/GEN-SIM&level=block')
 	r2=conn.getresponse()
 	result = json.loads(r2.read())
@@ -92,7 +92,7 @@ def getdatasetsProducedLastWeek(url):
 	datasetsWeek=[]
 	oneWeekTime=time.time()-30*24*60*60
         #oneWeekTime=time.time()-3*30*24*60*60
-	conn  =  httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
+	conn  =  http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), key_file = os.getenv('X509_USER_PROXY'))
 	r1=conn.request("GET",'/phedex/datasvc/json/prod/data?create_since='+str(oneWeekTime)+'&dataset=/*/*/*SIM&level=block')
 	r2=conn.getresponse()
 	result = json.loads(r2.read())
@@ -105,7 +105,7 @@ def getdatasetsProducedLastWeek(url):
 def main():
     args=sys.argv[1:]
     if not len(args)==1:
-        print "usage:notCustodialDatasets sitename"
+        print("usage:notCustodialDatasets sitename")
         sys.exit(0)
     site=args[0]
     url='cmsweb.cern.ch'
@@ -114,7 +114,7 @@ def main():
     for dataset in datasetsWeek:
 	if dataSetPresentatSite(url, dataset, site):
 		if dataSetCustodialiySubscribedSomewhereElse(url, dataset, site):	
-			print dataset
+			print(dataset)
     sys.exit(0);
 
 if __name__ == "__main__":

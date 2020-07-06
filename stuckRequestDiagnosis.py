@@ -73,10 +73,10 @@ def checkJobCountsAgent(requestName):
         msg = "Task %s has " % task
         for state in result[task]:
             msg += '%d jobs %s ' % (result[task][state], state)
-        print msg
+        print(msg)
 
     if not result:
-        print "Check #1 failed, there are no unfinished tasks in the system apparently."
+        print("Check #1 failed, there are no unfinished tasks in the system apparently.")
     else:
         return
 
@@ -93,7 +93,7 @@ def checkJobCountsAgent(requestName):
                                                                        INNER JOIN wmbs_subscription ON
                                                                            wmbs_subscription.workflow = wmbs_workflow.id
                                                                        WHERE wmbs_workflow.name = '%s'""" % requestName))
-    print "There are %d subscriptions for this workflow, %d are incomplete." % (len(totalSubs), len(unfinishedSubs))
+    print("There are %d subscriptions for this workflow, %d are incomplete." % (len(totalSubs), len(unfinishedSubs)))
     if len(unfinishedSubs) != 0:
         for sub in unfinishedSubs:
             subId = sub['id']
@@ -103,11 +103,11 @@ def checkJobCountsAgent(requestName):
             acquiredFiles = formatter.formatDict(myThread.dbi.processData("""SELECT COUNT(wmbs_sub_files_acquired.fileid) AS count
                                                                                FROM wmbs_sub_files_acquired
                                                                                WHERE wmbs_sub_files_acquired.subscription = %s""" % subId))
-            print "There are %s files available and %s files acquired in the subscription %s. If the JobCreator is up, more jobs will appear soon." % (availableFiles[0]['count'],
+            print("There are %s files available and %s files acquired in the subscription %s. If the JobCreator is up, more jobs will appear soon." % (availableFiles[0]['count'],
                                                                                                                                                        acquiredFiles[0]['count'],
-                                                                                                                                                       subId)
+                                                                                                                                                       subId))
     else:
-        print "This workflow has all subscriptions as finished, the TaskArchiver should be eating through it now. This can take time though."
+        print("This workflow has all subscriptions as finished, the TaskArchiver should be eating through it now. This can take time though.")
     return
 
 def main():
@@ -121,7 +121,7 @@ def main():
         notFullyInjected = []
         for request in listOpen:
             request = request.strip()
-            print "checking on",request
+            print("checking on",request)
             result = checkWorkQueue(request)
             for activeAgent in result['ActiveAgents']:
                 if activeAgent not in resultAgents:
@@ -129,16 +129,16 @@ def main():
                 resultAgents[activeAgent].append(request)
             if result['ElementsAvailable'] or result['ElementsAcquired']:
                 notFullyInjected.append(request)
-        print "WorkQueue Analysis Results:"
-        print "---------------------------"
+        print("WorkQueue Analysis Results:")
+        print("---------------------------")
         for agent in resultAgents:
-            print "Agent %s:" % agent
+            print("Agent %s:" % agent)
             for request in sorted(resultAgents[agent]):
-                print request
-        print "---------------------------"
-        print "Requests not fully injected yet"
+                print(request)
+        print("---------------------------")
+        print("Requests not fully injected yet")
         for request in notFullyInjected:
-            print request
+            print(request)
 
 if __name__ == '__main__':
     sys.exit(main())

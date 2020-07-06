@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-from assignSession import *
-from utils import getWorkflows, getWorkflowById, getWorkLoad, componentInfo, sendEmail, workflowInfo, sendLog, reqmgr_url, getDatasetStatus, unifiedConfiguration, moduleLock, do_html_in_each_module, getDatasetFiles
+from .assignSession import *
+from .utils import getWorkflows, getWorkflowById, getWorkLoad, componentInfo, sendEmail, workflowInfo, sendLog, reqmgr_url, getDatasetStatus, unifiedConfiguration, moduleLock, do_html_in_each_module, getDatasetFiles
 import sys
 import copy
 import os
-from htmlor import htmlor
-from invalidator import invalidator 
+from .htmlor import htmlor
+from .invalidator import invalidator 
 import optparse
 import json
 import time
@@ -33,7 +33,7 @@ def injector(url, options, specific):
     for user in (options.user_storeresults.split(',') if options.user_storeresults else UC.get("user_storeresults")) :
         workflows.extend( getWorkflows(url, status=options.wmstatus, user=user, rtype="StoreResults"))
 
-    print len(workflows),"in line"
+    print(len(workflows),"in line")
     cannot_inject = set()
     to_convert = set()
     status_cache = defaultdict(str)
@@ -56,7 +56,7 @@ def injector(url, options, specific):
                     req_familly.extend( getWorkflowById( url, pid, details=True) )
                     
                 familly = []
-                print len(req_familly),"members"
+                print(len(req_familly),"members")
                 for req_member in req_familly:
                     #print "member",req_member['RequestName']
                     owfi = workflowInfo(url, req_member['RequestName'], request=req_member)
@@ -71,7 +71,7 @@ def injector(url, options, specific):
                     if not lwfo.status in ['forget','trouble','forget-unlock','forget-out-unlock']:
                         wfi.sendLog('injector',"Should not put %s because of %s %s"%( wf, lwfo.name,lwfo.status ))
                         sendLog('injector',"Should not put %s because of %s %s"%( wf, lwfo.name,lwfo.status ), level='critical')
-                        print "Should not put",wf,"because of",lwfo.name,lwfo.status
+                        print("Should not put",wf,"because of",lwfo.name,lwfo.status)
                         cannot_inject.add( wf )
                         can_add = False
             ## add a check on validity of input datasets
@@ -102,7 +102,7 @@ def injector(url, options, specific):
             if not can_add: continue
 
             ## temporary hack to transform specific taskchain into stepchains
-            print "considering the workflow %s for step-chain conversion"%wfi.request['PrepID']
+            print("considering the workflow %s for step-chain conversion"%wfi.request['PrepID'])
             good_for_stepchain = wfi.isGoodToConvertToStepChain( keywords = transform_keywords)
             
             ## match keywords and technical constraints
@@ -141,9 +141,9 @@ def injector(url, options, specific):
 
     ## pick up replacements
     for wf in session.query(Workflow).filter(Workflow.status == 'trouble').all():
-        print wf.name
+        print(wf.name)
         if specific and not specific in wf.name: continue
-        print wf.name
+        print(wf.name)
         wfi = workflowInfo(url, wf.name )
         wl = wfi.request #getWorkLoad(url, wf.name)
         familly = getWorkflowById( url, wl['PrepID'] )
@@ -174,8 +174,8 @@ def injector(url, options, specific):
         else:
             wfi.sendLog('injector','the workflow was found in trouble and has a replacement')
                     
-        print wf.name,"has",len(familly),"familly members"
-        print wf.name,"has",len(true_familly),"true familly members"
+        print(wf.name,"has",len(familly),"familly members")
+        print(wf.name,"has",len(true_familly),"true familly members")
 
         ##we cannot have more than one of them !!! pick the last one
         if len(true_familly)>1:

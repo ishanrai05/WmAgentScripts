@@ -17,10 +17,10 @@
       ....
 """
 import sys
-import dbs3Client as dbs
+from . import dbs3Client as dbs
 import random
 from optparse import OptionParser
-import reqMgrClient
+from . import reqMgrClient
 
 def buildGraphs(lines):
     """
@@ -97,7 +97,7 @@ def getSumDegree(graph, v):
     """
     Returns the sum of all edges adjacent to the vertex.
     """
-    return sum( e for v2, e in graph[v].items())
+    return sum( e for v2, e in list(graph[v].items()))
 
 def hasEdges(graph):
     """
@@ -105,7 +105,7 @@ def hasEdges(graph):
     that is, there is at least one lumi present in two different
     files
     """
-    for v in graph.values():
+    for v in list(graph.values()):
         if v:
             return True
     return False
@@ -118,7 +118,7 @@ def deleteMaxDegreeFirst(graph, events):
     in two different files)
     """
     files = []
-    print "Initial files:", len(graph)
+    print("Initial files:", len(graph))
     #quadratic first
     while hasEdges(graph):
         maxv = None
@@ -147,9 +147,9 @@ def deleteSmallestVertexFirst(graph, events):
     in two different files)
     """
     files = []
-    print "Initial files:", len(graph)
+    print("Initial files:", len(graph))
     #sort by number of events
-    ls = sorted(graph.keys(), key=lambda x: events[x])
+    ls = sorted(list(graph.keys()), key=lambda x: events[x])
     #quadratic first
     while hasEdges(graph):
         #get smallest vertex
@@ -175,10 +175,10 @@ def colorBipartiteGraph(graph, events):
     red = set()
     green = set()
 
-    for f1, f2d in graph.items():
+    for f1, f2d in list(graph.items()):
         f1red = f1 in red
         f1green = f1 in green
-        for f2 in f2d.keys():
+        for f2 in list(f2d.keys()):
             f2red = f2 in red
             f2green = f2 in green
             #both have no color
@@ -187,11 +187,11 @@ def colorBipartiteGraph(graph, events):
                 green.add(f2)
             #some has two colors:
             elif (f1red and f1green) or (f2red and f2green):
-                print "NOT BIPARTITE GRAPH"
+                print("NOT BIPARTITE GRAPH")
                 raise Exception("Not a bipartite graph, cannot use this algorithm for removing")
             #have same color
             elif (f1red and f2red) or (f1green and f2green):
-                print "NOT BIPARTITE GRAPH"
+                print("NOT BIPARTITE GRAPH")
                 raise Exception("Not a bipartite graph, cannot use this algorithm for removing")
 
             #both are colored but different
@@ -267,10 +267,10 @@ def main():
             graphs[dataset] = buildGraph(lumis)
             
     
-    for dataset, graph in graphs.items():
+    for dataset, graph in list(graphs.items()):
         #look for datasetname
-        print "Getting events per file"
-        events = getFileEvents(dataset, graph.keys())
+        print("Getting events per file")
+        events = getFileEvents(dataset, list(graph.keys()))
         try:
             #first algorithm that assumes bipartition        
             files = colorBipartiteGraph(graph, events)
@@ -282,13 +282,13 @@ def main():
         total = dbs.getEventCountDataSet(dataset)
         invalid = dbs.getEventCountDataSetFileList(dataset, files)
     
-        print 'total events %s'%total
-        print 'invalidated files %s'%len(files)
-        print 'invalidated events %s'%invalid
+        print('total events %s'%total)
+        print('invalidated files %s'%len(files))
+        print('invalidated events %s'%invalid)
         if total:
-            print '%s%%'%(float(total-invalid)/total*100.0)
+            print('%s%%'%(float(total-invalid)/total*100.0))
         for f in sorted(files):
-            print f
+            print(f)
 
 if __name__ == '__main__':
     main()

@@ -6,8 +6,8 @@ when the original worklfow ended.
 """
 import sys
 import re
-import reqMgrClient
-import dbs3Client
+from . import reqMgrClient
+from . import dbs3Client
 from WMCore.WMSpec.WMWorkload import WMWorkloadHelper
 from optparse import OptionParser
 from pprint import pprint
@@ -25,7 +25,7 @@ def modifySchema(helper, workflow, user, group, events, firstLumi):
     """
     result = {}
     #pprint.pprint(helper.data.request.schema.dictionary_())
-    for key, value in helper.data.request.schema.dictionary_().items():
+    for key, value in list(helper.data.request.schema.dictionary_().items()):
         #previous versions of tags
         if key == 'ProcConfigCacheID':
             result['ConfigCacheID'] = value
@@ -87,8 +87,8 @@ def modifySchema(helper, workflow, user, group, events, firstLumi):
         
         eventsPerJob = 120000
         eventsPerLumi = 100000
-        for k, v in splitting.items():
-            print k,":",v
+        for k, v in list(splitting.items()):
+            print(k,":",v)
             if k.endswith('/Production'):
                 if 'events_per_job' in v:
                     eventsPerJob = v['events_per_job']
@@ -142,26 +142,26 @@ def extendWorkflow(workflow, user, group, verbose=False, events=None, firstlumi=
     schema['OriginalRequestName'] = workflow
     if verbose:
         pprint(schema)
-    print 'Submitting workflow'
+    print('Submitting workflow')
     # Sumbit cloned workflow to ReqMgr
     response = reqMgrClient.submitWorkflow(url,schema)
     if verbose:
-        print "RESPONSE", response
+        print("RESPONSE", response)
     
     #find the workflow name in response
     m = re.search("details\/(.*)\'",response)
     if m:
         newWorkflow = m.group(1)
-        print 'Cloned workflow: '+newWorkflow
-        print 'Extended with', events, 'events'
-        print response
+        print('Cloned workflow: '+newWorkflow)
+        print('Extended with', events, 'events')
+        print(response)
         
         # Move the request to Assignment-approved
-        print 'Approve request response:'
+        print('Approve request response:')
         data = reqMgrClient.setWorkflowApproved(url, newWorkflow)
-        print data
+        print(data)
     else:
-        print response
+        print(response)
     pass
 """
 __Main__

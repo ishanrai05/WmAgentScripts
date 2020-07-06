@@ -10,7 +10,7 @@ Usage:
 """
 import json, sys
 from optparse import OptionParser
-from reqmgr import ReqMgrClient
+from .reqmgr import ReqMgrClient
 
 class Config:
     def __init__(self, info):
@@ -76,17 +76,17 @@ def main():
             config.requestArgs["createRequest"]["PrepID"] = None
 
             r = reqMgrClient.createRequest(config)
-            print "Created:"
-            print r
+            print("Created:")
+            print(r)
             reqMgrClient.changeSplitting(config)
-            print "Changed splitting"
+            print("Changed splitting")
             
             #change assignment stuff
             config.requestArgs["assignRequest"]["SiteWhitelist"] = [site]        
             config.requestArgs["assignRequest"]["ProcessingString"] = "SITE_TEST_"+site
             #assign
             reqMgrClient.assignRequests(config)
-            print "Assigned to",site
+            print("Assigned to",site)
     
     else:
         #setup creation stuff
@@ -94,17 +94,17 @@ def main():
         config.requestArgs["createRequest"]["PrepID"] = None
 
         r = reqMgrClient.createRequest(config)
-        print "Created:"
-        print r
+        print("Created:")
+        print(r)
         reqMgrClient.changeSplitting(config)
-        print "Changed splitting"
+        print("Changed splitting")
         
         #change assignment stuff
         config.requestArgs["assignRequest"]["SiteWhitelist"] = siteList
         config.requestArgs["assignRequest"]["ProcessingString"] = "SITE_TEST"
         #assign
         reqMgrClient.assignRequests(config)
-        print "Assigned to",siteList
+        print("Assigned to",siteList)
 
 if __name__ == '__main__':
     main()

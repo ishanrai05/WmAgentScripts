@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-from assignSession import *
-from utils import workflowInfo, getDatasetBlockAndSite, getWorkLoad, makeReplicaRequest, sendEmail, getDatasetOnGoingDeletion, componentInfo, reqmgr_url, getWorkflows
+from .assignSession import *
+from .utils import workflowInfo, getDatasetBlockAndSite, getWorkLoad, makeReplicaRequest, sendEmail, getDatasetOnGoingDeletion, componentInfo, reqmgr_url, getWorkflows
 import json
 from collections import defaultdict
 import random
@@ -15,7 +15,7 @@ if not up.check(): sys.exit(0)
 status = sys.argv[1]
 max_wf = 0
 
-print "Picked status",status
+print("Picked status",status)
 
 wfs = []
 if status == 'wmagent':
@@ -38,7 +38,7 @@ all_blocks_at_sites = defaultdict(set)
 #done = json.loads(open('myblock_done.json').read())
 done = {}
 
-print len(wfs),"to look the output of"
+print(len(wfs),"to look the output of")
 
 for iw,wfn in enumerate(wfs):
     if type(wfn)==dict:
@@ -47,7 +47,7 @@ for iw,wfn in enumerate(wfs):
     else:
         wl = getWorkLoad(url, wfn)
 
-    print "%s/%s:"%(iw,len(wfs)),wfn
+    print("%s/%s:"%(iw,len(wfs)),wfn)
 
     if not wl:
         continue
@@ -56,30 +56,30 @@ for iw,wfn in enumerate(wfs):
         blocks_at_sites = getDatasetBlockAndSite(url, out, group="")
         deletions = getDatasetOnGoingDeletion(url, out)
         if len(deletions):
-            print "\t\tshould not subscribe with on-going deletions",out
+            print("\t\tshould not subscribe with on-going deletions",out)
             continue
-        for site,blocks in blocks_at_sites.items():
+        for site,blocks in list(blocks_at_sites.items()):
             if 'Buffer' in site or 'Export' in site or 'MSS' in site: continue
             all_blocks_at_sites[site].update( blocks )
-        print "\t",out
-        print "\t\t",len(blocks_at_sites),"sites",sorted(blocks_at_sites.keys()),"with unsubscribed blocks"
+        print("\t",out)
+        print("\t\t",len(blocks_at_sites),"sites",sorted(blocks_at_sites.keys()),"with unsubscribed blocks")
 
-if len(all_blocks_at_sites.keys())==0 and len(wfs):
+if len(list(all_blocks_at_sites.keys()))==0 and len(wfs):
     ## no subscription to be done at this time, let me know
     #sendEmail('no unsubscribed blocks','while catching up %s does not need to be there anymore'%( one_status ))
     pass
 
-print len(all_blocks_at_sites.keys()),"sites to subscribe things at"
-for site,blocks in all_blocks_at_sites.items():
+print(len(list(all_blocks_at_sites.keys())),"sites to subscribe things at")
+for site,blocks in list(all_blocks_at_sites.items()):
     if 'Buffer' in site or 'Export' in site or 'MSS' in site: continue
 
     if not site in done: done[site] = []
     blocks = [block for block in blocks if not block in done[site]]
-    print "Would subscribe",len(blocks),"blocks to",site
-    print "\tSubscribe",len(blocks),"blocks to",site    
+    print("Would subscribe",len(blocks),"blocks to",site)
+    print("\tSubscribe",len(blocks),"blocks to",site)    
     done[site].extend( blocks )
     if blocks:
-        print makeReplicaRequest(url, site, list(blocks), "Production blocks", priority="low", approve=True,mail=False)
+        print(makeReplicaRequest(url, site, list(blocks), "Production blocks", priority="low", approve=True,mail=False))
         time.sleep(1)
 
 #open('myblock_done.json','w').write( json.dumps( done, indent=2 ))

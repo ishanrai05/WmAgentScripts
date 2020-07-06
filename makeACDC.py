@@ -9,15 +9,15 @@ import sys
 from optparse import OptionParser
 #from reqmgr import ReqMgrClient
 logging.basicConfig(level=logging.WARNING)
-import reqMgrClient
-from utils import workflowInfo
+from . import reqMgrClient
+from .utils import workflowInfo
 from collections import defaultdict 
 
 prod_url = 'cmsweb.cern.ch'
 testbed_url = 'cmsweb-testbed.cern.ch'
 
-from Unified.recoveror import singleRecovery
-from utils import workflowInfo
+from .Unified.recoveror import singleRecovery
+from .utils import workflowInfo
 def makeACDC(**args):
     url = args.get('url')
     wfi = args.get('wfi')
@@ -37,7 +37,7 @@ def makeACDC(**args):
     if acdc:
         return acdc
     else:
-        print "Issue while creating the acdc for",task
+        print("Issue while creating the acdc for",task)
         return None
 
 def main():
@@ -105,7 +105,7 @@ def main():
         sys.exit(1)        
 
     
-    for wfname,tasks in wf_and_task.items():
+    for wfname,tasks in list(wf_and_task.items()):
         wfi = workflowInfo(url, wfname)
         if tasks == None:
             where,how_much,how_much_where = wfi.getRecoveryInfo()
@@ -114,22 +114,22 @@ def main():
             tasks = sorted(tasks)
 
         created = {}
-        print "Workflow:",wfname
-        print "Tasks:",tasks
+        print("Workflow:",wfname)
+        print("Tasks:",tasks)
         for task in tasks:
             r = makeACDC(url=url, wfi=wfi, task=task,
                          memory = options.memory,
                          mcore = options.mcore) 
             if not r: 
-                print "Error in creating ACDC for",task,"on",wfname
+                print("Error in creating ACDC for",task,"on",wfname)
                 break
             created[task] = r
         if len(created)!=len(tasks):
-            print "Error in creating all required ACDCs"
+            print("Error in creating all required ACDCs")
             sys.exit(1)
-        print "Created:"
+        print("Created:")
         for task in created:
-            print created[task],"for",task
+            print(created[task],"for",task)
 
 if __name__ == '__main__':
     main()

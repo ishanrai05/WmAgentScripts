@@ -15,8 +15,8 @@ from random import choice
 try:
     import htcondor
 except ImportError:
-    print "You do not have a proper environment, please source the following:"
-    print "source /data/srv/wmagent/current/apps/wmagent/etc/profile.d/init.sh"
+    print("You do not have a proper environment, please source the following:")
+    print("source /data/srv/wmagent/current/apps/wmagent/etc/profile.d/init.sh")
     sys.exit(1)
 
 global_pool = 'cmsgwms-collector-global.cern.ch'
@@ -82,9 +82,9 @@ def printDict(jobDict, description):
     format-prints dict contents
     """
     sortedKeys = sorted(jobDict)
-    print '-' * 100
-    print '| %-20s | %-10s | %-10s | %-10s | %-10s | %-10s | %-10s |' % (description, 'Processing', 'Production', 'Merge', 'Cleanup', 'LogCollect', 'Total')
-    print '-' * 100
+    print('-' * 100)
+    print('| %-20s | %-10s | %-10s | %-10s | %-10s | %-10s | %-10s |' % (description, 'Processing', 'Production', 'Merge', 'Cleanup', 'LogCollect', 'Total'))
+    print('-' * 100)
     total_processing = 0
     total_production = 0
     total_merge = 0
@@ -104,16 +104,16 @@ def printDict(jobDict, description):
         total += siteDict['Cleanup']
         total += siteDict['LogCollect']
         total_site = siteDict['Processing'] + siteDict['Production'] + siteDict['Merge'] + siteDict['Cleanup']+siteDict['LogCollect']
-        print '| %-20s | %10d | %10d | %10d | %10d | %10d | %10d |' % (site,
+        print('| %-20s | %10d | %10d | %10d | %10d | %10d | %10d |' % (site,
                                                                        siteDict['Processing'],
                                                                        siteDict['Production'],
                                                                        siteDict['Merge'],
                                                                        siteDict['Cleanup'],
                                                                        siteDict['LogCollect'],
-                                                                       total_site)
-    print '-' * 100
-    print '| %-20s | %10d | %10d | %10d | %10d | %10d | %10d |' % ('Total', total_processing, total_production, total_merge, total_cleanup, total_logcollect, total)
-    print '-' * 100
+                                                                       total_site))
+    print('-' * 100)
+    print('| %-20s | %10d | %10d | %10d | %10d | %10d | %10d |' % ('Total', total_processing, total_production, total_merge, total_cleanup, total_logcollect, total))
+    print('-' * 100)
 
 
 def get_overview(overview_running,
@@ -240,61 +240,61 @@ def print_results(overview_running,
     Shows results in nice console tables
     """
     printDict(overview_running, 'Running')
-    print ""
+    print("")
     printDict(overview_pending, 'Pending')
-    print ""
+    print("")
     if overview_running48:
         printDict(overview_running48, 'Running > 48h')
-        print ""
+        print("")
         sortKeys = sorted(jobs_48)
-        print 'Jobs that run for > 48 hours by workflow:'
-        print ""
+        print('Jobs that run for > 48 hours by workflow:')
+        print("")
         for site in sortKeys:
-            print site + ':'
-            print ""
-            for wf, jobs in jobs_48[site].items():
-                print wf, ':', ' '.join(jobs)
-            print ""
+            print(site + ':')
+            print("")
+            for wf, jobs in list(jobs_48[site].items()):
+                print(wf, ':', ' '.join(jobs))
+            print("")
 
-    print ""
+    print("")
     if jobs_maxwall:
         sortKeys = sorted(jobs_maxwall)
-        print 'Jobs that have MaxWall > 46 hours (or empty) by workflow:'
-        print ""
+        print('Jobs that have MaxWall > 46 hours (or empty) by workflow:')
+        print("")
         for site in sortKeys:
-            print site + ':'
-            print ""
-            for wf, jobs in jobs_maxwall[site].items():
-                print wf, ':', ' '.join(jobs)
-            print ""
+            print(site + ':')
+            print("")
+            for wf, jobs in list(jobs_maxwall[site].items()):
+                print(wf, ':', ' '.join(jobs))
+            print("")
 
-    print ""
+    print("")
     if overview_removereason:
         printDict(overview_removereason, 'Removed')
-        print ""
+        print("")
         sortKeys = sorted(jobs_removereason)
-        print 'Jobs with RemoveReason!=UNDEFINED'
-        print ""
+        print('Jobs with RemoveReason!=UNDEFINED')
+        print("")
         for site in sortKeys:
-            print site + ':'
-            print ''
-            for wf, jobs in jobs_removereason[site].items():
-                print wf, ':', ' '.join(jobs)
-            print ""
+            print(site + ':')
+            print('')
+            for wf, jobs in list(jobs_removereason[site].items()):
+                print(wf, ':', ' '.join(jobs))
+            print("")
 
-    print ""
+    print("")
     if overview_numjobstart:
         printDict(overview_numjobstart, 'Restarted')
-        print ""
+        print("")
         sortKeys = sorted(jobs_numjobstart)
-        print 'Jobs with NumJobStart > 3'
-        print ""
+        print('Jobs with NumJobStart > 3')
+        print("")
         for site in sortKeys:
-            print site + ':'
-            print ''
-            for wf, jobs in jobs_numjobstart[site].items():
-                print wf, ':', ' '.join(jobs)
-            print ""
+            print(site + ':')
+            print('')
+            for wf, jobs in list(jobs_numjobstart[site].items()):
+                print(wf, ':', ' '.join(jobs))
+            print("")
     
 
 def main():
@@ -323,7 +323,7 @@ def main():
         for ad in schedd_ads:
             if ad["Name"] not in schedds:
                 continue
-            print "getting jobs from %s"%ad["Name"]
+            print("getting jobs from %s"%ad["Name"])
             #fill the overview
             get_overview(overview_running,
                          overview_pending,

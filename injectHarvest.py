@@ -3,9 +3,9 @@ Pre-requisites:
  1. a valid proxy in your X509_USER_PROXY variable
  2. wmagent env: source /data/srv/wmagent/current/apps/wmagent/etc/profile.d/init.sh
 """
-from __future__ import print_function
 
-import httplib
+
+import http.client
 import json
 import os
 import sys
@@ -57,7 +57,7 @@ def main():
 def retrieveWorkload(workflowName):
     headers = {"Content-type": "application/json",
                "Accept": "application/json"}
-    conn = httplib.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
+    conn = http.client.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
     urn = "/reqmgr2/data/request/%s" % workflowName
     conn.request("GET", urn, headers=headers)
     r2 = conn.getresponse()
@@ -77,7 +77,7 @@ def buildRequest(req_cache):
         return newSchema
 
     newSchema = copy(DEFAULT_DICT)
-    for k, v in DEFAULT_DICT.iteritems():
+    for k, v in DEFAULT_DICT.items():
         if v != "UPDATEME":
             continue
         if k == 'RequestString':
@@ -87,7 +87,7 @@ def buildRequest(req_cache):
         else:
             if isinstance(req_cache[k], dict):
                 # then simply pick the first value, makes no difference in the end
-                newSchema[k] = req_cache[k].values()[0]
+                newSchema[k] = list(req_cache[k].values())[0]
             else:
                 newSchema[k] = req_cache[k]
 
@@ -98,7 +98,7 @@ def submitWorkflow(schema):
     headers = {"Content-type": "application/json",
                "Accept": "application/json"}
     encodedParams = json.dumps(schema)
-    conn = httplib.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
+    conn = http.client.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
     # print("Submitting new workflow...")
     conn.request("POST", "/reqmgr2/data/request", encodedParams, headers)
     resp = conn.getresponse()
@@ -119,7 +119,7 @@ def approveRequest(workflow):
     headers = {"Content-type": "application/json",
                "Accept": "application/json"}
 
-    conn = httplib.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
+    conn = http.client.HTTPSConnection(url, cert_file=os.getenv('X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
     conn.request("PUT", "/reqmgr2/data/request/%s" % workflow, encodedParams, headers)
     resp = conn.getresponse()
     data = resp.read()

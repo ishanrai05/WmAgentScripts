@@ -5,7 +5,7 @@
 """ 
 import sys
 import optparse
-import dbs3Client as dbs3
+from . import dbs3Client as dbs3
 
 
 def main():
@@ -22,7 +22,7 @@ def main():
         sys.exit(0)
     for dataset in datasets:
         status = dbs3.getDatasetStatus(dataset)
-        print dataset, status
+        print(dataset, status)
 
 if __name__ == "__main__":
     main()

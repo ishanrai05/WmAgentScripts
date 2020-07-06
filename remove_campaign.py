@@ -11,12 +11,12 @@ parser.add_option('-n','--name',help='campaign name to be removed')
 (options,args) = parser.parse_args()
 
 if not options.name:
-    print "enter a campaign name as parameter -n <campaign name>"
+    print("enter a campaign name as parameter -n <campaign name>")
     sys.exit(1)
 p=0
 with open('campaigns.json','r') as campaigns:
     campaign_db = json.load(campaigns)
-for key,value in campaign_db.items():
+for key,value in list(campaign_db.items()):
     if key == options.name:
         # remove the campaign from the mongoDB
 	remove_from_campaign_config = 'python campaignsConfiguration.py --name ' + options.name	+ ' --remove'
@@ -34,5 +34,5 @@ for key,value in campaign_db.items():
 	p=1
 
 if p is 1:
-    print "campaign name doesn't exists."
+    print("campaign name doesn't exists.")
 

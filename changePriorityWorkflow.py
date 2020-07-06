@@ -4,7 +4,7 @@
 """
 import sys
 import optparse
-import reqMgrClient
+from . import reqMgrClient
 
 url = 'cmsweb.cern.ch'
 

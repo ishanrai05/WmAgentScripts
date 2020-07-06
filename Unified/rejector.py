@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-from assignSession import *
-import reqMgrClient
-from utils import workflowInfo, setDatasetStatus, invalidate
-from utils import componentInfo, reqmgr_url, getWorkflowById
-from utils import componentInfo, getWorkflowById, sendLog, batchInfo
+from .assignSession import *
+from . import reqMgrClient
+from .utils import workflowInfo, setDatasetStatus, invalidate
+from .utils import componentInfo, reqmgr_url, getWorkflowById
+from .utils import componentInfo, getWorkflowById, sendLog, batchInfo
 import optparse
 import json
 import re
@@ -15,19 +15,19 @@ username = getpass.getuser()
 def rejector(url, specific, options=None):
     
     if options.test:
-        print "Test mode - no changes propagate to the production system"
+        print("Test mode - no changes propagate to the production system")
 
     if not componentInfo(soft=['wtc','jira']).check(): return
 
     if specific and specific.startswith('/'):
         ## this is for a dataset
-        print setDatasetStatus(specific, 'INVALID')
+        print(setDatasetStatus(specific, 'INVALID'))
         return
 
     if options.filelist:
         wfs = []
-        for line in filter(None, open(options.filelist).read().split('\n')):
-            print line
+        for line in [_f for _f in open(options.filelist).read().split('\n') if _f]:
+            print(line)
             wfs.extend( session.query(Workflow).filter(Workflow.name.contains(line)).all())
     elif specific:
         wfs = session.query(Workflow).filter(Workflow.name.contains(specific)).all()
@@ -45,21 +45,21 @@ def rejector(url, specific, options=None):
         #wfs.extend( session.query(Workflow).filter(Workflow.status == 'assistance-reject').all())
         ## be careful then on clone case by case
         options.clone = True
-        print "not supposed to function yet"
+        print("not supposed to function yet")
         return 
 
-    print len(wfs),"to reject"
+    print(len(wfs),"to reject")
 
     if len(wfs)>1:
-        print "\n".join( [wfo.name for wfo in wfs] )
-        answer = raw_input('Reject these')
+        print("\n".join( [wfo.name for wfo in wfs] ))
+        answer = input('Reject these')
         if not answer.lower() in ['y','yes']:
             return
         
     for wfo in wfs:
         #wfo = session.query(Workflow).filter(Workflow.name == specific).first()
         if not wfo:
-            print "cannot reject",spec
+            print("cannot reject",spec)
             return
         wfi = workflowInfo(url, wfo.name)
 
@@ -67,9 +67,9 @@ def rejector(url, specific, options=None):
         if options.comments: comment = ", reason: "+options.comments
         if options.test:
             if options.keep: 
-                print 'invalidating the workflow by unified operator {}{}'.format(username, comment)
+                print('invalidating the workflow by unified operator {}{}'.format(username, comment))
             else:
-                print 'invalidating the workflow and outputs by unified operator {}{}'.format(username, comment)
+                print('invalidating the workflow and outputs by unified operator {}{}'.format(username, comment))
             results = [True]
         else:
             if options.keep: 
@@ -80,15 +80,15 @@ def rejector(url, specific, options=None):
             results = invalidate(url, wfi, only_resub=True, with_output= (not options.keep))
 
         if all(results):
-            print wfo.name,"rejected"
+            print(wfo.name,"rejected")
             if options and options.clone:
                 if not options.test:
                     wfo.status = 'trouble'
                     session.commit()                
                 schema = wfi.getSchema()
                 if options.test:
-                    print "Original schema"
-                    print json.dumps( schema, indent=2 )
+                    print("Original schema")
+                    print(json.dumps( schema, indent=2 ))
                 schema['Requestor'] = os.getenv('USER')
                 schema['Group'] = 'DATAOPS'
                 schema['OriginalRequestName'] = wfo.name
@@ -96,7 +96,7 @@ def rejector(url, specific, options=None):
                     schema['ProcessingVersion'] = int(schema['ProcessingVersion'])+1 ## dubious str->int conversion
                 else:
                     schema['ProcessingVersion']=2
-                for k in schema.keys():
+                for k in list(schema.keys()):
                     if k.startswith('Team'):
                         schema.pop(k)
                     if k.startswith('checkbox'):
@@ -132,9 +132,9 @@ def rejector(url, specific, options=None):
                                 schema[tt]['InputTask'] = translate[itname]
                         else:
                             break
-                    for k in schema.get('ProcessingString',{}).keys():
+                    for k in list(schema.get('ProcessingString',{}).keys()):
                         schema['ProcessingString'][translate[k]] = schema['ProcessingString'].pop(k)
-                    for k in schema.get('AcquisitionEra',{}).keys():
+                    for k in list(schema.get('AcquisitionEra',{}).keys()):
                         schema['AcquisitionEra'][translate[k]] = schema['AcquisitionEra'].pop(k)
 
                         
@@ -156,8 +156,8 @@ def rejector(url, specific, options=None):
                                     factor = (set_to / float(mcore))
                                     fraction_constant = 0.4
                                     mem_per_core_c = int((1-fraction_constant) * mem / float(mcore))
-                                    print "mem per core", mem_per_core_c
-                                    print "base mem", mem
+                                    print("mem per core", mem_per_core_c)
+                                    print("base mem", mem)
                                     ## adjusting the parameter in the clone
                                     schema[tt]['Memory'] += (set_to-mcore)*mem_per_core_c
                                     schema[tt]['Multicore'] = set_to
@@ -184,7 +184,7 @@ def rejector(url, specific, options=None):
                 if options.AcquisitionEra:
                     schema['AcquisitionEra'] = options.AcquisitionEra
                 if options.runs:
-                    schema['RunWhitelist'] = map(int,options.runs.split(','))
+                    schema['RunWhitelist'] = list(map(int,options.runs.split(',')))
                 if options.PrepID:
                     schema['PrepID'] =options.PrepID
 
@@ -204,10 +204,10 @@ def rejector(url, specific, options=None):
                 ## drop shit on the way to reqmgr2
                 schema = reqMgrClient.purgeClonedSchema( schema )
 
-                print "submitting"
+                print("submitting")
                 if (options.to_stepchain and (schema['RequestType']=='TaskChain')):
                     ## transform the schema into StepChain schema
-                    print "Transforming a TaskChain into a StepChain"
+                    print("Transforming a TaskChain into a StepChain")
                     mcore = 0
                     mem = 0
                     schema['RequestType'] = 'StepChain'
@@ -230,7 +230,7 @@ def rejector(url, specific, options=None):
                             tmem = schema[sname].pop('Memory')
                             if mcore and tmcore != mcore:
                                 if options.test:
-                                    print 'the conversion of %s to stepchain encoutered different value of Multicore %d != %d' % (wfo.name, tmcore, mcore)
+                                    print('the conversion of %s to stepchain encoutered different value of Multicore %d != %d' % (wfo.name, tmcore, mcore))
                                 else:
                                     wfi.sendLog('rejector','the conversion to stepchain encoutered different value of Multicore %d != %d'%( tmcore, mcore))
                                     sendLog('rejector','the conversion of %s to stepchain encoutered different value of Multicore %d != %d'%( wfo.name, tmcore, mcore))
@@ -262,8 +262,8 @@ def rejector(url, specific, options=None):
                             break
                     schema['Multicore'] = mcore
                     schema['Memory'] = mem
-                print "New request schema"
-                print json.dumps( schema, indent=2 )
+                print("New request schema")
+                print(json.dumps( schema, indent=2 ))
                 if not options.test:
                     newWorkflow = reqMgrClient.submitWorkflow(url, schema)
                     if not newWorkflow:
@@ -276,17 +276,17 @@ def rejector(url, specific, options=None):
                         data = reqMgrClient.requestManagerPost(url, "/reqmgr2/data/request", schema)
                         wfi.sendLog('rejector',data)
 
-                        print json.dumps( schema, indent=2 )
+                        print(json.dumps( schema, indent=2 ))
                         return 
-                    print newWorkflow
+                    print(newWorkflow)
 
                     data = reqMgrClient.setWorkflowApproved(url, newWorkflow)
-                    print data
+                    print(data)
                     wfi.sendLog('rejector','Cloned into %s by unified operator %s'%( newWorkflow, comment ))
                     #wfi.notifyRequestor('Cloned into %s by unified operator %s'%( newWorkflow, comment ),do_batch=False)
             else:
                 if options.test:
-                    print 'Rejected by unified operator %s'%( comment )
+                    print('Rejected by unified operator %s'%( comment ))
                 else:
                     wfo.status = 'trouble' if options.set_trouble else 'forget' 
                     wfi.notifyRequestor('Rejected by unified operator %s'%( comment ),do_batch=False)
@@ -294,7 +294,7 @@ def rejector(url, specific, options=None):
 
         else:
             msg = "Error in rejecting {}: {}".format(wfo.name, results)
-            print msg
+            print(msg)
             if not options.test:
                 wfi.sendLog('rejector', msg)
 

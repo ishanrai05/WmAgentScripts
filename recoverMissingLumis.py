@@ -215,7 +215,7 @@ def getOutputModules(workload, initialTask=None):
 def ThreadBuster( threads, n_threads, sleepy, verbose=False):
 
     ntotal=len(threads)
-    print "Processing",ntotal,"threads with",n_threads,"max concurrent"
+    print("Processing",ntotal,"threads with",n_threads,"max concurrent")
     start_now = time.mktime(time.gmtime())
     r_threads = []
     bug_every=max(len(threads) / 10., 100.) ## 10 steps of eta verbosity
@@ -230,10 +230,10 @@ def ThreadBuster( threads, n_threads, sleepy, verbose=False):
                 now= time.mktime(time.gmtime())
                 spend = (now - start_now)
                 n_done = ntotal-len(threads)
-                print "Starting",startme,"new threads",len(threads),"remaining" 
+                print("Starting",startme,"new threads",len(threads),"remaining") 
                 if n_done:
                     eta = (spend / n_done) * len(threads)
-                    print "Will finish in ~%.2f [s]"%(eta)
+                    print("Will finish in ~%.2f [s]"%(eta))
             if startme > n_threads/5.:
                 sleepy/=2.
             for it in range(startme):
@@ -267,7 +267,7 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
     class BlockBuster(threading.Thread):
         def __init__(self, **args):
             threading.Thread.__init__(self)
-            for k,v in args.items():
+            for k,v in list(args.items()):
                 setattr(self,k,v)
             self.major_failure = False
 
@@ -296,7 +296,7 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
                 try:
                     blockFileParents = dbsReader.listFilesInBlockWithParents(blockName)
                 except:
-                    print blockName, "does not appear to have a parent, even though it should. Very suspicious"
+                    print(blockName, "does not appear to have a parent, even though it should. Very suspicious")
                     blockFileParents = dbsReader.listFilesInBlock(blockName)
             else:
                 blockFileParents = dbsReader.listFilesInBlock(blockName)
@@ -314,7 +314,7 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
             if not blockLocations:
                 if fakeLocation:
                     #logging.info("\t\t %s\tno location", blockName)
-                    blockLocations.update([u'T1_US_FNAL_Disk', u'T2_CH_CERN'])
+                    blockLocations.update(['T1_US_FNAL_Disk', 'T2_CH_CERN'])
                 elif not has_parent:  ## this should be the source
                     logging.info("Blockname: %s\tno location, ABORT", blockName)
                     self.major_failure = True
@@ -337,11 +337,11 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
                     if runWhitelist and lumiSection["RunNumber"] not in runWhitelist:
                         continue
 
-                    if lumiSection["RunNumber"] not in runInfo.keys():
+                    if lumiSection["RunNumber"] not in list(runInfo.keys()):
                         runInfo[lumiSection["RunNumber"]] = []
 
                     runInfo[lumiSection["RunNumber"]].append(lumiSection["LumiSectionNumber"])
-                if len(runInfo.keys()) > 0:
+                if len(list(runInfo.keys())) > 0:
                     self.files[blockFile["LogicalFileName"]] = {"runs": runInfo,
                                                                 "events": blockFile["NumberOfEvents"],
                                                                 "size": blockFile["FileSize"],
@@ -352,7 +352,7 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
 
     files = {}
     outputDatasetParts = datasetName.split("/")
-    print "dataset", datasetName, "parts", outputDatasetParts
+    print("dataset", datasetName, "parts", outputDatasetParts)
     try:
         # retrieve list of blocks from dataset
         blockNames = dbsReader.listFileBlocks(datasetName)
@@ -364,7 +364,7 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
         parents = dbsReader.listDatasetParents(datasetName)
         if parents: has_parent = True
     except:
-        print "Dataset with no parent"
+        print("Dataset with no parent")
         pass
 
     bthreads=[]
@@ -378,16 +378,16 @@ def getFiles(datasetName, runBlacklist, runWhitelist, blockBlacklist,
                                       l = logging,
                                       dbs=dbsUrl))
 
-    print len(bthreads),"block query created"
+    print(len(bthreads),"block query created")
     bthreads = ThreadBuster( bthreads, 40, 2., verbose=False)
 
     for t in bthreads:
         if t.major_failure:
-            print "There was a major failure in processing block files"
+            print("There was a major failure in processing block files")
             sys.exit(1)
         files.update(t.files)
 
-    print len(files)
+    print(len(files))
     return files
 
 
@@ -508,20 +508,20 @@ def defineRequests(workload, requestInfo,
         now = time.mktime(time.gmtime())
         datasetInformation[inputDataset] = getFiles(inputDataset, runBlacklist, runWhitelist,
                                                     blockBlacklist, blockWhitelist, dbsUrl, fakeLocation=fakeLocation)
-        print time.mktime(time.gmtime())-now,"[s] for a call to getFiles",inputDataset
+        print(time.mktime(time.gmtime())-now,"[s] for a call to getFiles",inputDataset)
         for dataset in workload.listOutputDatasets():
             now = time.mktime(time.gmtime())
             datasetInformation[dataset] = getFiles(dataset, runBlacklist, runWhitelist, blockBlacklist, blockWhitelist,
                                                    dbsUrl)
-            print time.mktime(time.gmtime())-now,"[s] for a call to getFiles",dataset
+            print(time.mktime(time.gmtime())-now,"[s] for a call to getFiles",dataset)
         logging.info("Finished loading DBS information for the datasets...")
 
     # Now get the information about the datasets and tasks
     nodes, edges = buildDatasetTree(workload)
     logging.info("Dataset tree built...")
-    for k, v in nodes.items():
+    for k, v in list(nodes.items()):
         logging.debug("%s : %s" % (k, v))
-    for k, v in edges.items():
+    for k, v in list(edges.items()):
         logging.debug("%s : %s" % (k, v))
     # Load the difference information between input and outputs
     differenceInformation = buildDifferenceMap(workload, datasetInformation)
@@ -532,7 +532,7 @@ def defineRequests(workload, requestInfo,
     logging.info("Now definining the required requests...")
     # First generate requests for the datasets with children, that way we can
     # shoot the requests with skims in single requests
-    for dataset in differenceInformation.keys():
+    for dataset in list(differenceInformation.keys()):
         if dataset not in nodes:
             continue
         datasetsToRecover = [dataset]
@@ -622,7 +622,7 @@ def defineRequests(workload, requestInfo,
         def __init__(self, **args):
             threading.Thread.__init__(self)
             import copy
-            for k,v in args.items():
+            for k,v in list(args.items()):
                 #if not k in ['c']:
                 #    setattr(self,k,copy.deepcopy(v))
                 #else:
@@ -633,7 +633,7 @@ def defineRequests(workload, requestInfo,
 
             lfn = self.lfn
             if self.v:
-                print "Starting for",lfn
+                print("Starting for",lfn)
             now = time.mktime(time.gmtime())
             fileInfo = self.fi
             requestObject = self.ro
@@ -678,18 +678,18 @@ def defineRequests(workload, requestInfo,
                 #
                 fileset.makeFilelist({lfn: acdcFile})
             if self.v:
-                print time.mktime(time.gmtime()) - now,"[s] for makeFilelist",lfn
+                print(time.mktime(time.gmtime()) - now,"[s] for makeFilelist",lfn)
                 
 
     for idx, requestObject in enumerate(requests):
         now = time.mktime(time.gmtime())
         collectionName = '%s_%s' % (workload.name(), str(uuid.uuid1()))
-        print time.mktime(time.gmtime()) - now,"[s]","starting",idx,"in collection name",collectionName
+        print(time.mktime(time.gmtime()) - now,"[s]","starting",idx,"in collection name",collectionName)
         filesetName = requestObject['task']
         collection = CouchCollection(**{"url": acdcCouchUrl,
                                         "database": acdcCouchDb,
                                         "name": collectionName})
-        print time.mktime(time.gmtime()) - now,"[s]","collection created"
+        print(time.mktime(time.gmtime()) - now,"[s]","collection created")
         files = 0
         lumis = 0
         cthreads=[]
@@ -704,7 +704,7 @@ def defineRequests(workload, requestInfo,
                                           v = False
                                           ))
             
-        print len(cthreads),"CouchBuster created"            
+        print(len(cthreads),"CouchBuster created")            
         cthreads = ThreadBuster( cthreads, 40, 2., verbose=False)
 
         for t in cthreads:
@@ -712,7 +712,7 @@ def defineRequests(workload, requestInfo,
             lumis += t.lumis
         
 
-        print time.mktime(time.gmtime()) - now,"[s]","ending loop"
+        print(time.mktime(time.gmtime()) - now,"[s]","ending loop")
         # Put the creation parameters
         creationDict = jsonBlob["createRequest"]
         creationDict["OriginalRequestName"] = str(workload.name())
@@ -761,15 +761,15 @@ def defineRequests(workload, requestInfo,
             tokens = processingVersion.split('-')
             assignDict["ProcessingVersion"] = int(tokens[-1][1:])
             assignDict["ProcessingString"] = ('-').join(tokens[:-1])
-        print time.mktime(time.gmtime()) - now,"[s]","data prepared"
+        print(time.mktime(time.gmtime()) - now,"[s]","data prepared")
         fileHandle = open('%s.json' % creationDict["RequestString"], 'w')
         json.dump(jsonBlob, fileHandle)
         fileHandle.close()
-        print time.mktime(time.gmtime()) - now,"[s]","json made"
+        print(time.mktime(time.gmtime()) - now,"[s]","json made")
         logging.info("Created JSON %s for recovery of %s" % ('%s.json' % creationDict["RequestString"],
                                                              requestObject['outputs']))
         logging.info("This will recover %d lumis in %d files" % (lumis, files))
-    print time.mktime(time.gmtime()) - main_now,"[s]","to complete"
+    print(time.mktime(time.gmtime()) - main_now,"[s]","to complete")
 
 def main():
     """

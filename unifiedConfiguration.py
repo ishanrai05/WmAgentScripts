@@ -1,4 +1,4 @@
-from utils import mongo_db_url
+from .utils import mongo_db_url
 import optparse
 import ssl,pymongo
 import json
@@ -20,11 +20,11 @@ db = client.unified.unifiedConfiguration
 
 if options.load:
     content = json.loads( open(options.load).read())
-    for k,v in content.items():
+    for k,v in list(content.items()):
         up = {'name' : k}
         s = {"$set": v}
         db.update( up, s )
-        print k,v
+        print(k,v)
     sys.exit(0)
 
 if options.dump:
@@ -51,12 +51,12 @@ if found:
         ## need to update a value
         up = {'_id':found['_id']}
         s = {"$set": post}
-        print "updating",options.name,"with values",post
+        print("updating",options.name,"with values",post)
         db.update( up, s )
     else:
         ## use that to show the value in the database
         # not other headers in the output, so that it can be json loadable
-        print json.dumps(found["value"], indent=2)
+        print(json.dumps(found["value"], indent=2))
 else:
     if post:
         ## entering a new value
@@ -64,5 +64,5 @@ else:
         db.insert_one( post )
     else:
         availables = [o["name"] for o in db.find()]
-        print options.name," Not found. Available parameters \n","\n\t".join( sorted( availables))
+        print(options.name," Not found. Available parameters \n","\n\t".join( sorted( availables)))
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Generate campaign overview table for Monday Comp Ops meetings
 
-import urllib2,urllib, httplib, sys, re, os, json
+import urllib.request, urllib.error, urllib.parse,urllib.request,urllib.parse,urllib.error, http.client, sys, re, os, json
 from xml.dom.minidom import getDOMImplementation
 from dbs.apis.dbsClient import DbsApi
 
@@ -58,30 +58,30 @@ def getEventCountDataSetBlockList(dataset,blockList):
 def main():
     args=sys.argv[1:]
     if not len(args)==0:
-        print "usage:processingCampaignOverview.py"
+        print("usage:processingCampaignOverview.py")
         sys.exit(0)
     url='cmsweb.cern.ch'
 
     [events1,events2] = getEventsDetails('Spring14dr','AODSIM','NA')
-    print 'Spring14dr : VALID = ',events1,' VALID+PROD = ',events2
+    print('Spring14dr : VALID = ',events1,' VALID+PROD = ',events2)
     [events1,events2] = getEventsDetails('Summer12','AODSIM','LowPU2010_DR42')
-    print 'LowPU2010DR42 : VALID = ',events1,' VALID+PROD = ',events2
+    print('LowPU2010DR42 : VALID = ',events1,' VALID+PROD = ',events2)
     [events1,events2] = getEventsDetails('Summer11dr53X','AODSIM','NA')
-    print 'Summer11dr53X : VALID = ',events1,' VALID+PROD = ',events2
+    print('Summer11dr53X : VALID = ',events1,' VALID+PROD = ',events2)
     [events1,events2] = getEventsDetails('Summer11LegDR','AODSIM','NA')
-    print 'Summer11LegDR : VALID = ',events1,' VALID+PROD = ',events2
+    print('Summer11LegDR : VALID = ',events1,' VALID+PROD = ',events2)
     [events1,events2] = getEventsDetails('HiWinter13','GEN-SIM-RECO','HiWinter13-STARTHI53')
-    print 'HiWinter13DR53X : VALID = ',events1,' VALID+PROD = ',events2
+    print('HiWinter13DR53X : VALID = ',events1,' VALID+PROD = ',events2)
     [events1,events2] = getEventsDetails('HiWinter13','GEN-SIM-RECO','HiWinter13-pa_STARTHI53')
-    print 'pAWinter13DR53X : VALID = ',events1,' VALID+PROD = ',events2
+    print('pAWinter13DR53X : VALID = ',events1,' VALID+PROD = ',events2)
     [events1,events2] = getEventsDetails('Fall11','GEN-RAW','START42_V14B')
-    print 'Fall11R1 : VALID = ',events1,' VALID+PROD = ',events2
+    print('Fall11R1 : VALID = ',events1,' VALID+PROD = ',events2)
     [events1,events2] = getEventsDetails('Fall11','AODSIM','START42_V14B')
-    print 'Fall11R2 : VALID = ',events1,' VALID+PROD = ',events2
+    print('Fall11R2 : VALID = ',events1,' VALID+PROD = ',events2)
     [events1,events2] = getEventsDetails('Summer12_DR53X','AODSIM','NA')
-    print 'Summer12DR53X : VALID = ',events1,' VALID+PROD = ',events2
+    print('Summer12DR53X : VALID = ',events1,' VALID+PROD = ',events2)
     [events1,events2] = getEventsDetails('Fall13dr','AODSIM','NA')
-    print 'Fall13dr : VALID = ',events1,' VALID+PROD = ',events2
+    print('Fall13dr : VALID = ',events1,' VALID+PROD = ',events2)
 
     sys.exit(0);
 

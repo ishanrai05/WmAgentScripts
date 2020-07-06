@@ -62,8 +62,8 @@ class WMStatsClient(object):
         return requestInfo
     
     def _updateReuestInfoWithJobInfo(self, requestInfo):
-        if len(requestInfo.keys()) != 0:
-            requestAndAgentKey = self._getRequestAndAgent(requestInfo.keys())
+        if len(list(requestInfo.keys())) != 0:
+            requestAndAgentKey = self._getRequestAndAgent(list(requestInfo.keys()))
             jobDocIds = self._getLatestJobInfo(requestAndAgentKey)
             jobInfoByRequestAndAgent = self._getAllDocsByIDs(jobDocIds)
             self._combineRequestAndJobData(requestInfo, jobInfoByRequestAndAgent)

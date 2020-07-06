@@ -1,5 +1,5 @@
 import sys
-from utils import StartStopInfo
+from .utils import StartStopInfo
 
 ssi = StartStopInfo()
 if 'purge' in sys.argv:

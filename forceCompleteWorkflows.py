@@ -3,7 +3,7 @@
     Force-complete a list of workflows.
 """
 import sys
-import reqMgrClient
+from . import reqMgrClient
 import optparse
 url = 'cmsweb.cern.ch'
 
@@ -25,12 +25,12 @@ def main():
         sys.exit(0)
 
     for workflow in workflows:
-        print "Force-Completing workflow: " + workflow
+        print("Force-Completing workflow: " + workflow)
         result = reqMgrClient.forceCompleteWorkflow(url, workflow)
         if result == None or result == 'None':
-            print "Error"
+            print("Error")
         else:
-            print "force-complete"
+            print("force-complete")
 
     sys.exit(0)
 

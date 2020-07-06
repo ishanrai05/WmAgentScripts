@@ -1,31 +1,31 @@
-from assignSession import *
+from .assignSession import *
 import time
-from utils import getWorkLoad, checkTransferStatus, workflowInfo, getWorkflowById, makeDeleteRequest, getWorkflowByOutput, getDatasetPresence, updateSubscription, getWorkflowByInput, getDatasetBlocksFraction, siteInfo, getDatasetDestinations, getSiteWhiteList, check_ggus, getDatasetEventsPerLumi, getWorkflowByMCPileup, getDatasetStatus, getDatasetBlocks, checkTransferLag, listCustodial, listRequests, getSubscriptions, makeReplicaRequest,getDatasetEventsAndLumis, getLFNbase, getDatasetFiles, getDatasetBlockSize, getWorkflowById
-from reqMgrClient import retrieveSchema
+from .utils import getWorkLoad, checkTransferStatus, workflowInfo, getWorkflowById, makeDeleteRequest, getWorkflowByOutput, getDatasetPresence, updateSubscription, getWorkflowByInput, getDatasetBlocksFraction, siteInfo, getDatasetDestinations, getSiteWhiteList, check_ggus, getDatasetEventsPerLumi, getWorkflowByMCPileup, getDatasetStatus, getDatasetBlocks, checkTransferLag, listCustodial, listRequests, getSubscriptions, makeReplicaRequest,getDatasetEventsAndLumis, getLFNbase, getDatasetFiles, getDatasetBlockSize, getWorkflowById
+from .reqMgrClient import retrieveSchema
 import pprint
 import sys
 import json
 import itertools 
 import copy
 from collections import defaultdict
-from utils import lockInfo, closeoutInfo
-import phedexClient
-import reqMgrClient
-import dbs3Client
+from .utils import lockInfo, closeoutInfo
+from . import phedexClient
+from . import reqMgrClient
+from . import dbs3Client
 import math
 import random
 
-from utils import check_ggus
+from .utils import check_ggus
 
-from utils import siteInfo
-from htmlor import htmlor
-from utils import dataCache , DbsApi
-from utils import findLostBlocks, findCustodialLocation, findCustodialCompletion, checkDownTime, getWorkflowByMCPileup, getDatasetSize, getDatasetBlockAndSite
-from utils import GET, getWorkflows, getDatasetBlockFraction, findLostBlocksFiles, getDatasetFileFraction, DSS
-from utils import closeoutInfo, findLateFiles, listRequests, getDatasetLumis, sendLog, searchLog, campaignInfo, try_sendLog, getDatasetFiles
+from .utils import siteInfo
+from .htmlor import htmlor
+from .utils import dataCache , DbsApi
+from .utils import findLostBlocks, findCustodialLocation, findCustodialCompletion, checkDownTime, getWorkflowByMCPileup, getDatasetSize, getDatasetBlockAndSite
+from .utils import GET, getWorkflows, getDatasetBlockFraction, findLostBlocksFiles, getDatasetFileFraction, DSS
+from .utils import closeoutInfo, findLateFiles, listRequests, getDatasetLumis, sendLog, searchLog, campaignInfo, try_sendLog, getDatasetFiles
 import itertools
-import httplib 
-from utils import setDatasetStatus, getDatasetEventsPerLumi, monitor_dir, getUnsubscribedBlocks, base_dir, distributeToSites,getDatasetChops, getDatasetFileLocations, getAllAgents, getDatasetFileLocations
+import http.client 
+from .utils import setDatasetStatus, getDatasetEventsPerLumi, monitor_dir, getUnsubscribedBlocks, base_dir, distributeToSites,getDatasetChops, getDatasetFileLocations, getAllAgents, getDatasetFileLocations
 url = 'cmsweb.cern.ch'
 
 
@@ -40,8 +40,8 @@ for status in [
     check_those.extend( all_checks[status] )
 
 
-check_those = filter(lambda wfo : 'RunIISummer16DR80' in wfo.name, check_those )
-check_those = filter(lambda wfo : 'RunIISummer16DR80Premix' in wfo.name, check_those )
+check_those = [wfo for wfo in check_those if 'RunIISummer16DR80' in wfo.name]
+check_those = [wfo for wfo in check_those if 'RunIISummer16DR80Premix' in wfo.name]
 
 
 
@@ -64,7 +64,7 @@ if sys.argv[1] == 'pertape':
     for s in rate: rate[s] *= correction
 
     blob = json.loads( open('%s/inputs.json'%monitor_dir).read())
-    print len(blob)
+    print(len(blob))
     by_prio = defaultdict(dict)
     wf_names = set([wfo.name for wfo in check_those])
     really_counted = 0
@@ -78,10 +78,10 @@ if sys.argv[1] == 'pertape':
         #for wf,i in blob.iteritems():
 
         ii = copy.deepcopy(i)
-        wfo = filter(lambda o:o.name==wf, check_those)[0]
+        wfo = [o for o in check_those if o.name==wf][0]
 
         #fraction = min(1,i['available'])
-        fraction = max([f for s,(t,f) in i['on_disk'].items()]) / 100. if i['on_disk'] else 0.
+        fraction = max([f for s,(t,f) in list(i['on_disk'].items())]) / 100. if i['on_disk'] else 0.
 
         if wfo.status == 'away': fraction = 1.
 
@@ -104,16 +104,16 @@ if sys.argv[1] == 'pertape':
     top=20
     all_top_10 = {}
     l_all_top_10 = {}
-    for prio in sorted(by_prio.keys(), key = lambda o:int(o)):
-        print prio
+    for prio in sorted(list(by_prio.keys()), key = lambda o:int(o)):
+        print(prio)
         by_site = defaultdict(dict)
-        for wf,i in by_prio[prio].iteritems():
+        for wf,i in by_prio[prio].items():
             #print i['on_tape']
-            on_tape = i['on_tape'].keys()
+            on_tape = list(i['on_tape'].keys())
             if on_tape:
                 by_site[on_tape[0]].update( {wf:i} )
             else:
-                print i['input'],"not on tape"
+                print(i['input'],"not on tape")
 
         sum_by_site ={}
         disk_by_site = {}
@@ -123,26 +123,26 @@ if sys.argv[1] == 'pertape':
         for site in by_site:
             #sum_by_site[site] = int(sum([o['size']*(1.-o['available']) for wf,o in by_site[site].iteritems()]))
             #disk_by_site[site] = int(sum([o['size']*(o['available']) for wf,o in by_site[site].iteritems()]))  
-            sum_by_site[site] = int(sum([o['staging'] for wf,o in by_site[site].iteritems()]))
-            disk_by_site[site] = int(sum([o['staged'] for wf,o in by_site[site].iteritems()]))  
-            top_10[site] = dict(sorted([(wf,dict([(kk,vv) for kk,vv in o.items() if kk in ['workflow','staged','staging','status','wm_status','priority','fraction','available']])) for (wf,o) in by_site[site].iteritems()], key = lambda k : k[1]['staging'],reverse=True)[:top])
-            print [o['staging'] for o in top_10[site].values()]
+            sum_by_site[site] = int(sum([o['staging'] for wf,o in by_site[site].items()]))
+            disk_by_site[site] = int(sum([o['staged'] for wf,o in by_site[site].items()]))  
+            top_10[site] = dict(sorted([(wf,dict([(kk,vv) for kk,vv in list(o.items()) if kk in ['workflow','staged','staging','status','wm_status','priority','fraction','available']])) for (wf,o) in by_site[site].items()], key = lambda k : k[1]['staging'],reverse=True)[:top])
+            print([o['staging'] for o in list(top_10[site].values())])
             if site in rate:
                 ## in days
                 delay_by_site[site] = '%.2f'%((sum_by_site[site] / float(rate[site])) / (60*60*24) )
-        print "in GB"
-        print json.dumps( sum_by_site , indent=2)
+        print("in GB")
+        print(json.dumps( sum_by_site , indent=2))
         i_on_tape[prio] = sum_by_site
-        print "in GB"
-        print json.dumps( disk_by_site, indent=2) 
+        print("in GB")
+        print(json.dumps( disk_by_site, indent=2)) 
         i_on_disk[prio] = disk_by_site
-        print "in days"
-        print json.dumps( delay_by_site , indent=2)        
+        print("in days")
+        print(json.dumps( delay_by_site , indent=2))        
         tape_delay[prio] = delay_by_site
         all_top_10[prio] = top_10
-        print "worse input"
+        print("worse input")
         for site in top_10:
-            l_top_10[site] = sorted([o for wf,o in top_10[site].items() ],key = lambda o : o['staging'], reverse=True)
+            l_top_10[site] = sorted([o for wf,o in list(top_10[site].items()) ],key = lambda o : o['staging'], reverse=True)
         l_all_top_10[prio] = l_top_10
 
     total_tape = defaultdict(int)
@@ -169,8 +169,8 @@ if sys.argv[1] == 'pertape':
             top_top_10[site].update( all_top_10[prio][site])
 
     for site in top_top_10:
-        top_top_10[site] = dict(sorted([(wf,o) for wf,o in top_top_10[site].items()], key = lambda k : k[1]['staging'], reverse=True)[:top])
-        l_top_top_10[site] = sorted([o for wf,o in top_top_10[site].items() ],key = lambda o : o['staging'], reverse=True)
+        top_top_10[site] = dict(sorted([(wf,o) for wf,o in list(top_top_10[site].items())], key = lambda k : k[1]['staging'], reverse=True)[:top])
+        l_top_top_10[site] = sorted([o for wf,o in list(top_top_10[site].items()) ],key = lambda o : o['staging'], reverse=True)
 
 
     now = time.asctime(time.gmtime())
@@ -185,7 +185,7 @@ if sys.argv[1] == 'pertape':
     o.write( "#"*40+"\n" )
     o.write( "Total input already on disk in GB : %d \n%s\n"%(sum(total_staged.values()), json.dumps( total_staged, indent=2)))
     o.write( "Total input still on tape in GB : %d \n%s\n"%(sum(total_tape.values()),  json.dumps( total_tape, indent=2)))
-    o.write( "Approximate total retrieval time in days : max %.2f days \n%s\n"%(max(map(float,total_delay.values())), json.dumps( total_delay , indent=2)))
+    o.write( "Approximate total retrieval time in days : max %.2f days \n%s\n"%(max(list(map(float,list(total_delay.values())))), json.dumps( total_delay , indent=2)))
     o.write( "#"*40+"\n" )
     #o.write( "Top 10 Worse workflows\n%s\n"% json.dumps( top_top_10, indent=2))
     o.write( "Top %d Worst workflows (worst on top)\n%s\n"%(top, json.dumps(l_top_top_10, indent=2)))
@@ -201,7 +201,7 @@ if sys.argv[1] == 'pertape':
     o.close()
     fdasfd
 
-print len(check_those),"to be analyzed"
+print(len(check_those),"to be analyzed")
 
 random.shuffle( check_those )
 #check_those = check_those[:int(sys.argv[1])]
@@ -219,9 +219,9 @@ redo=True
 
 
 if not redo:
-    check_those = [wfo for wfo in check_those if wfo.name not in all_info.keys()]
+    check_those = [wfo for wfo in check_those if wfo.name not in list(all_info.keys())]
 
-print len(check_those),"to look at"
+print(len(check_those),"to look at")
 #print [wfo.name for wfo in check_those][:10]
 
 now = time.mktime(time.gmtime())
@@ -231,23 +231,23 @@ delay=2*24*60*60
 for wfo in check_those:
     if wfo.name in all_info: 
         if 'updatded' in all_info[wfo.name] and (now-all_info[wfo.name]['updated'])< delay:
-            print "too fresh"
+            print("too fresh")
             continue
             
         if redo:
-            print "redoing",wfo.name
+            print("redoing",wfo.name)
             redone=True
         else:
             #print wfo.name,"done already"
             continue
     else:
-        print "new",wfo.name
+        print("new",wfo.name)
 
     checked+=1
     if checked > int(sys.argv[1]):
-        print "enough checked",checked
+        print("enough checked",checked)
         break
-    print wfo.name
+    print(wfo.name)
     wfi = workflowInfo(url , wfo.name )
     prio = str(wfi.request['RequestPriority'])
     #if not prio in all_info: all_info[prio] = {}
@@ -256,11 +256,11 @@ for wfo in check_those:
     _,prim,_,_ = wfi.getIO()
     dataset = list(prim)[0]
     presence = getDatasetPresence(url, dataset, vetoes=[])
-    usable = dict([(k,v) for (k,v) in presence.items() if k in mcores])
-    tape = dict([(k,v) for (k,v) in presence.items() if 'MSS' in k])
+    usable = dict([(k,v) for (k,v) in list(presence.items()) if k in mcores])
+    tape = dict([(k,v) for (k,v) in list(presence.items()) if 'MSS' in k])
     available = getDatasetBlocksFraction(url, dataset, sites = mcores)
     size = getDatasetSize( dataset )
-    print dataset,prio,available,size
+    print(dataset,prio,available,size)
     #print json.dumps( usable, indent=2)
     #print tape.keys()
 
@@ -646,10 +646,10 @@ sys.exit(5)
 #statuses = checkTransferLag( url, 483745, datasets=['/TstarTstarToTgammaTgluon_M-1400_TuneCUETP8M1_13TeV-madgraph-pythia8/RunIISpring15DR74-Asympt25ns_MCRUN2_74_V9-v4/AODSIM'])
 if False:
     missing_in_action=defaultdict(list)
-    for line in filter(None, os.popen('grep incomple ../logs/stagor/last.log').read().split('\n')):
+    for line in [_f for _f in os.popen('grep incomple ../logs/stagor/last.log').read().split('\n') if _f]:
         (_,dataset) = line.split()
         #print dataset
-        for sline in filter(None, os.popen('grep -A 1 "incomplete %s" ../logs/stagor/last.log | grep "{"'%dataset).read().split('\n')):
+        for sline in [_f for _f in os.popen('grep -A 1 "incomplete %s" ../logs/stagor/last.log | grep "{"'%dataset).read().split('\n') if _f]:
             tests=sline.replace("{","").replace("}","").split(',')
             for test in tests:
                 test = test.strip()
@@ -663,14 +663,14 @@ if False:
     fdagfsd
     report = ""
     for phid in missing_in_action:
-        print "test",phid
+        print("test",phid)
         issues = checkTransferLag( url, phid )
         for dataset in issues:
             for block in issues[dataset]:
                 for destination in issues[dataset][block]:
                     (block_size,destination_size,rate,dones) = issues[dataset][block][destination]
                     report += "%s is not getting to %s, out of %s faster than %f [GB/s]\n"%(block,destination,", ".join(dones), rate)
-                    print "%s is not getting to %s, out of %s faster than %f [GB/s]\n"%(block,destination,", ".join(dones), rate)
+                    print("%s is not getting to %s, out of %s faster than %f [GB/s]\n"%(block,destination,", ".join(dones), rate))
 
 #print json.dumps( statuses, indent=2 )
 #print getDatasetBlocks('/HLTPhysicspart4/Run2015C-v1/RAW', runs=[254790])
@@ -707,7 +707,7 @@ si = siteInfo()
 t1=0
 t2g=0
 t2=0
-for (site,cpu) in sorted(si.cpu_pledges.items(), key=lambda d : d[1], reverse=True):
+for (site,cpu) in sorted(list(si.cpu_pledges.items()), key=lambda d : d[1], reverse=True):
     g=""
     if site in si.sites_with_goodIO:
         t2g+=cpu
@@ -716,11 +716,11 @@ for (site,cpu) in sorted(si.cpu_pledges.items(), key=lambda d : d[1], reverse=Tr
         t1+=cpu
     else:
         t2+=cpu
-    print site,cpu,g
+    print(site,cpu,g)
 
-print t1
-print t2g
-print t2
+print(t1)
+print(t2g)
+print(t2)
 
 sys.exit(2)
 
@@ -730,10 +730,10 @@ sites=[ si.CE_to_SE(ce) for ce in si.sites_ready]
 random.shuffle( sites )
 for ce in sites[:4]:
     site = si.CE_to_SE(ce)
-    print ce
-    datasets.extend(filter(lambda w: w.count('/')==3, [w for w in itertools.chain.from_iterable([line.split() for line in os.popen('curl -s http://t3serv001.mit.edu/~cmsprod/IntelROCCS/Detox/result/%s/DeleteDatasets.txt'%site).read().split('\n')])]))
+    print(ce)
+    datasets.extend([w for w in [w for w in itertools.chain.from_iterable([line.split() for line in os.popen('curl -s http://t3serv001.mit.edu/~cmsprod/IntelROCCS/Detox/result/%s/DeleteDatasets.txt'%site).read().split('\n')])] if w.count('/')==3])
 
-print len(datasets)
+print(len(datasets))
 if True:
     random.shuffle(datasets)
     for dataset in datasets[:50]:
@@ -743,16 +743,16 @@ if True:
         pus = getWorkflowByMCPileup(url, dataset,details=True)
         statuses = list(set([r['RequestStatus'] for r in outs+ins+pus]))
         if any([s in ['assignment-approved','assigned','failed','acquired','running-open','running-closed','force-complete','completed','closed-out'] for s in statuses]):
-            print dataset,"SHOULD NOT BE THERE",statuses
+            print(dataset,"SHOULD NOT BE THERE",statuses)
             continue
         status = getDatasetStatus( dataset )
         (_,_,_,tier) = dataset.split('/')
         if status == 'VALID' and not tier in ['DQMIO','DQM','MINIAODSIM']:
             custodials = findCustodialLocation(url, dataset)
             if len(custodials) == 0:
-                print dataset,"SHOULD NOT BE THERE, NO CUSTODIAL"
+                print(dataset,"SHOULD NOT BE THERE, NO CUSTODIAL")
                 send
-        print dataset,"rightfully deletable"
+        print(dataset,"rightfully deletable")
 
 
 #print json.dumps( si.sites_pressure, indent=2)
@@ -844,7 +844,7 @@ wfl=set(wfl)
 for wf in wfl:
     wfi = workflowInfo( url, wf)
     wl = wfi.request['SiteWhitelist']
-    print wl
+    print(wl)
     for s in wl:
         counts[s] += 1
 
@@ -862,7 +862,7 @@ for wf in wfl:
 #for s in counts:
 #    counts[s] = counts[s] / float(si.cpu_pledges[s])*100.
 
-print "\n".join(["%s : %4.2f"%(item[0],item[1]) for item in sorted(counts.items(), reverse=True, key=lambda i :i[1])])
+print("\n".join(["%s : %4.2f"%(item[0],item[1]) for item in sorted(list(counts.items()), reverse=True, key=lambda i :i[1])]))
 
 
 
@@ -977,11 +977,11 @@ ds = '/BBbarDMJets_pseudoscalar_Mchi-1_Mphi-10000_13TeV-madgraph/RunIIWinter15wm
 
 destinations,all_block_names = getDatasetDestinations(url, ds, complement=False)
 
-print json.dumps(destinations, indent=2)
+print(json.dumps(destinations, indent=2))
 
 destinations,all_block_names = getDatasetDestinations(url, ds, complement=True)
 
-print json.dumps(destinations, indent=2)
+print(json.dumps(destinations, indent=2))
 
 sys.exit(23)
 #acdc = 'vlimant_ACDC_EXO-RunIISpring15DR74-01648_00318_v0__150903_100554_7882'
@@ -992,13 +992,13 @@ factor = 2
 for split in wfi.getSplittings():
     for act in ['avg_events_per_job','lumis_per_job']: 
         if act in split:     
-            print "Changing %s (%d) by a factor %d"%( act, split[act], factor),   
+            print("Changing %s (%d) by a factor %d"%( act, split[act], factor), end=' ')   
             split[act] /= factor    
-            print "to",split[act] 
+            print("to",split[act]) 
             break
     split['requestName'] = acdc
-    print json.dumps( split, indent=2 )
-    print reqMgrClient.setWorkflowSplitting(url, split )
+    print(json.dumps( split, indent=2 ))
+    print(reqMgrClient.setWorkflowSplitting(url, split ))
 
 
 #print [ task.taskType for task in  wfi.getAllTasks()]
@@ -1026,7 +1026,7 @@ sys.exit(24)
 
 wfi = workflowInfo(url ,'pdmvserv_BPH-Summer12DR53X-00188_00414_v0__150820_193454_4274')
 params = wfi.getSplittings()
-print json.dumps(params, indent=2)
+print(json.dumps(params, indent=2))
 pprint.pprint( wfi.full_spec )
 sys.exit(3)
 
@@ -1037,17 +1037,17 @@ sys.exit(545)
 si = siteInfo()
 si.fetch_glidein_info()
 a = si.sitesByMemory( 3500 )
-print a
+print(a)
 
 sys.exit(3)
 wfi = workflowInfo(url,'pdmvserv_SUS-RunIISpring15DR74-00051_00284_v0__150803_001642_3546')
 wfi.getSummary()
-for task,errors in wfi.summary['errors'].items():
-    print task
-    for name,codes in errors.items():
+for task,errors in list(wfi.summary['errors'].items()):
+    print(task)
+    for name,codes in list(errors.items()):
         if type(codes)==int: continue
-        for errorCode,info in codes.items():
-            print "Task",task,"had",info['jobs'],"failures with error code",errorCode,"in stage",name
+        for errorCode,info in list(codes.items()):
+            print("Task",task,"had",info['jobs'],"failures with error code",errorCode,"in stage",name)
     
     #print json.dumps( wfi.summary['errors'][task], indent=2 ) 
 

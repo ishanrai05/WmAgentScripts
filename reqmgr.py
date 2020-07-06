@@ -34,8 +34,8 @@ by a user on the command line, whichever other argument can be overridden too.
 
 import os
 import sys
-from httplib import HTTPSConnection, HTTPConnection
-import urllib
+from http.client import HTTPSConnection, HTTPConnection
+import urllib.request, urllib.parse, urllib.error
 import logging
 from optparse import OptionParser, TitledHelpFormatter
 import json
@@ -109,12 +109,12 @@ class ReqMgrClient(RESTClient):
         status, data = self.httpRequest("PUT", "/reqmgr/reqMgr/request", data=jsonArgs)        
         if status > 216:
             logging.error("Error occurred, exit.")
-            print data
+            print(data)
             sys.exit(1)
         data = json.loads(data)
         # ReqMgr returns dictionary with key: 'WMCore.RequestManager.DataStructs.Request.Request'
         # print data
-        requestName = data.values()[0]["RequestName"] 
+        requestName = list(data.values())[0]["RequestName"] 
         logging.info("Create request '%s' succeeded." % requestName)
         return requestName
                 
@@ -124,14 +124,14 @@ class ReqMgrClient(RESTClient):
         Talks to the ReqMgr webpage, as if the request came from the web browser.
         
         """
-        encodedParams = urllib.urlencode(requestArgs["createRequest"])
+        encodedParams = urllib.parse.urlencode(requestArgs["createRequest"])
         logging.info("Injecting a request for arguments (webpage):\n%s ..." % requestArgs["createRequest"])
         # the response is now be an HTML webpage
         status, data = self.httpRequest("POST", "/reqmgr/create/makeSchema",
                                          data=encodedParams, headers=self.textHeaders)        
         if status > 216 and status != 303:
             logging.error("Error occurred, exit.")
-            print data
+            print(data)
             sys.exit(1)
         # this is a call to a webpage/webform and the response here is HTML page
         # retrieve the request name from the returned HTML page       
@@ -166,13 +166,13 @@ class ReqMgrClient(RESTClient):
         """
         params = {"requestName": requestName,
                   "status": "assignment-approved"}
-        encodedParams = urllib.urlencode(params)
+        encodedParams = urllib.parse.urlencode(params)
         logging.info("Approving request '%s' ..." % requestName)
         status, data = self.httpRequest("PUT", "/reqmgr/reqMgr/request",
                                         data=encodedParams, headers=self.textHeaders)
         if status != 200:
             logging.error("Approve did not succeed.")
-            print data
+            print(data)
             sys.exit(1)
         logging.info("Approve succeeded.")
             
@@ -200,15 +200,15 @@ class ReqMgrClient(RESTClient):
             # TODO this needs to be put right with proper REST interface
             del assignArgs["Team"]
             jsonEncodedParams = {}
-            for paramKey in assignArgs.keys():
+            for paramKey in list(assignArgs.keys()):
                 jsonEncodedParams[paramKey] = json.dumps(assignArgs[paramKey])
-            encodedParams = urllib.urlencode(jsonEncodedParams, True)
+            encodedParams = urllib.parse.urlencode(jsonEncodedParams, True)
             logging.info("Assigning request '%s' ..." % requestName)
             status, data = self.httpRequest("POST", "/reqmgr/assign/handleAssignmentPage",
                                             data=encodedParams, headers=self.textHeaders)
             if status != 200:
                 logging.error("Assign did not succeed.")
-                print data
+                print(data)
                 sys.exit(1)
             logging.info("Assign succeeded.")
 
@@ -231,13 +231,13 @@ class ReqMgrClient(RESTClient):
             splittingParams['splittingTask'] = '/%s/%s' % (requestName, taskName)
             splittingParams['splittingAlgo'] = splittingAlgo
             
-            encodedParams = urllib.urlencode(splittingParams, True)
+            encodedParams = urllib.parse.urlencode(splittingParams, True)
             logging.info("Changing splitting parameters for request '%s' and task '%s' ..." % (requestName, taskName))
             status, data = self.httpRequest("POST", "/reqmgr/view/handleSplittingPage",
                                             data=encodedParams, headers=self.textHeaders)
             if status != 200:
                 logging.error("Splitting change did not succeed.")
-                print data
+                print(data)
                 sys.exit(1)
             logging.info("Splitting change succeeded.")
 
@@ -294,11 +294,11 @@ class ReqMgrClient(RESTClient):
                 logging.info("Querying '%s' request ..." % requestName)
                 status, data = self.httpRequest("GET", "/reqmgr/reqMgr/request/%s" % requestName)
                 if status != 200:
-                    print data
+                    print(data)
                     sys.exit(1)           
                 request = json.loads(data)
                 for k, v in sorted(request.items()):
-                    print "\t%s: %s" % (k, v)
+                    print("\t%s: %s" % (k, v))
                 requestsData.append(request)
             # returns data on requests in the same order as in the config.requestNames
             return requestsData
@@ -306,7 +306,7 @@ class ReqMgrClient(RESTClient):
             logging.info("Querying all requests ...")
             status, data = self.httpRequest("GET", "/reqmgr/reqMgr/request")
             if status != 200:
-                print data
+                print(data)
                 sys.exit(1)
             requests = json.loads(data)
             keys = ("RequestName", "AcquisitionEra", "RequestType", "Requestor",
@@ -314,7 +314,7 @@ class ReqMgrClient(RESTClient):
             for request in requests:
                 type = request["type"]
                 r = request[type]
-                print " ".join(["%s: '%s'" % (k, r[k]) for k in keys])
+                print(" ".join(["%s: '%s'" % (k, r[k]) for k in keys]))
             logging.info("%s requests in the system." % len(requests))
             return requests
             
@@ -324,7 +324,7 @@ class ReqMgrClient(RESTClient):
             logging.info("Deleting '%s' request ..." % requestName)
             status, data = self.httpRequest("DELETE", "/reqmgr/reqMgr/request/%s" % requestName)
             if status != 200:
-                print data
+                print(data)
                 sys.exit(1)
             logging.info("Done.")           
 
@@ -337,12 +337,12 @@ class ReqMgrClient(RESTClient):
                                          headers=headers)
         if status > 216:
             logging.error("Error occurred, exit.")
-            print data  
+            print(data)  
             sys.exit(1)
         data = json.loads(data)
         # ReqMgr returns dictionary with key: 'WMCore.RequestManager.DataStructs.Request.Request'
         # print data
-        newRequestName = data.values()[0]["RequestName"] 
+        newRequestName = list(data.values())[0]["RequestName"] 
         logging.info("Clone request succeeded: original request name: '%s' "
                      "new request name: '%s'" % (requestName, newRequestName))
         return newRequestName
@@ -359,12 +359,12 @@ class ReqMgrClient(RESTClient):
         # jsonSender.put("request/%s?priority=%s" % (requestName, priority))
         # "requestName": requestName can probably be specified here as well
         params = {"priority": "%s" % priority}
-        encodedParams = urllib.urlencode(params)
+        encodedParams = urllib.parse.urlencode(params)
         status, data = self.httpRequest("PUT", "/reqmgr/reqMgr/request/%s" % requestName,
                                         data=encodedParams, headers=self.textHeaders)
         if status > 200:
             logging.error("Error occurred, exit.")
-            print data
+            print(data)
             sys.exit(1)
 
     def testResubmission(self, config):
@@ -531,8 +531,8 @@ class ReqMgrClient(RESTClient):
                     request[fieldName]
                     return True
                 except KeyError:
-                    print ("ERROR: Field '%s' doesn't exist in %s database." %
-                       (fieldName, databaseType))
+                    print(("ERROR: Field '%s' doesn't exist in %s database." %
+                       (fieldName, databaseType)))
                     return False
             
             if not check(reqOracle, field, "Oracle"): continue
@@ -549,7 +549,7 @@ class ReqMgrClient(RESTClient):
         Method is called whenever there is a new request created.
         
         """
-        print "Checking CouchDB parameters on stored request %s" % requestName
+        print("Checking CouchDB parameters on stored request %s" % requestName)
         # request parameters (fields) not allowed in Couch request document
         deprecatedArgs = ["ReqMgrGroupID",
                           "ReqMgrRequestID",
@@ -581,8 +581,8 @@ class ReqMgrClient(RESTClient):
         for arg in deprecatedArgs:
             try:
                 request[arg]
-                print ("Request %s has forbidden parameter: %s" %
-                       (requestName, arg))
+                print(("Request %s has forbidden parameter: %s" %
+                       (requestName, arg)))
                 sys.exit(1)
             except KeyError:
                 pass
@@ -590,20 +590,20 @@ class ReqMgrClient(RESTClient):
             try:
                 val = request[arg]
                 if val == None or val == '' or val == "null" or val == "None":
-                    print ("Request %s has parameter %s but is unset: %s" %
-                           (requestName, arg, val))
+                    print(("Request %s has parameter %s but is unset: %s" %
+                           (requestName, arg, val)))
                     sys.exit(1)
             except KeyError:
-                print ("Request %s doesn't have required parameter: %s" %
-                       (requestName, arg))
+                print(("Request %s doesn't have required parameter: %s" %
+                       (requestName, arg)))
         for arg in optionalArgs:
             try:
                 val = request[arg]
             except KeyError:
-                print ("Request %s doesn't have optional parameter defined: %s" %
-                       (requestName, arg))
+                print(("Request %s doesn't have optional parameter defined: %s" %
+                       (requestName, arg)))
                 
-        print "CouchDB parameters OK."
+        print("CouchDB parameters OK.")
         
             
     def allTests(self, config):
@@ -705,7 +705,7 @@ def processCmdLine(args):
     def errExit(msg, parser):
         print('\n')
         parser.print_help()
-        print("\n\n%s" % msg)
+        print(("\n\n%s" % msg))
         sys.exit(1)
         
     form = TitledHelpFormatter(width=78)
@@ -738,7 +738,7 @@ def processCmdLine(args):
     if (opts.json and not opts.createRequest) and (opts.json and not opts.allTests) \
         and (opts.json and not opts.assignRequests) and (opts.json and not opts.changeSplitting):
         errExit("--json only with --createRequest, --allTests, --assignRequest, --changeSplitting", parser)
-    for action in filter(lambda name: getattr(opts, name), actions):
+    for action in [name for name in actions if getattr(opts, name)]:
         if opts.allTests and action and action != "allTests":
             errExit("Arguments --allTests and --%s mutually exclusive." % action, parser)
     if opts.requestNames:
@@ -861,8 +861,8 @@ def processRequestArgs(intputConfigFile, commandLineJson):
         logging.info("Parsing request arguments on the command line ...")
         cliJson = json.loads(commandLineJson)
         # if a key exists in cliJson, update values in the main requestArgs dict
-        for k in requestArgs.keys():
-            if cliJson.has_key(k):
+        for k in list(requestArgs.keys()):
+            if k in cliJson:
                 requestArgs[k].update(cliJson[k])            
     else:
         logging.warn("No request arguments to override (--json)? Some values will be wrong.")
@@ -872,15 +872,15 @@ def processRequestArgs(intputConfigFile, commandLineJson):
     def check(items):
         for k, v in items:
             if isinstance(v, dict):
-                check(v.items())
-            if isinstance(v, unicode) and v.endswith("OVERRIDE-ME"):
+                check(list(v.items()))
+            if isinstance(v, str) and v.endswith("OVERRIDE-ME"):
                 logging.warn("Not properly set: %s: %s" % (k, v))
-    check(requestArgs.items())
+    check(list(requestArgs.items()))
     return requestArgs
         
     
 def initialization(commandLineArgs):
-    print("Processing command line arguments: '%s' ..." % commandLineArgs)
+    print(("Processing command line arguments: '%s' ..." % commandLineArgs))
     config, actions = processCmdLine(commandLineArgs)
     logging.basicConfig(level=logging.DEBUG if config.verbose else logging.INFO)
     logging.debug("Set verbose console output.")
@@ -897,7 +897,7 @@ def main():
     # there is now gonna be usually 1 action to perform, but could be more
     # filter out those where config.ACTION is None
     # config is all options for this script but also request creation parameters
-    actions = filter(lambda name: getattr(config, name), definedActions)
+    actions = [name for name in definedActions if getattr(config, name)]
     logging.info("Actions to perform: %s" % actions) 
     for action in actions:
         logging.info("Performing '%s' ..." % action)

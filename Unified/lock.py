@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys
-from utils import lockInfo
+from .utils import lockInfo
 
 LI = lockInfo( andwrite = False )
 item = sys.argv[1]

@@ -9,14 +9,14 @@ deserialising the response.
 The response from the remote server is cached if expires/etags are set.
 """
 
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import os
 import base64
-from httplib import HTTPSConnection, HTTPConnection
+from http.client import HTTPSConnection, HTTPConnection
 import socket
 import logging
-import urlparse
-from httplib import HTTPException
+import urllib.parse
+from http.client import HTTPException
 import tempfile
 import shutil
 import stat
@@ -27,20 +27,20 @@ from WMCoreService.JsonWrapper.JSONThunker import JSONThunker
 
 def check_permissions(filehandle, permission, pass_stronger = False):
     info = os.stat(filehandle)
-    filepermission = oct(info[stat.ST_MODE] & 0777)
+    filepermission = oct(info[stat.ST_MODE] & 0o777)
     if pass_stronger:
         assert filepermission <= permission, "file's permissions are too weak"
     else:
         assert filepermission == permission, "file does not have the correct permissions"
 
 def owner_readonly(file):
-    check_permissions(file, oct(0400))
+    check_permissions(file, oct(0o400))
 
 def owner_readwrite(file):
-    check_permissions(file, oct(0600))
+    check_permissions(file, oct(0o600))
 
 def owner_readwriteexec(file):
-    check_permissions(file, oct(0700))
+    check_permissions(file, oct(0o700))
     
 def check_server_url(srvurl):
     """Check given url for correctness"""
@@ -75,7 +75,7 @@ class Requests(dict):
         # then update with the incoming dict
         self.update(idict)
 
-        self['endpoint_components'] = urlparse.urlparse(self['host'])
+        self['endpoint_components'] = urllib.parse.urlparse(self['host'])
         # If cachepath = None disable caching
         if 'cachepath' in idict and idict['cachepath'] is None:
             self["req_cache_path"] = None
@@ -150,7 +150,7 @@ class Requests(dict):
                "Accept": self['accept_type']}
         encoded_data = ''
 
-        for key in self.additionalHeaders.keys():
+        for key in list(self.additionalHeaders.keys()):
             headers[key] = self.additionalHeaders[key]
 
         #And now overwrite any headers that have been passed into the call:
@@ -185,7 +185,7 @@ class Requests(dict):
             headers["Content-length"] = len(encoded_data)
         elif verb == 'GET' and data:
             #encode the data as a get string
-            uri = "%s?%s" % (uri, urllib.urlencode(data, doseq=True))
+            uri = "%s?%s" % (uri, urllib.parse.urlencode(data, doseq=True))
 
         headers["Content-length"] = str(len(encoded_data))
 
@@ -220,7 +220,7 @@ class Requests(dict):
         """
         encode data into some appropriate format, for now make it a string...
         """
-        return urllib.urlencode(data, doseq=1)
+        return urllib.parse.urlencode(data, doseq=1)
 
     def decode(self, data):
         """
@@ -298,7 +298,7 @@ class Requests(dict):
             # if not proceed as not all https connections require them
             try:
                 key, cert = self.getKeyCert()
-            except Exception, ex:
+            except Exception as ex:
                 msg = 'No certificate or key found, authentication may fail'
                 self['logger'].info(msg)
                 self['logger'].debug(str(ex))
@@ -329,24 +329,24 @@ class Requests(dict):
         key = None
         # Zeroth case is if the class has over ridden the key/cert and has it
         # stored in self
-        if self.has_key('cert') and self.has_key('key' ) \
+        if 'cert' in self and 'key' in self \
              and self['cert'] and self['key']:
             key = self['key']
             cert = self['cert']
 
         # Now we're trying to guess what the right cert/key combo is...
         # First preference to HOST Certificate, This is how it set in Tier0
-        elif os.environ.has_key('X509_HOST_CERT'):
+        elif 'X509_HOST_CERT' in os.environ:
             cert = os.environ['X509_HOST_CERT']
             key = os.environ['X509_HOST_KEY']
         # Second preference to User Proxy, very common
-        elif (os.environ.has_key('X509_USER_PROXY')) and \
+        elif ('X509_USER_PROXY' in os.environ) and \
                 (os.path.exists( os.environ['X509_USER_PROXY'])):
             cert = os.environ['X509_USER_PROXY']
             key = cert
 
         # Third preference to User Cert/Proxy combinition
-        elif os.environ.has_key('X509_USER_CERT'):
+        elif 'X509_USER_CERT' in os.environ:
             cert = os.environ['X509_USER_CERT']
             key = os.environ['X509_USER_KEY']
 
@@ -383,9 +383,9 @@ class Requests(dict):
         you need to set either the X509_CERT_DIR variable or the cacert key of the request.
         """
         cacert = None
-        if self.has_key('capath'):
+        if 'capath' in self:
             cacert = self['capath']
-        elif os.environ.has_key("X509_CERT_DIR"):
+        elif "X509_CERT_DIR" in os.environ:
             cacert = os.environ["X509_CERT_DIR"]
         return cacert
 

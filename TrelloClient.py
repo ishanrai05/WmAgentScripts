@@ -10,7 +10,7 @@ class TrelloClient:
                 ###print k,v
                 setattr(self,k,v)
             except:
-                print line,"does not follow convention key:value"
+                print(line,"does not follow convention key:value")
 
         ## created by hand
         self.lists = {
@@ -39,16 +39,16 @@ class TrelloClient:
         return 'key=%s&token=%s'%(self.key, self.token)
 
     def _put(self, o, oid, pars):
-        url = 'https://api.trello.com/1/%s/%s?%s&%s'%( o, oid, '&'.join(['%s=%s'%(k,v) for (k,v) in pars.items()]), self._auth())
-        print url
+        url = 'https://api.trello.com/1/%s/%s?%s&%s'%( o, oid, '&'.join(['%s=%s'%(k,v) for (k,v) in list(pars.items())]), self._auth())
+        print(url)
         r = os.popen('curl -s --request PUT --url "%s"'% url)
         #print r
         d = {}
         try:
             d = json.loads(r.read())
         except:
-            print "Failed to put %s to %s %s"%( json.dumps( pars),
-                                                o, oid)
+            print("Failed to put %s to %s %s"%( json.dumps( pars),
+                                                o, oid))
         return d
 
     def _get(self, o, oid,supp='?'):
@@ -59,7 +59,7 @@ class TrelloClient:
         try:
             d = json.loads(r.read())
         except:
-            print "Failed to get %s %s with info %s"%( o, oid, supp)
+            print("Failed to get %s %s with info %s"%( o, oid, supp))
         return d
 
     def changeList(self, cn, ln):

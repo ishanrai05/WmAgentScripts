@@ -7,7 +7,7 @@ files missing.
 
 Note: you need to setup your grid proxy (X509_USER_PROXY) before running it
 """
-from __future__ import print_function
+
 
 import argparse
 import os

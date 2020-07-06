@@ -10,13 +10,13 @@
         input arg: Text file with list of workflows.
 """
 
-import urllib2,urllib, httplib, sys, re, os, pwd
+import urllib.request, urllib.error, urllib.parse,urllib.request,urllib.parse,urllib.error, http.client, sys, re, os, pwd
 try:
     import json
 except:
     import simplejson as json
-import resubmit, reqMgrClient
-import dbs3Client as dbs3
+from . import resubmit, reqMgrClient
+from . import dbs3Client as dbs3
 from optparse import OptionParser
 
 url = 'cmsweb.cern.ch'
@@ -66,13 +66,13 @@ def main():
 
     for wf in wfs:
         #abort workflow
-        print "Aborting workflow: " + wf
+        print("Aborting workflow: " + wf)
         reqMgrClient.abortWorkflow(url, wf)
         #invalidates datasets
-        print "Invalidating datasets"
+        print("Invalidating datasets")
         datasets = reqMgrClient.outputdatasetsWorkflow(url, wf)
         for ds in datasets:
-            print ds
+            print(ds)
             dbs3.setDatasetStatus(ds, 'INVALID', files=True)
 
         #clone workflow

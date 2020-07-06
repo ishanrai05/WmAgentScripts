@@ -7,7 +7,7 @@
 """
 
 import json
-import urllib2,urllib, httplib, sys, re, os
+import urllib.request, urllib.error, urllib.parse,urllib.request,urllib.parse,urllib.error, http.client, sys, re, os
 from xml.dom.minidom import getDOMImplementation
 
 
@@ -17,7 +17,7 @@ def hasCustodialSubscription(datasetName):
     one custodial subscription
     """
     url = 'https://cmsweb.cern.ch/phedex/datasvc/json/prod/Subscriptions?dataset=' + datasetName
-    result = json.loads(urllib2.urlopen(url).read())
+    result = json.loads(urllib.request.urlopen(url).read())
     datasets=result['phedex']['dataset']
     if datasets:
         dicts=datasets[0]
@@ -38,10 +38,10 @@ def getSubscriptionSites(datasetName):
     Either custodial or non custodial of a given site
     """
     url = 'https://cmsweb.cern.ch/phedex/datasvc/json/prod/subscriptions?dataset=' + datasetName
-    result = json.loads(urllib2.urlopen(url).read())
+    result = json.loads(urllib.request.urlopen(url).read())
     datasets = result['phedex']    
     sites = []
-    if 'dataset' not in datasets.keys():
+    if 'dataset' not in list(datasets.keys()):
         return sites
     else:
         if not result['phedex']['dataset']:
@@ -59,7 +59,7 @@ def getBlockReplicaSites(datasetName, onlycomplete=False):
     if onlycomplete, it will return only the sites that have all the blocks completely transferred.
     """
     url = 'https://cmsweb.cern.ch/phedex/datasvc/json/prod/blockreplicas?dataset=' + datasetName
-    result = json.loads(urllib2.urlopen(url).read())
+    result = json.loads(urllib.request.urlopen(url).read())
     blocks = result['phedex']    
     sites = set()
     if 'block' not in blocks:
@@ -91,9 +91,9 @@ def getCustodialMoveSubscriptionSite(datasetName):
     if none is found it returns False
     """
     url = 'https://cmsweb.cern.ch/phedex/datasvc/json/prod/subscriptions?dataset=' + datasetName
-    result = json.loads(urllib2.urlopen(url).read())
+    result = json.loads(urllib.request.urlopen(url).read())
     datasets = result['phedex']    
-    if 'dataset' not in datasets.keys():
+    if 'dataset' not in list(datasets.keys()):
         return False
     else:
         if not result['phedex']['dataset']:
@@ -115,7 +115,7 @@ def phedexGet(url, request, auth=True):
     auth: if aouthentication needs to be used
     """
     if auth:
-        conn = httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), 
+        conn = http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), 
                                             key_file = os.getenv('X509_USER_PROXY'))
         r1 = conn.request("GET", request)
         r2 = conn.getresponse()
@@ -123,7 +123,7 @@ def phedexGet(url, request, auth=True):
         conn.close()
         return result           
     else:
-        r1 = urllib2.urlopen('https://'+url+request)
+        r1 = urllib.request.urlopen('https://'+url+request)
         result = json.loads(r1.read())
         return result
 
@@ -207,7 +207,7 @@ def transferComplete(url, dataset, site):
     """
     result = phedexGet(url,'/phedex/datasvc/json/prod/blockreplicas?dataset='+dataset+'&node='+site+'_MSS')
     blocks = result['phedex']
-    if 'block' not in blocks.keys():
+    if 'block' not in list(blocks.keys()):
         return False
     if len(result['phedex']['block'])==0:
         return False
@@ -224,7 +224,7 @@ def testAcceptedSubscritpionSpecialRequest(url, dataset, site):
     result = phedexGet(url, ('/phedex/datasvc/json/prod/requestlist?dataset='
                                 +dataset+'&node='+site+'&type=xfer'+'&approval=approved'))
     requests=result['phedex']
-    if 'request' not in requests.keys():
+    if 'request' not in list(requests.keys()):
         return False
     for request in result['phedex']['request']:
         for node in request['node']:
@@ -239,7 +239,7 @@ def testSubscritpionSpecialRequest(url, dataset, site):
     """
     result = phedexGet(url, '/phedex/datasvc/json/prod/requestlist?dataset='+dataset+'&node='+site+'&type=xfer')
     requests=result['phedex']
-    if 'request' not in requests.keys():
+    if 'request' not in list(requests.keys()):
         return False
     for request in result['phedex']['request']:
         for node in request['node']:
@@ -255,7 +255,7 @@ def testCustodialSubscriptionRequested(url, dataset, site):
     result = phedexGet(url, '/phedex/datasvc/json/prod/requestlist?dataset='+dataset+'&node='+site+'_MSS')
     requests=result['phedex']
     #gets dataset subscription requests
-    if 'request' not in requests.keys():
+    if 'request' not in list(requests.keys()):
         return False
     #if there is a request
     for request in result['phedex']['request']:
@@ -298,8 +298,8 @@ def try_getCustodialSubscriptionRequestSite(datasetName):
     #result = phedexGet(url, '/phedex/datasvc/json/prod/requestlist?dataset='+datasetName+'&type=xfer')
     requests=result['phedex']
     #gets dataset subscription requests
-    if 'request' not in requests.keys():
-        print "no result for",datasetName,"in phedex request list"
+    if 'request' not in list(requests.keys()):
+        print("no result for",datasetName,"in phedex request list")
         return []
     sites = []
     #if there is a request
@@ -324,7 +324,7 @@ def testOutputDataset(datasetName):
     Tests whether a dataset was subscribed to phedex
     """
     url='https://cmsweb.cern.ch/phedex/datasvc/json/prod/Data?dataset=' + datasetName
-    result = json.loads(urllib2.urlopen(url))
+    result = json.loads(urllib.request.urlopen(url))
     dataset=result['phedex']['dbs']
     if len(dataset)>0:
         return True
@@ -335,19 +335,19 @@ def testWorkflows(workflows):
     """
     Test whether the output datasets for a workflow were subscribed
     """
-    print "Testing the subscriptions, this process may take some time"
+    print("Testing the subscriptions, this process may take some time")
     for workflow in workflows:
-        print "Testing workflow: "+workflow
+        print("Testing workflow: "+workflow)
         datasets=outputdatasetsWorkflow(workflow)
         numsubscribed=len(datasets)
         for dataset in datasets:
             if not testOutputDataset(dataset):
-                print "Couldn't subscribe: "+ dataset
+                print("Couldn't subscribe: "+ dataset)
             else:
                 numsubscribed=numsubscribed-1
         if numsubscribed==0:
             closeOutWorkflow(workflow)
-            print "Everything subscribed and closedout"
+            print("Everything subscribed and closedout")
 
 def datasetforWorkfows(workflows):
     """
@@ -391,9 +391,9 @@ def phedexPost(url, request, params):
     request: the request suffix url
     params: a dictionary with the POST parameters
     """
-    conn = httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), 
+    conn = http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'), 
                                         key_file = os.getenv('X509_USER_PROXY'))
-    encodedParams = urllib.urlencode(params, doseq=True)
+    encodedParams = urllib.parse.urlencode(params, doseq=True)
     #encodedParams = json.dumps(params)
     r1 = conn.request("POST", request, encodedParams)
     r2 = conn.getresponse()
@@ -459,7 +459,7 @@ def makeReplicaRequest(url, site,datasets, comments, priority='high',custodial='
 def main():
     args = sys.argv[1:]
     if not len(args)==3:
-        print "usage site_name file comments"
+        print("usage site_name file comments")
     site = args[0]
     filename = args[1]
     comments = args[2]
@@ -467,7 +467,7 @@ def main():
     #reads file, striping and ignoring empty lines
     outputdatasets = [ds.strip() for ds in open(filename).readlines() if ds.strip()]
     resp = makeReplicaRequest(url, site, outputdatasets, comments)
-    print resp
+    print(resp)
     
     sys.exit(0);
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import reqMgrClient
+from . import reqMgrClient
 from optparse import OptionParser
 import sys
 from pprint import pprint
@@ -70,7 +70,7 @@ def changeSplittingWorkflow(url, workflow, split, task, split_type='EventAwareLu
     #pprint(params)
     data = reqMgrClient.setWorkflowSplitting(url, params)
     #TODO validate data
-    print data
+    print(data)
     
 url = 'cmsweb.cern.ch'
 def main():

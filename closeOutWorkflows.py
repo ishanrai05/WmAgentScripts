@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import json
-import httplib, sys, re, os, random
-import dbs3Client, reqMgrClient, phedexClient
+import http.client, sys, re, os, random
+from . import dbs3Client, reqMgrClient, phedexClient
 
 """
 
@@ -40,7 +40,7 @@ def getOverviewRequestsWMStats(url):
     by querying couch db JSON direcly
     """
     #TODO use the couch API from WMStatsClient instead of wmstats URL
-    conn = httplib.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'),
+    conn = http.client.HTTPSConnection(url, cert_file = os.getenv('X509_USER_PROXY'),
                                      key_file = os.getenv('X509_USER_PROXY'))
     conn.request("GET",
                  "/couchdb/reqmgr_workload_cache/_design/ReqMgr/_view/bystatusandtype?stale=update_after")
@@ -65,7 +65,7 @@ def classifyCompletedRequests(url, requests):
         name=request['id']
         #if a wrong or weird name
         if len(request['key'])<3:
-            print request
+            print(request)
             continue
         
         #discard RelVals
@@ -89,7 +89,7 @@ def classifyCompletedRequests(url, requests):
                         workflows[requestType].append(name)
                     #TODO identify MonteCarlo with two output
                 except Exception as e:
-                    print "Error on wf", name
+                    print("Error on wf", name)
                     continue
             elif requestType=='TaskChain':
                 #only taskchains with MC or ReDigi subType
@@ -119,7 +119,7 @@ def validateClosingWorkflow(url, workflow, closePercentage = 0.95, checkEqual=Fa
         try:
             percentage = workflow.percentageCompletion(dataset, skipInvalid=True)
         except Exception as e:
-            print 'Error getting information from DBS', workflow, dataset
+            print('Error getting information from DBS', workflow, dataset)
             percentage = 0.0
         #retrieve either custodial or all subscriptions.
         try:
@@ -130,7 +130,7 @@ def validateClosingWorkflow(url, workflow, closePercentage = 0.95, checkEqual=Fa
             else:
                 phedexReqs = None
         except Exception:
-            print 'Error getting phedex info,: ', dataset
+            print('Error getting phedex info,: ', dataset)
             phedexReqs = None
         duplicate = None
         correctLumis = None
@@ -151,7 +151,7 @@ def validateClosingWorkflow(url, workflow, closePercentage = 0.95, checkEqual=Fa
                 try:
                     duplicate = dbs3Client.duplicateRunLumi(dataset, skipInvalid=True)
                 except Exception:
-                    print "Error in checking duplicate lumis for", dataset
+                    print("Error in checking duplicate lumis for", dataset)
             #if we need to check for correct lumi number
             if checkLumiNumb:
                 correctLumis = checkCorrectLumisEventGEN(dataset)
@@ -197,15 +197,15 @@ def printResult(result):
     """
     Prints the result of analysing a workflow
     """
-    for dsname, ds in result['datasets'].items():
-        print ('| %80s | %100s | %4s | %5s| %3s | %5s| %5s|%5s| ' % 
+    for dsname, ds in list(result['datasets'].items()):
+        print(('| %80s | %100s | %4s | %5s| %3s | %5s| %5s|%5s| ' % 
            (result["name"], dsname,
             "%.1f"%(ds["percentage"]*100),
             "?" if ds["duplicate"] is None else ds["duplicate"],
             "?" if ds["correctLumis"] is None else ds["correctLumis"],
              ','.join(ds["phedexReqs"]) if ds["phedexReqs"] else str(ds["phedexReqs"]),
             "?" if ds["transPerc"] is None else str(int(ds["transPerc"]*100)),
-            ds["closeOutDataset"]))
+            ds["closeOutDataset"])))
 
 def closeOutReRecoWorkflows(url, workflows):
     """
@@ -230,12 +230,12 @@ def closeOutReRecoWorkflows(url, workflows):
             reqMgrClient.closeOutWorkflowCascade(url, workflow.name)
         #populate the list without subs
         missingSubs = True
-        for (ds,info) in result['datasets'].items():
+        for (ds,info) in list(result['datasets'].items()):
             missingSubs &= info['missingSubs']
         #if all missing subscriptions, subscribe all
         if missingSubs:
             noSiteWorkflows.append(workflow)
-    print '-'*180
+    print('-'*180)
     return noSiteWorkflows
 
 def closeOutRedigiWorkflows(url, workflows):
@@ -261,12 +261,12 @@ def closeOutRedigiWorkflows(url, workflows):
             reqMgrClient.closeOutWorkflowCascade(url, workflow.name)
         #populate the list without subs
         missingSubs = True
-        for (ds,info) in result['datasets'].items():
+        for (ds,info) in list(result['datasets'].items()):
             missingSubs &= info['missingSubs']
         #if all missing subscriptions, subscribe all
         if missingSubs:
             noSiteWorkflows.append(workflow)
-    print '-'*180
+    print('-'*180)
     return noSiteWorkflows
 
 def closeOutMonterCarloRequests(url, workflows, fromGen):
@@ -300,14 +300,14 @@ def closeOutMonterCarloRequests(url, workflows, fromGen):
             reqMgrClient.closeOutWorkflowCascade(url, workflow.name)
         #populate the list without subs
         missingSubs = True
-        for (ds,info) in result['datasets'].items():
+        for (ds,info) in list(result['datasets'].items()):
             missingSubs &= info['missingSubs']
         #if all missing subscriptions, subscribe all
         if missingSubs:
             noSiteWorkflows.append(workflow)
             
     #separation line
-    print '-'*180
+    print('-'*180)
     return noSiteWorkflows
 
 
@@ -334,13 +334,13 @@ def closeOutStep0Requests(url, workflows):
             reqMgrClient.closeOutWorkflowCascade(url, workflow.name)
         #populate the list without subs
         missingSubs = True
-        for (ds,info) in result['datasets'].items():
+        for (ds,info) in list(result['datasets'].items()):
             missingSubs &= info['missingSubs']
         #if all missing subscriptions, subscribe all
         if missingSubs:
             noSiteWorkflows.append(workflow)
 
-    print '-'*180
+    print('-'*180)
     return noSiteWorkflows
 
 def closeOutStoreResultsWorkflows(url, workflows):
@@ -363,12 +363,12 @@ def closeOutStoreResultsWorkflows(url, workflows):
             reqMgrClient.closeOutWorkflowCascade(url, workflow.name)
         #populate the list without subs
         missingSubs = True
-        for (ds,info) in result['datasets'].items():
+        for (ds,info) in list(result['datasets'].items()):
             missingSubs &= info['missingSubs']
         #if all missing subscriptions, subscribe all
         if missingSubs:
             noSiteWorkflows.append(workflow)
-    print '-'*180
+    print('-'*180)
     return noSiteWorkflows
 
 def closeOutTaskChain(url, workflows):
@@ -388,12 +388,12 @@ def closeOutTaskChain(url, workflows):
             reqMgrClient.closeOutWorkflowCascade(url, workflow.name)
         #populate the list without subs
         missingSubs = True
-        for (ds,info) in result['datasets'].items():
+        for (ds,info) in list(result['datasets'].items()):
             missingSubs &= info['missingSubs']
         #if all missing subscriptions, subscribe all
         if missingSubs:
             noSiteWorkflows.append(workflow)
-    print '-'*180
+    print('-'*180)
     return noSiteWorkflows 
 
 
@@ -514,13 +514,13 @@ def percentageCompletion(url, workflow, dataset):
 def listWorkflows(workflows):
     for wf in workflows:
         for ds in wf.outputDatasets:
-            print '| %80s | %100s |'%(wf.name,ds)
-    print '-'*150
+            print('| %80s | %100s |'%(wf.name,ds))
+    print('-'*150)
 
 def listSubscriptions(subs):
     for ds, site in subs:
-        print '| %80s | %100s |'%(ds,site)
-    print '-'*150
+        print('| %80s | %100s |'%(ds,site))
+    print('-'*150)
 
 def makeSubscriptions(url, workflows):
     result = []    
@@ -539,8 +539,8 @@ def makeSubscriptions(url, workflows):
         else:
             site_disk =random.choice(T1_Disk)# "T1_US_FNAL_Disk"
             site_MSS = random.choice(T1_MSS)# "T1_US_FNAL_MSS"        
-            print "Making subscriptions",wf.name
-            print "To",site_disk, site_MSS
+            print("Making subscriptions",wf.name)
+            print("To",site_disk, site_MSS)
             
             #create move to disk and replica to tape
             #r = phedexClient.makeMoveRequest(url, site_disk, workflow.outputDatasets, comments, custodial='n')
@@ -553,15 +553,15 @@ def makeSubscriptions(url, workflows):
 
 def main():
     url='cmsweb.cern.ch'
-    print "Gathering Requests"
+    print("Gathering Requests")
     requests = getOverviewRequestsWMStats(url)
-    print "Classifying Requests"
+    print("Classifying Requests")
     workflowsCompleted = classifyCompletedRequests(url, requests)
 
     #print header
-    print '-'*220
-    print '| Request'+(' '*74)+'| OutputDataSet'+(' '*86)+'|%Compl|Dupl|Correct|Subscr|Tran|ClosOu|'
-    print '-'*220
+    print('-'*220)
+    print('| Request'+(' '*74)+'| OutputDataSet'+(' '*86)+'|%Compl|Dupl|Correct|Subscr|Tran|ClosOu|')
+    print('-'*220)
     noSiteWorkflows = closeOutReRecoWorkflows(url, workflowsCompleted['ReReco'])
     workflowsCompleted['NoSite-ReReco'] = noSiteWorkflows
 
@@ -578,7 +578,7 @@ def main():
     noSiteWorkflows = closeOutStoreResultsWorkflows(url, workflowsCompleted['StoreResults'])
     workflowsCompleted['NoSite-StoreResults'] = noSiteWorkflows
 
-    print "MC Workflows for which couldn't find Custodial Tier1 Site"
+    print("MC Workflows for which couldn't find Custodial Tier1 Site")
     listWorkflows(workflowsCompleted['NoSite-ReReco'])
     listWorkflows(workflowsCompleted['NoSite-ReDigi'])
     listWorkflows(workflowsCompleted['NoSite-MonteCarlo'])
@@ -586,7 +586,7 @@ def main():
     listWorkflows(workflowsCompleted['NoSite-TaskChain'])
     listWorkflows(workflowsCompleted['NoSite-LHEStepZero'])
 
-    print "StoreResults Workflows for which couldn't find PhEDEx Subscription"
+    print("StoreResults Workflows for which couldn't find PhEDEx Subscription")
     listWorkflows(workflowsCompleted['NoSite-StoreResults'])
 
     sys.exit(0);

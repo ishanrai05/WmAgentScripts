@@ -1,4 +1,4 @@
-from assignSession import *
+from .assignSession import *
 
 def phinject( pid, wfs):
     ## and remove fakes
@@ -14,17 +14,17 @@ def phinject( pid, wfs):
         ts = Transfer( phedexid = pid )
         session.add (ts )
     else:
-        print "updating",pid
+        print("updating",pid)
 
 
     wfs_id = []
     for wf in wfs:
         w = session.query(Workflow).filter(Workflow.name == wf).first()
         if w:
-            print w.id
+            print(w.id)
             wfs_id.append( w.id )
         else:
-            print wf,"is not to be found"
+            print(wf,"is not to be found")
     ts.workflows_id = wfs_id
 
     session.commit()

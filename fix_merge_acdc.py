@@ -14,7 +14,7 @@ wldoc = requestor.makeRequest(uri = "/couchdb/reqmgr_workload_cache/%s" % reques
 wl = pickle.loads(wlpkl)
 
 if len(wl.tasks.tasklist) == 1:
-    print "Request only has one top level task, nothing to fix."
+    print("Request only has one top level task, nothing to fix.")
     sys.exit(1)
 
 for taskName in wl.tasks.tasklist:

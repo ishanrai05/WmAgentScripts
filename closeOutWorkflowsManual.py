@@ -7,7 +7,7 @@ for which the given request is a parent and announce them too.
 
 import sys
 import optparse
-import reqMgrClient
+from . import reqMgrClient
 url='cmsweb.cern.ch'
 
 def main():
@@ -25,13 +25,13 @@ def main():
         sys.exit(0)
     
     for workflow in workflows:
-        print "Closing-out workflow: " + workflow +". Look for resubmissions and close them too"
+        print("Closing-out workflow: " + workflow +". Look for resubmissions and close them too")
         result = reqMgrClient.closeOutWorkflowCascade(url, workflow)
         if result == None or result == 'None':
-            print "Closed out"
+            print("Closed out")
         else:
-            print "ERROR NOT CLOSED OUT"
-            print result
+            print("ERROR NOT CLOSED OUT")
+            print(result)
           
     sys.exit(0);
 

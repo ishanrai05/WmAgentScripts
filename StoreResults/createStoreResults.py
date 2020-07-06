@@ -29,8 +29,8 @@ def main():
     try:
         ticket, input_dataset, dbs_url, cmssw_release, group_name = sys.argv[1:6]
     except:
-        print "Usage:"
-        print "python runStoreResults.py TICKET DATASET DBS_URL CMSSW_RELEASE GROUP_NAME"
+        print("Usage:")
+        print("python runStoreResults.py TICKET DATASET DBS_URL CMSSW_RELEASE GROUP_NAME")
         return
 
     rq = RequestQuery({'ComponentDir':'./storeResults/Tickets'})

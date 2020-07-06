@@ -2,7 +2,7 @@
 import sys
 import os
 import glob
-from utils import getWorkflowById, reqmgr_url, workflowInfo
+from .utils import getWorkflowById, reqmgr_url, workflowInfo
 
 import optparse
 parser = optparse.OptionParser()
@@ -20,21 +20,21 @@ parser.add_option('--workflows',help='Coma separated list of workflows to recove
 
 wfs=options.workflows.split(',')
 for wf in wfs:
-    print "Starting recovery procedure for",wf
+    print("Starting recovery procedure for",wf)
     json_files = []
     if options.existing:
         keyword = '_'.join(wf.split('_')[:2])
         keyword = 'recovery*-%s*.json'% (keyword)
-        print "looking for",keyword
+        print("looking for",keyword)
         json_files = glob.glob(keyword)
-        print "Found",len(json_files),"already created json files"
-        print '\n'.join(sorted(json_files))
+        print("Found",len(json_files),"already created json files")
+        print('\n'.join(sorted(json_files)))
     elif options.norecovery:
-        print "skipping recovery process"
+        print("skipping recovery process")
     else:
         com = 'python recoverMissingLumis.py -q %s -g DATAOPS -f -r %s'%( os.getenv('USER'), wf)
-        print com
-        y = (raw_input('go ?') if not options.dry else 'dry') if not options.go else 'y'
+        print(com)
+        y = (input('go ?') if not options.dry else 'dry') if not options.go else 'y'
         if y.lower() in ['y','yes','go','ok']:
             go = os.popen(com)
             full_log = go.read().split('\n')
@@ -43,26 +43,25 @@ for wf in wfs:
                 if line.startswith('Created JSON'):
                     this_json = line.split()[2]
                     json_files.append( this_json )
-                    print line
+                    print(line)
                 if 'This will recover' in line:
-                    print line
+                    print(line)
             if not this_json:
-                print '\n'.join(full_log)
+                print('\n'.join(full_log))
     createst_wfs = []
     if options.nocreation:
         ## look for it in reqmgr
         wfi = workflowInfo( reqmgr_url, wf)
         pid = wfi.request['PrepID']
-        familly = filter(lambda r : r['RequestStatus'] == 'assignment-approved' and 'recovery' in r['RequestName'],
-                         getWorkflowById( reqmgr_url, pid, details=True))
+        familly = [r for r in getWorkflowById( reqmgr_url, pid, details=True) if r['RequestStatus'] == 'assignment-approved' and 'recovery' in r['RequestName']]
         createst_wfs = [r['RequestName'] for r in familly]
-        print "Found",len(createst_wfs),"already existing recoveries"
-        print '\n'.join(sorted(createst_wfs))
+        print("Found",len(createst_wfs),"already existing recoveries")
+        print('\n'.join(sorted(createst_wfs)))
     else:
         for json in json_files:
             com = 'python reqMgrClient.py -j %s'%( json )
-            print com
-            y = (raw_input('go ?') if not options.dry else 'dry') if not options.go else 'y'
+            print(com)
+            y = (input('go ?') if not options.dry else 'dry') if not options.go else 'y'
             if y.lower() in ['y','yes','go','ok']:
                 go = os.popen(com)
                 full_log = go.read().split('\n')
@@ -73,18 +72,18 @@ for wf in wfs:
                         createst_wfs.append( wf_created ) 
                         break
                 if not wf_created:
-                    print '\n'.join(full_log)
-    print len(createst_wfs),"that can be submitted"
+                    print('\n'.join(full_log))
+    print(len(createst_wfs),"that can be submitted")
     for wf in createst_wfs:
         com = './assign.py %s --w %s'%( options.assignoptions, wf)
-        print com
-        y = (raw_input('go ?') if not options.dry else 'dry') if not options.go else 'y'
+        print(com)
+        y = (input('go ?') if not options.dry else 'dry') if not options.go else 'y'
         if y.lower() in ['y','yes','go','ok']:
             go = os.popen(com)
             full_log = go.read().split('\n')
             for line in full_log:
                 if line.startswith("Assigned workflow"):
-                    print line
+                    print(line)
 
 
 

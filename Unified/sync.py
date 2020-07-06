@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-from assignSession import *
-from utils import workflowInfo, reqmgr_url
+from .assignSession import *
+from .utils import workflowInfo, reqmgr_url
 import sys
 import argparse
 import getpass
@@ -19,10 +19,10 @@ if __name__ == "__main__":
     comment = options.comments + " - {}".format(username)
 
     if not status:
-        print "need to pass -s"
+        print("need to pass -s")
         sys.exit(0)
     if not spec:
-        print "need to pass -w"
+        print("need to pass -w")
         sys.exit(0)
 
     #for wf in session.query(Workflow).all():
@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
         if status:
             if status == 'DELETE':
-                print "removing",wf.name
+                print("removing",wf.name)
                 session.delete( wf )
             else:
                 wf.status = status
@@ -47,7 +47,7 @@ if __name__ == "__main__":
             if not wf.status.startswith('assistance'):
                 wf.status = 'away'
             else:
-                print wf.name,"is still in",wf.status
+                print(wf.name,"is still in",wf.status)
         elif wf.wm_status in ['closed-out']:
             wf.status = 'close'
         elif wf.wm_status in ['rejected','failed','aborted','aborted-archived','rejected-archived','failed-archived']:
@@ -56,7 +56,7 @@ if __name__ == "__main__":
             wf.status = 'done'
         #elif wf.wm_status in ['assignment-approved']:
         #    wf.status = 'considered'
-        print wf.name, wf.wm_status, wf.status
+        print(wf.name, wf.wm_status, wf.status)
 
         wfi.sendLog('sync','Setting status from {} to {} ({}). Reason: {}'.format(old_status,wf.status,wf.wm_status, comment)) # Please always put reason
     session.commit()

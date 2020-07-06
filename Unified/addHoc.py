@@ -1,14 +1,14 @@
 #!/usr/bin/env python  
-from utils import workflowInfo, getWorkflows, sendEmail, componentInfo, monitor_dir, reqmgr_url, siteInfo, sendLog, getWorkflowById, isHEPCloudReady, agentInfo, unifiedConfiguration, monitor_eos_dir, base_eos_dir, batchInfo, reportInfo
+from .utils import workflowInfo, getWorkflows, sendEmail, componentInfo, monitor_dir, reqmgr_url, siteInfo, sendLog, getWorkflowById, isHEPCloudReady, agentInfo, unifiedConfiguration, monitor_eos_dir, base_eos_dir, batchInfo, reportInfo
 
-from assignSession import *
-import reqMgrClient
+from .assignSession import *
+from . import reqMgrClient
 import os
 import sys
 import json
 import time
 import random
-from JIRAClient import JIRAClient
+from .JIRAClient import JIRAClient
 
 up = componentInfo(soft=['mcm','wtc','jira'])
 if not up.check(): sys.exit(0)
@@ -21,17 +21,17 @@ if JC:
         s = s.replace('issues','')
         s = s.strip()
         if s.count(' ')!=0: continue
-        print s
+        print(s)
         wfs = getWorkflowById(reqmgr_url, s, details=True)
         statuses = set([r['RequestStatus'] for r in wfs])
         check_against = ['assignment-approved', 'running-open','running-closed','completed','acquired', 'staging', 'staged', 'assigned', 'closed-out', 'failed']
         if statuses:
             if all([s not in check_against for s in statuses]):
-                print t.key,"can be closed"
-                print statuses
+                print(t.key,"can be closed")
+                print(statuses)
                 JC.close(t.key) ## uncomment to close JIRAs
                 continue
-        print t.key,statuses
+        print(t.key,statuses)
 
 UC = unifiedConfiguration()
 
@@ -81,12 +81,12 @@ wfs = getWorkflows(url, 'assigned', details=True)
 
 now = time.mktime( time.gmtime())
 for wf in wfs:
-    assigned_log = filter(lambda change : change["Status"] in ["assigned"],wf['RequestTransition'])
+    assigned_log = [change for change in wf['RequestTransition'] if change["Status"] in ["assigned"]]
     if assigned_log:
         then = assigned_log[-1]['UpdateTime']
         since = (now-then)/float(1*24*60*60.)
         if since>1.:
-            print "workflow",wf['RequestName'],"is assigned since",then," that is",since,"days"
+            print("workflow",wf['RequestName'],"is assigned since",then," that is",since,"days")
             sendLog('GQ','The workflow %s has been assigned for %.2f days'%(wf['RequestName'], since), level='critical')
 
 overall_timeout = 14 #days
@@ -109,12 +109,12 @@ may_have_one.update( may_have_one_too )
 
 ## keep all relval reports for *ever* ...
 batches = batchInfo().content()
-for b,pids in batches.items(): 
+for b,pids in list(batches.items()): 
     for pid in pids:
         wfs = getWorkflowById(url, pid, details=True)
         for wf in wfs:
             ## check on the announce date
-            announced = filter(lambda o : o['Status']in ['announced','rejected','aborted'], wf['RequestTransition']) ## check on any final state
+            announced = [o for o in wf['RequestTransition'] if o['Status']in ['announced','rejected','aborted']] ## check on any final state
             if announced:
                 announced_time = max([a['UpdateTime'] for a in announced])
                 if (now-announced_time) < (7*24*60*60):
@@ -123,8 +123,8 @@ for b,pids in batches.items():
             else:
                 may_have_one.add( wf['RequestName'] )
 
-print "wf that can have logs"
-print '\n'.join(sorted(may_have_one))
+print("wf that can have logs")
+print('\n'.join(sorted(may_have_one)))
 
 RI = reportInfo()
 RI.purge( grace = 30 ) 
@@ -135,11 +135,11 @@ for (the_dir,logtype) in [(monitor_eos_dir,'report'),
                           (monitor_eos_dir,'condorlogs')]:
     #for d in filter(None,os.popen('ls -d %s/%s/*'%(monitor_dir,logtype)).read().split('\n')):
     #for d in filter(None,os.popen('ls -d %s/%s/*'%(the_dir,logtype)).read().split('\n')):
-    for d in filter(None,os.popen('find %s/%s/ -maxdepth 1 -type d -mtime +%d  '%( the_dir,logtype, overall_timeout)).read().split('\n')):
+    for d in [_f for _f in os.popen('find %s/%s/ -maxdepth 1 -type d -mtime +%d  '%( the_dir,logtype, overall_timeout)).read().split('\n') if _f]:
         is_locked = any([d.endswith(wf) for wf in may_have_one])
         if not is_locked:
             ## that can be removed
-            print ("Removing {}".format(logtype))
+            print(("Removing {}".format(logtype)))
             cmd = "rm -rf {}".format(d)
             print(cmd)
             os.system(cmd)
@@ -155,7 +155,7 @@ for (the_dir,logtype) in [(monitor_eos_dir,'report'),
 si = siteInfo()
 m = {}
 for site in sorted(si.cpu_pledges.keys()):
-    print site, si.cpu_pledges[site], int(si.cpu_pledges[site]/2.)
+    print(site, si.cpu_pledges[site], int(si.cpu_pledges[site]/2.))
     m[site] = {"running" : si.cpu_pledges[site],
                "pending" : int(si.cpu_pledges[site]/2.)
                }
@@ -179,11 +179,11 @@ open('%s/thresholds.json'%monitor_dir,'w').write(json.dumps( m, indent=2 ))
 ### all dqmharvest completed to announced right away ###
 wfs = getWorkflows(url, 'completed', user=None, rtype='DQMHarvest')
 for wf in wfs: 
-    print "closing out",wf
+    print("closing out",wf)
     reqMgrClient.closeOutWorkflow(url, wf)
 wfs = getWorkflows(url, 'closed-out', user=None, rtype='DQMHarvest')
 for wf in wfs: 
-    print "announcing",wf
+    print("announcing",wf)
     reqMgrClient.announceWorkflow(url, wf)
 wfs = getWorkflows(url, 'failed', user=None, rtype='DQMHarvest')
 if len(wfs):

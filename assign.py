@@ -11,7 +11,7 @@
     
 """
 
-import httplib
+import http.client
 import re
 import os
 import sys
@@ -19,10 +19,10 @@ import json
 import copy
 import optparse
 from dbs.apis.dbsClient import DbsApi
-import reqMgrClient as reqMgr
+from . import reqMgrClient as reqMgr
 from pprint import pprint
 from random import choice
-from utils import workflowInfo, siteInfo
+from .utils import workflowInfo, siteInfo
 
 
 dbs3_url = r'https://cmsweb.cern.ch/dbs/prod/global/DBSReader'
@@ -102,14 +102,14 @@ def assignRequest(url, **args):
 
     res = reqMgr.assignWorkflow(url, workflow, team, params)
     if res:
-        print 'Assigned workflow:', workflow, 'to site:', sites, 'with processing version', procversion
+        print('Assigned workflow:', workflow, 'to site:', sites, 'with processing version', procversion)
     else:
-        print 'Could not assign workflow:', workflow, 'to site:', sites, 'with processing version', procversion
+        print('Could not assign workflow:', workflow, 'to site:', sites, 'with processing version', procversion)
     if verbose:
-        print res
+        print(res)
 
 def getRequestDict(url, workflow):
-    conn = httplib.HTTPSConnection(url, cert_file=os.getenv(
+    conn = http.client.HTTPSConnection(url, cert_file=os.getenv(
         'X509_USER_PROXY'), key_file=os.getenv('X509_USER_PROXY'))
     r1 = conn.request("GET", '/reqmgr/reqMgr/request?requestName=' + workflow)
     r2 = conn.getresponse()
@@ -213,7 +213,7 @@ def main():
         wfi = workflowInfo( url, wfn )
         schema = wfi.request
         if 'OriginalRequestName' in schema:
-            print "Original workflow is:",schema['OriginalRequestName']
+            print("Original workflow is:",schema['OriginalRequestName'])
             original_wf = workflowInfo(url, schema['OriginalRequestName'])            
             ancestor_wf = workflowInfo(url, schema['OriginalRequestName'])
             ## go back as up as possible
@@ -230,7 +230,7 @@ def main():
 
         if options.sites.lower() == 'original' and original_wf:
             sites = original_wf.request['SiteWhitelist']
-            print "Using",sorted(sites),"from the original request",original_wf.request['RequestName']
+            print("Using",sorted(sites),"from the original request",original_wf.request['RequestName'])
 
         #print json.dumps( schema, indent=2 )
         wf_name = wfn
@@ -238,7 +238,7 @@ def main():
 
         # WF must be in assignment-approved in order to be assigned
         if (schema["RequestStatus"] != "assignment-approved") and not options.test:
-            print("The workflow '" + wf_name + "' you are trying to assign is not in assignment-approved")
+            print(("The workflow '" + wf_name + "' you are trying to assign is not in assignment-approved"))
             sys.exit(1)
 
         #Check to see if the workflow is a task chain or an ACDC of a taskchain
@@ -247,7 +247,7 @@ def main():
         # Adding the special string - in case it was provided in the command line
         if options.special:
             specialStr = '_' + str(options.special)
-            for key, value in procstring.items():
+            for key, value in list(procstring.items()):
                 procstring[key] = value + specialStr
 
         # Override if a value is given using the procstring command
@@ -266,7 +266,7 @@ def main():
             era = wfi.acquisitionEra()
         #Dealing with era and proc string
         if (not era or not procstring) or (taskchain and (type(era)!=dict or type(procstring)!=dict)):
-            print "We do not have a valid AcquisitionEra and ProcessingString"
+            print("We do not have a valid AcquisitionEra and ProcessingString")
             sys.exit(1)
 
         # Must use --lfn option, otherwise workflow won't be assigned
@@ -277,7 +277,7 @@ def main():
         elif ancestor_wf and "MergedLFNBase" in ancestor_wf.request:
             lfn = ancestor_wf.request['MergedLFNBase']
         else:
-            print "Can't assign the workflow! Please include workflow lfn using --lfn option."
+            print("Can't assign the workflow! Please include workflow lfn using --lfn option.")
             sys.exit(0)
         # activity production by default for taskchains, reprocessing for default by workflows
         if options.activity:
@@ -320,7 +320,7 @@ def main():
         if not is_resubmission:
             exist = False
             maxv = 1
-            for key, value in schema.items():
+            for key, value in list(schema.items()):
                 if type(value) is dict and key.startswith("Task"):
                     dbsapi = DbsApi(url=dbs3_url)
                     
@@ -331,7 +331,7 @@ def main():
                     # see if any of the dataset names is a match
                     for ds in datasets:
                         if re.match(processedName, ds['processed_ds_name']):
-                            print "Existing dset:", ds['dataset'], "(%s)" % ds['dataset_access_type']
+                            print("Existing dset:", ds['dataset'], "(%s)" % ds['dataset_access_type'])
                             maxv = max(maxv, ds['processing_version'])
                             exist = True
                         else:
@@ -339,17 +339,17 @@ def main():
                     i += 1
             # suggest max version
             if exist and procversion <= maxv:
-                print "Some output datasets exist, its advised to assign with v ==", maxv + 1
+                print("Some output datasets exist, its advised to assign with v ==", maxv + 1)
                 sys.exit(0)
         else:
             ## this is a resubmission !
-            print "The taks in resubmission is:",schema['InitialTaskPath']
+            print("The taks in resubmission is:",schema['InitialTaskPath'])
             ## pick up the sites from acdc
             if options.sites.lower() == 'acdc':
                 where_to_run, _,_ =  original_wf.getRecoveryInfo()
                 task = schema['InitialTaskPath']
                 sites = list(set([SI.SE_to_CE(site) for site in where_to_run[task]]) & set(SI.all_sites))
-                print "Found",sorted(sites),"as sites where to run the ACDC at, from the acdc doc of ",original_wf.request['RequestName']
+                print("Found",sorted(sites),"as sites where to run the ACDC at, from the acdc doc of ",original_wf.request['RequestName'])
 
         if options.checksite:
             ## check that the sites are all compatible and up
@@ -366,12 +366,12 @@ def main():
             
             sites = sorted( set(sites) - set(not_matching) - set(not_existing))
             
-            print sorted(memory_allowed),"to allow",check_mem,ncores
+            print(sorted(memory_allowed),"to allow",check_mem,ncores)
             if not_ready:
-                print not_ready,"is/are not ready"
+                print(not_ready,"is/are not ready")
                 sys.exit(0)
             if not_matching:
-                print "The memory requirement",check_mem,"is too much for",not_matching
+                print("The memory requirement",check_mem,"is too much for",not_matching)
                 sys.exit(0)
 
 
@@ -394,7 +394,7 @@ def main():
                     if t in schema:
                         tname = schema[t]['TaskName']
                         if tasks and not tname in tasks:
-                            print tname,"not concerned"
+                            print(tname,"not concerned")
                             memory_dict[tname] = schema[t]['Memory']
                             continue
                         if set_to:
@@ -404,7 +404,7 @@ def main():
                     else:
                         break
                 memory = memory_dict
-                print memory_dict
+                print(memory_dict)
             ## need to play with multicore setting
             if multicore:
                 tasks,set_to = multicore.split(':') if ':' in multicore else ("",multicore)
@@ -420,43 +420,43 @@ def main():
                         tname = schema[t]['TaskName']
                         mcore = schema[t]['Multicore']
                         if tasks and not tname in tasks:
-                            print tname,"not concerned"
+                            print(tname,"not concerned")
                             multicore_dict[tname] = schema[t]['Multicore']
                             timeperevent_dict[tname] = schema[t]['TimePerEvent']
                             continue
                         if memory:
                             mem = memory[tname]
-                            print mem, memory
+                            print(mem, memory)
                             factor = (set_to / float(mcore))
                             fraction_constant = 0.4
                             mem_per_core_c = int((1-fraction_constant) * mem / float(mcore))
-                            print "mem per core", mem_per_core_c
-                            print "base mem", mem
+                            print("mem per core", mem_per_core_c)
+                            print("base mem", mem)
                             
                             memory[tname] = mem + (set_to-mcore)*mem_per_core_c
-                            print "final mem",memory[tname]
+                            print("final mem",memory[tname])
                             timeperevent_dict[tname] = schema[t]['TimePerEvent']/factor
-                        print "setting mcore",set_to
+                        print("setting mcore",set_to)
                         multicore_dict[tname] = set_to
                     else:
                         break
                 multicore = multicore_dict
-                print multicore
-                print timeperevent_dict,"cannot be used yet."
+                print(multicore)
+                print(timeperevent_dict,"cannot be used yet.")
     # If the --test argument was provided, then just print the information
     # gathered so far and abort the assignment
-        print wf_name
-        print "Era:",era
-        print "ProcStr:",procstring
-        print "ProcVer:",procversion
-        print "LFN:",lfn
-        print "Team:",options.team
-        print "Site:",sites
-        print "Taskchain? ", str(taskchain)
-        print "Activity:", activity
-        print "ACDC:", str(is_resubmission)
-        print "Xrootd:", str(xrootd)
-        print "Secondary_xrootd:", str(secondary_xrootd)
+        print(wf_name)
+        print("Era:",era)
+        print("ProcStr:",procstring)
+        print("ProcVer:",procversion)
+        print("LFN:",lfn)
+        print("Team:",options.team)
+        print("Site:",sites)
+        print("Taskchain? ", str(taskchain))
+        print("Activity:", activity)
+        print("ACDC:", str(is_resubmission))
+        print("Xrootd:", str(xrootd))
+        print("Secondary_xrootd:", str(secondary_xrootd))
         #if options.test:            continue
         
         # Really assigning the workflow now

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import json
-import urllib2,urllib, httplib, sys, re, os
+import urllib.request, urllib.error, urllib.parse,urllib.request,urllib.parse,urllib.error, http.client, sys, re, os
 from xml.dom.minidom import getDOMImplementation
-import reqMgrClient, dbs3Client
+from . import reqMgrClient, dbs3Client
 from optparse import OptionParser
 from pprint import pprint
 import math
@@ -32,7 +32,7 @@ def human(n):
 
 def printTaskChain(workflow, options):
     tasks = workflow.cache["TaskChain"]
-    print "Tasks:", tasks
+    print("Tasks:", tasks)
     #pprint(workflow.cache)
     #print "-"*120
     #pprint(workflow.info)
@@ -80,9 +80,9 @@ def printTaskChain(workflow, options):
             tcache["TaskJobs"] = int(jobs)
             tcache["TaskOutputEvents"] = outEv
         
-        print task,":", tcache["TaskName"]
-        print "  Events:", human(tcache["TaskOutputEvents"])
-        print "  Jobs  ~", human(tcache["TaskJobs"])
+        print(task,":", tcache["TaskName"])
+        print("  Events:", human(tcache["TaskOutputEvents"]))
+        print("  Jobs  ~", human(tcache["TaskJobs"]))
         printTaskException(tcache, 'MCPileup')
         printTaskException(tcache, 'InputDataset')
         printTaskException(tcache, 'PrimaryDataset')
@@ -93,12 +93,12 @@ def printTaskChain(workflow, options):
         #printTaskException(tcache, 'RunWhitelist')
         printTaskException(tcache, 'SplittingArguments')
         printTaskException(tcache, 'InputTask')
-        print ""
+        print("")
 
 def printException(request, keyDic):
     try:
         result = str(request[keyDic])
-        print ""+keyDic+": "+result
+        print(""+keyDic+": "+result)
     except KeyError:
         pass
         #print ""
@@ -106,7 +106,7 @@ def printException(request, keyDic):
 def printTaskException(taskdic, keyDic):
     try:
         result = str(taskdic[keyDic])
-        print "  %s: %r" % (keyDic, result) 
+        print("  %s: %r" % (keyDic, result)) 
     except KeyError:
         pass
         #print ""
@@ -131,14 +131,14 @@ def main():
         workflows = [l.strip() for l in open(options.fileName) if l.strip()]
 
     for wf in workflows:
-        print wf
+        print(wf)
         workflow = reqMgrClient.Workflow(wf, url)        
         #by type
-        print "Type", workflow.type
+        print("Type", workflow.type)
         if workflow.type == 'TaskChain':
             printTaskChain(workflow, options)
         else:
-            print "There is nothing interesting about this workflow!"
+            print("There is nothing interesting about this workflow!")
 
 if __name__ == "__main__":
     main()
