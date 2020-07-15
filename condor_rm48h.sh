@@ -16,7 +16,6 @@ while read -r line ; do
        nStarts=$(condor_q -l "$iJob" | grep NumJobStarts | awk -F' = ' '{print $2}')
        if [[ $nStarts -gt 1 ]]; then
          condor_rm "$iJob" 
-         # shellcheck disable=SC2003
          nRem=$(expr $nRem + 1)
        fi 
     done
@@ -37,7 +36,6 @@ while read -r line ; do
     nRem=0
     for iJob in $Jobs ; do   
       condor_rm -forcex "$iJob"
-      # shellcheck disable=SC2003
       nRem=$(expr $nRem + 1)
     done
 done < "$tmp"
