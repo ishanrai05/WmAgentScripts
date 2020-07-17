@@ -1,8 +1,8 @@
 BASE_DIR=/data/unified/WmAgentScripts/
 HTML_DIR=/var/www/html/unified/
 
-lock_name=`echo $BASH_SOURCE | cut -f 1 -d "."`.lock
-source $BASE_DIR/cycle_common.sh $lock_name
+lock_name=$(echo "$BASH_SOURCE" | cut -f 1 -d ".").lock
+source $BASE_DIR/cycle_common.sh "$lock_name"
 
 ## get the workflow in/out of the system
 $BASE_DIR/cWrap.sh Unified/injector.py
@@ -26,5 +26,5 @@ $BASE_DIR/cWrap.sh Unified/assignor.py _PR_ref
 ## assign the workflow to sites
 $BASE_DIR/cWrap.sh Unified/assignor.py
 
-rm -f $lock_name
+rm -f "$lock_name"
 

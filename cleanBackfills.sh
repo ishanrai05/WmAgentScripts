@@ -1,6 +1,6 @@
-cd /data/unified/WmAgentScripts
+cd /data/unified/WmAgentScripts||exit
 
-oweek=`date +%W`
+oweek=$(date +%W)
 week=${oweek#0}
 let oddity=week%2
 
