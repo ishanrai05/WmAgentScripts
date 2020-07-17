@@ -1,9 +1,9 @@
-name: Check Shell Script Syntax
+name: ShellCheck
 
 on: [pull_request]
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
